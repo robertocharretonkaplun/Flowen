@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+/.deps/
+/build*/
+/dist/
+/aqtinstall.log
+/aqtarchives/
+/__pycache__/
+*.sqlite*
