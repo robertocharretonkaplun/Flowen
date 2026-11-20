@@ -35,7 +35,7 @@ art.save(out / "ao-lockup-white.png", optimize=True)
 ink.save(out / "ao-lockup-ink.png", optimize=True)
 
 # For the README and the documentation site, which may be light or dark: the white lockup on a
-# rounded panel of Lunqio oscuro's canvas, readable on any page.
+# rounded panel of Flowen oscuro's canvas, readable on any page.
 pad_x, pad_y, radius = 36, 26, 22
 badge = Image.new("RGBA", (art.width + 2 * pad_x, art.height + 2 * pad_y), (0, 0, 0, 0))
 panel = Image.new("RGBA", badge.size, (35, 27, 25, 255))
@@ -44,4 +44,8 @@ ImageDraw.Draw(mask).rounded_rectangle((0, 0, badge.width - 1, badge.height - 1)
 badge.paste(panel, (0, 0), mask)
 badge.alpha_composite(art, (pad_x, pad_y))
 badge.save(out / "ao-lockup-badge.png", optimize=True)
+# The documentation pages (docs/) use their own copy, so GitHub and Doxygen both find it.
+docs = Path(__file__).resolve().parent.parent / "docs/marca"
+docs.mkdir(parents=True, exist_ok=True)
+badge.save(docs / "attribute-overload.png", optimize=True)
 print(out / "ao-lockup-white.png", art.size)

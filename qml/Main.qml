@@ -6,7 +6,7 @@ import QtQuick.Dialogs as Native
 ApplicationWindow {
     id: win
     width: 1240; height: 800; minimumWidth: 780; minimumHeight: 520
-    visible: true; title: "Lunqio"
+    visible: true; title: "Flowen"
     color: Theme.canvas; font.family: Theme.family; font.pixelSize: 14
     palette.window: Theme.surface; palette.windowText: Theme.text; palette.text: Theme.text
     palette.base: Theme.base; palette.button: Theme.surface; palette.buttonText: Theme.text
@@ -158,7 +158,7 @@ ApplicationWindow {
         change[field] = value
         action("update_page",change)
     }
-    // Templates: Lunqio's own (TemplateStrip) and yours, offered while the page is empty.
+    // Templates: Flowen's own (TemplateStrip) and yours, offered while the page is empty.
     property var userTemplates: []
     readonly property bool pageEmpty: {
         structure; blocks.count
@@ -954,7 +954,7 @@ ApplicationWindow {
         if (kind !== "draft" && !flush()) return
         fileAction = kind
         if (format === "pdf") fileDialog.selectedNameFilter.index = 1
-        fileDialog.selectedFile = backend.suggestedFile(fileDialog.currentFolder,kind === "backup" ? "Copia de Lunqio" : titleInput.text)
+        fileDialog.selectedFile = backend.suggestedFile(fileDialog.currentFolder,kind === "backup" ? "Copia de Flowen" : titleInput.text)
         fileDialog.open()
     }
     Component.onCompleted: {
@@ -1004,7 +1004,7 @@ ApplicationWindow {
                 WorkspaceTab { text: "Editor"; objectName: "editorTab" }
                 WorkspaceTab { text: "Conectores"; objectName: "connectorsTab"; Accessible.name: "Conectores MCP" }
                 WorkspaceTab { text: "Uso"; objectName: "usageTab"; Accessible.name: "Uso de tokens de IA" }
-                WorkspaceTab { text: "Preguntar"; objectName: "askTab"; Accessible.name: "Preguntar a Lunqio sobre tus notas" }
+                WorkspaceTab { text: "Preguntar"; objectName: "askTab"; Accessible.name: "Preguntar a Flowen sobre tus notas" }
                 onCurrentIndexChanged: if (currentIndex === 0 && win.resumeWriting) {
                     win.resumeWriting = false
                     if (writing.selection.id === win.currentId && writing.selection.expected_revision === win.revision) writing.open()

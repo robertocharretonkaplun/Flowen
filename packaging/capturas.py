@@ -2,9 +2,9 @@
 
 1. Run the UI tests in a real window, saving their captures (no -platform offscreen; connectorsFlow
    uses the clipboard, so leave it out):
-       $env:LUNQIO_PREVIEW_DIR = "$env:TEMP\\lunqio-capturas"
+       $env:FLOWEN_PREVIEW_DIR = "$env:TEMP\\flowen-capturas"
        build\\editor_test.exe formattingFlow writingFlow composeFlow askFlow templatesFlow themeFlow favoritesFlow viewModesFlow helpAboutFlow
-2. python packaging/capturas.py "$env:TEMP\\lunqio-capturas" docs/capturas
+2. python packaging/capturas.py "$env:TEMP\\flowen-capturas" docs/capturas
 
 Each picture is scaled to 1400 px wide at most and saved as an optimised PNG.
 """
@@ -15,7 +15,7 @@ from PIL import Image
 
 # Name of the test's capture → name in docs/capturas.
 CHOSEN = {
-    "editor-lunqio-oscuro": "editor",
+    "editor-flowen-oscuro": "editor",
     "formato": "formato",
     "comentario-respuesta": "comentarios",
     "crear-con-ia-propuesta": "crear-con-ia",
@@ -27,6 +27,10 @@ CHOSEN = {
     "guia-atajos": "atajos",
     "acerca-de": "acerca-de",
     "uso": "uso",
+    # The same page in the other three themes, for the themes slide of packaging/recorrido.py.
+    "editor-flowen-claro": "tema-flowen-claro",
+    "editor-claro": "tema-claro",
+    "editor-oscuro": "tema-oscuro",
 }
 WIDTH = 1400
 

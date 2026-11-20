@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import QtQml.Models
-import Lunqio
+import Flowen
 
 // Selection menu modelled on Notion's: it appears beside a text selection once the
 // mouse is released (or the keyboard selection settles) and applies styles in place.

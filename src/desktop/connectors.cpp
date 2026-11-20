@@ -1,4 +1,5 @@
 #include "connectors.h"
+#include "appsettings.h"
 #include "mcplink.h"
 #include "store.h"
 #include <QClipboard>
@@ -120,10 +121,10 @@ void Connector::inspect() {
 }
 void Connector::setEnabled(bool on) {
     if (busy() || !ready()) return;
-    guard = std::make_unique<QLockFile>(QDir::temp().filePath("lunqio-connector-"+id+".lock"));
+    guard = std::make_unique<QLockFile>(QDir::temp().filePath("flowen-connector-"+id+".lock"));
     if (!guard->tryLock(1500)) {
         guard.reset();
-        fail("Otra ventana de Lunqio está cambiando este conector. Inténtalo de nuevo en unos segundos.");
+        fail("Otra ventana de Flowen está cambiando este conector. Inténtalo de nuevo en unos segundos.");
         return;
     }
     wanted = on;
@@ -132,10 +133,10 @@ void Connector::setEnabled(bool on) {
 }
 void Connector::remove() {
     if (busy() || !ready() || !registered()) return;
-    guard = std::make_unique<QLockFile>(QDir::temp().filePath("lunqio-connector-"+id+".lock"));
+    guard = std::make_unique<QLockFile>(QDir::temp().filePath("flowen-connector-"+id+".lock"));
     if (!guard->tryLock(1500)) {
         guard.reset();
-        fail("Otra ventana de Lunqio está cambiando este conector. Inténtalo de nuevo en unos segundos.");
+        fail("Otra ventana de Flowen está cambiando este conector. Inténtalo de nuevo en unos segundos.");
         return;
     }
     wanted = false;
@@ -155,7 +156,7 @@ bool Connector::chooseProgram(const QUrl &file) {
     const QString suffix = info.suffix().toLower();
     if (busy() || !info.isFile() || (suffix != "exe" && suffix != "cmd" && suffix != "bat")) return false;
     setProgram(info.absoluteFilePath());
-    if (!settingsKey().isEmpty()) QSettings("Lunqio","Editor").setValue(settingsKey(),exe);
+    if (!settingsKey().isEmpty()) appSettings().setValue(settingsKey(),exe);
     inspect();
     return true;
 }
@@ -165,13 +166,20 @@ QStringList Connector::serverArgs() const { return {"--db",native(database)}; }
 // An entry belongs to this library when it starts notas-mcp for the same database file.
 // If that notas-mcp no longer exists (the package moved), the entry is stale.
 Connector::Match Connector::classify(const QString &command, QStringList args, const QJsonObject &env) const {
+    lastLegacy = false;
     const QFileInfo server(command);
     if (server.completeBaseName().compare("notas-mcp",Qt::CaseInsensitive) != 0) return Match::None;
     args.removeAll(QStringLiteral("--read-only"));
     QString db;
-    if (args.isEmpty()) db = env.value("LUNQIO_DB").toString(notes::Store::defaultPath());
+    if (args.isEmpty()) db = env.value("FLOWEN_DB").toString(env.value("LUNQIO_DB").toString(notes::Store::defaultPath()));
     else if (args.size() == 2 && args[0] == "--db") db = args[1];
     else return Match::None;
+    // Registered by Lunqio for the library Flowen has copied: it has to point at Flowen's from now on.
+    if (notes::samePath(db,notes::Store::legacyPath()) && notes::samePath(database,notes::Store::defaultPath())
+        && !notes::samePath(database,db)) {
+        lastLegacy = true;
+        return Match::Stale;
+    }
     if (QFileInfo(db) != QFileInfo(database)) return Match::None;
     return server.isFile() ? Match::Ours : Match::Stale;
 }
@@ -182,15 +190,15 @@ QList<Connector::Entry> Connector::scanJson(const QJsonObject &servers) const {
         QStringList args;
         for (const auto &a : server["args"].toArray()) args << a.toString();
         const auto match = classify(server["command"].toString(),args,server["env"].toObject());
-        if (match != Match::None) out.append({it.key(),match,!server["disabled"].toBool(false)});
+        if (match != Match::None) out.append({it.key(),match,!server["disabled"].toBool(false),lastLegacy});
     }
     return out;
 }
-// Keep "lunqio" for the first library; other libraries get a stable suffix.
+// Keep "flowen" for the first library; other libraries get a stable suffix.
 QString Connector::freeName(const QStringList &taken) const {
-    if (!taken.contains("lunqio")) return "lunqio";
+    if (!taken.contains("flowen")) return "flowen";
     const auto key = QDir::cleanPath(database).toCaseFolded().toUtf8();
-    const QString base = "lunqio-"+QString::fromLatin1(QCryptographicHash::hash(key,QCryptographicHash::Sha256).toHex().left(10));
+    const QString base = "flowen-"+QString::fromLatin1(QCryptographicHash::hash(key,QCryptographicHash::Sha256).toHex().left(10));
     QString candidate = base;
     for (int i = 2; taken.contains(candidate); ++i) candidate = base+"-"+QString::number(i);
     return candidate;
@@ -203,13 +211,20 @@ void Connector::adopt(const QList<Entry> &found) {
     present = best != nullptr;
     active = present && best->enabled;
     stale = !present && !entries.isEmpty();
+    migrating = !present && std::any_of(entries.begin(),entries.end(),[](const Entry &e) { return e.legacy && e.enabled; });
     name = best ? best->name : stale ? entries.first().name : QString();
 }
 void Connector::settle(const QString &on, const QString &paused, const QString &off) {
     if (active) report("on",on.arg(name));
     else if (present) report("paused",paused.arg(name));
-    else if (stale) report("outdated",QString("«%1» apunta a una copia de Lunqio que ya no existe. Actívalo para actualizar la ruta.").arg(name));
+    else if (stale) report("outdated",QString("«%1» apunta a una copia anterior de Flowen o de Lunqio. Actívalo para actualizar la ruta.").arg(name));
     else report("off",off);
+    // A connector Lunqio left on moves to Flowen's library by itself, once: it was on, and the notes it
+    // pointed at were copied to Flowen. Otherwise the assistant would keep writing in the old copy.
+    if (migrating && !migrated && ready()) {
+        migrated = true;
+        QMetaObject::invokeMethod(this,[this] { setEnabled(true); },Qt::QueuedConnection);
+    }
 }
 void Connector::run(const QStringList &args, Done done) {
     if (process.state() != QProcess::NotRunning) { fail(heading+" sigue ocupado. Vuelve a intentarlo."); return; }
@@ -256,7 +271,7 @@ ClaudeDesktopConnector::ClaudeDesktopConnector(const QString &db, QString config
     where = fixed ? config : findConfig();
 }
 QString ClaudeDesktopConnector::findConfig() {
-    const QString forced = qEnvironmentVariable("LUNQIO_CLAUDE_DESKTOP_CONFIG");
+    const QString forced = notes::environment("CLAUDE_DESKTOP_CONFIG");
     if (!forced.isEmpty()) return forced;
     const QString local = qEnvironmentVariable("LOCALAPPDATA"), roaming = qEnvironmentVariable("APPDATA");
     QStringList candidates;
@@ -294,7 +309,7 @@ bool ClaudeDesktopConnector::read(QJsonObject &config) {
 bool ClaudeDesktopConnector::write(const QJsonObject &config) {
     QDir().mkpath(QFileInfo(where).absolutePath());
     if (QFileInfo::exists(where)) {
-        const QString backup = where+".lunqio-backup";
+        const QString backup = where+".flowen-backup";
         QFile::remove(backup);
         QFile::copy(where,backup);
     }
@@ -303,20 +318,20 @@ bool ClaudeDesktopConnector::write(const QJsonObject &config) {
         fail("No se pudo guardar la configuración de Claude Desktop. Revisa los permisos de la carpeta.");
         return false;
     }
-    if (watching()) QSettings("Lunqio","Editor").setValue("claudeDesktopWrittenAt",QDateTime::currentDateTimeUtc());
+    if (watching()) appSettings().setValue("claudeDesktopWrittenAt",QDateTime::currentDateTimeUtc());
     return true;
 }
 // Only the real configuration belongs to the running Claude Desktop.
 bool ClaudeDesktopConnector::watching() const {
-    return !fixed && qEnvironmentVariableIsEmpty("LUNQIO_CLAUDE_DESKTOP_CONFIG");
+    return !fixed && notes::environment("CLAUDE_DESKTOP_CONFIG").isEmpty();
 }
 // Claude Desktop reads its configuration once, at start. Until it restarts, the change is not live.
 void ClaudeDesktopConnector::flagRestart() {
     if (!watching() || (status != "on" && status != "off")) return;
-    // Claude also rewrites this file while it runs, so only Lunqio's own writes count:
+    // Claude also rewrites this file while it runs, so only Flowen's own writes count:
     // the recorded time, or when the backup made before each write was created.
-    QDateTime written = QSettings("Lunqio","Editor").value("claudeDesktopWrittenAt").toDateTime();
-    const QDateTime backup = QFileInfo(where+".lunqio-backup").birthTime();
+    QDateTime written = appSettings().value("claudeDesktopWrittenAt").toDateTime();
+    const QDateTime backup = QFileInfo(where+".flowen-backup").birthTime();
     if (backup.isValid() && (!written.isValid() || backup > written)) written = backup;
     const QDateTime started = claudeDesktopStarted();
     if (!written.isValid() || !started.isValid() || started > written) return;
@@ -346,7 +361,7 @@ void ClaudeDesktopConnector::apply(bool on) {
     for (const auto &e : mine) {
         if (!on || e.match == Match::Stale) {
             servers.remove(e.name);
-            if (e.match == Match::Stale && reuse.isEmpty()) reuse = e.name;
+            if (e.match == Match::Stale && !e.legacy && reuse.isEmpty()) reuse = e.name;
         } else if (!e.enabled) {
             auto server = servers[e.name].toObject();
             server.remove("disabled");
@@ -380,7 +395,7 @@ QString ClaudeCodeConnector::configFile() {
     return QDir(dir.isEmpty() ? QDir::homePath() : dir).filePath(".claude.json");
 }
 QString ClaudeCodeConnector::findProgram() {
-    const QString saved = QSettings("Lunqio","Editor").value("claudeExecutable").toString();
+    const QString saved = appSettings().value("claudeExecutable").toString();
     if (QFileInfo(saved).isFile()) return saved;
     const QString path = QStandardPaths::findExecutable("claude");
     if (!path.isEmpty()) return path;
@@ -436,7 +451,7 @@ void ClaudeCodeConnector::apply(bool on) {
         if (on && e.match == Match::Ours) continue;
         steps << QStringList{"mcp","remove","-s","user",e.name};
         taken.removeAll(e.name);
-        if (e.match == Match::Stale && reuse.isEmpty()) reuse = e.name;
+        if (e.match == Match::Stale && !e.legacy && reuse.isEmpty()) reuse = e.name;
     }
     if (on && !ours)
         steps << QStringList{"mcp","add","-s","user",reuse.isEmpty() ? freeName(taken) : reuse,"--",serverCommand()}+serverArgs();
@@ -455,7 +470,7 @@ QString CodexConnector::configFile() {
     return QDir(home.isEmpty() ? QDir::home().filePath(".codex") : home).filePath("config.toml");
 }
 QString CodexConnector::findProgram() {
-    const QString saved = QSettings("Lunqio","Editor").value("codexExecutable").toString();
+    const QString saved = appSettings().value("codexExecutable").toString();
     if (QFileInfo(saved).isExecutable()) return saved;
     QString path = QStandardPaths::findExecutable("codex");
     if (!path.isEmpty()) return path;
@@ -497,7 +512,7 @@ void CodexConnector::list(std::function<void(QStringList)> next) {
             QStringList args;
             for (const auto &a : transport["args"].toArray()) args << a.toString();
             const auto match = classify(transport["command"].toString(),args,transport["env"].toObject());
-            if (match != Match::None) found.append({server["name"].toString(),match,server["enabled"].toBool(true)});
+            if (match != Match::None) found.append({server["name"].toString(),match,server["enabled"].toBool(true),lastLegacy});
         }
         adopt(found);
         next(names);
@@ -548,7 +563,7 @@ void CodexConnector::apply(bool on) {
                 if (!on) continue;
                 steps << QStringList{"mcp","remove",e.name};
                 taken.removeAll(e.name);
-                if (reuse.isEmpty()) reuse = e.name;
+                if (!e.legacy && reuse.isEmpty()) reuse = e.name;
             } else if (e.enabled != on && !toggle(e.name,on)) return;
         }
         if (on && !present)
@@ -576,6 +591,6 @@ void Connectors::inspectAll() {
 }
 void Connectors::copyConfiguration() const {
     const Obj server{{"command",native(McpLink::serverPath())},{"args",QJsonArray{"--db",native(database)}}};
-    const Obj config{{"mcpServers",Obj{{"lunqio",server}}}};
+    const Obj config{{"mcpServers",Obj{{"flowen",server}}}};
     QGuiApplication::clipboard()->setText(QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Indented)));
 }

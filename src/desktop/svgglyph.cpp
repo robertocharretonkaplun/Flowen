@@ -42,10 +42,10 @@ SvgGlyph::SvgGlyph(QQuickItem *parent) : QQuickPaintedItem(parent) {
     setFlag(ItemHasContents,true);
     connect(this,&SvgGlyph::changed,this,[this] { update(); });
 }
-// Registers Lunqio's painted items: the symbols and the photos.
+// Registers Flowen's painted items: the symbols and the photos.
 void SvgGlyph::registerType() {
-    qmlRegisterType<SvgGlyph>("Lunqio",1,0,"SvgGlyph");
-    qmlRegisterType<PhotoView>("Lunqio",1,0,"PhotoView");
+    qmlRegisterType<SvgGlyph>("Flowen",1,0,"SvgGlyph");
+    qmlRegisterType<PhotoView>("Flowen",1,0,"PhotoView");
 }
 PhotoView::PhotoView(QQuickItem *parent) : QQuickPaintedItem(parent) {
     setAntialiasing(true);

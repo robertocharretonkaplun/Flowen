@@ -1,4 +1,4 @@
-"""Builds the app icons from the artwork: assets/lunqio.ico (exe and taskbar) and PNGs for the window.
+"""Builds the app icons from the artwork: assets/flowen.ico (exe and taskbar) and PNGs for the window.
 
 Usage: python packaging/icon.py Lunquio-icon.png assets
 Only the shape connected to the center is kept, so specks left by background removal disappear.
@@ -32,7 +32,7 @@ square.paste(art, (round(side / 2 - cx), round(side / 2 - cy)))
 
 out.mkdir(parents=True, exist_ok=True)
 sizes = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
-square.resize((256, 256), Image.LANCZOS).save(out / "lunqio.ico", sizes=[(s, s) for s in sizes])
+square.resize((256, 256), Image.LANCZOS).save(out / "flowen.ico", sizes=[(s, s) for s in sizes])
 for s in (64, 256):
-    square.resize((s, s), Image.LANCZOS).save(out / f"lunqio-{s}.png", optimize=True)
+    square.resize((s, s), Image.LANCZOS).save(out / f"flowen-{s}.png", optimize=True)
 print(f"{source.name}: {w}x{h} -> {side}x{side}, icons in {out}")

@@ -239,7 +239,7 @@ static void printable(notes::Store &store,const Obj &page,QSaveFile &file) {
         if (image.isNull()) fail("No se pudo preparar una foto para el PDF.");
         const QSize display = image.size().scaled(qMax(1,(area.width()-2)*b["width_percent"].toInt()/100),
                                                   area.height()-50,Qt::KeepAspectRatio);
-        const QUrl resource("lunqio:/"+asset+"/"+QString::number(display.width()));
+        const QUrl resource("flowen:/"+asset+"/"+QString::number(display.width()));
         doc.addResource(QTextDocument::ImageResource,resource,image.scaled(display*2,Qt::KeepAspectRatio,Qt::SmoothTransformation));
         const QString align = b["align"].toString().isEmpty() ? QStringLiteral("left") : b["align"].toString();
         html += QString("<p align=\"%4\"><img src=\"%1\" width=\"%2\" height=\"%3\"></p>").arg(resource.toString()).arg(display.width()).arg(display.height()).arg(align);

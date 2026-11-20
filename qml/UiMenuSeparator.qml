@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 
-// A thin line between groups of a Lunqio menu.
+// A thin line between groups of a Flowen menu.
 MenuSeparator {
     topPadding: 4; bottomPadding: 4; leftPadding: 10; rightPadding: 10
     height: visible ? implicitHeight : 0

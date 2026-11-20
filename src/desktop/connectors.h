@@ -53,7 +53,8 @@ signals:
     void changed();
 protected:
     enum class Match { None, Ours, Stale };
-    struct Entry { QString name; Match match = Match::None; bool enabled = true; };
+    /// `legacy`: an entry registered by Lunqio, Flowen's former name, for the library Flowen copied over.
+    struct Entry { QString name; Match match = Match::None; bool enabled = true; bool legacy = false; };
     using Done = std::function<void(int,const QByteArray &,const QByteArray &)>;
     virtual void check() = 0;              // inspect and report a final state
     virtual void apply(bool on) = 0;       // runs while the state is "applying"
@@ -73,6 +74,9 @@ protected:
     QString database, exe, where, name, status = "idle", message;
     QList<Entry> entries;
     bool present = false, active = false, stale = false, wanted = false;
+    /// An enabled Lunqio entry is moved to Flowen's library once, by itself (see settle()).
+    bool migrating = false, migrated = false;
+    mutable bool lastLegacy = false;      // set by classify() for the entry it just looked at
 private:
     QString id, heading, about, glyph;
     QProcess process;

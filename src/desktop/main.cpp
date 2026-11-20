@@ -1,3 +1,4 @@
+#include "appsettings.h"
 #include "editor.h"
 #include "inlineeditor.h"
 #include "svgglyph.h"
@@ -14,9 +15,9 @@
 
 int main(int argc, char **argv) {
     QGuiApplication app(argc,argv);
-    app.setApplicationName("Lunqio");
-    app.setApplicationVersion(LUNQIO_VERSION);
-    app.setWindowIcon(QIcon(":/assets/lunqio-256.png"));
+    app.setApplicationName("Flowen");
+    app.setApplicationVersion(FLOWEN_VERSION);
+    app.setWindowIcon(QIcon(":/assets/flowen-256.png"));
     // The interface is in Spanish: dates and times follow it ("mié", "4:40 p.m."), keeping a Spanish system region.
     const QLocale system = QLocale::system();
     QLocale::setDefault(system.language() == QLocale::Spanish ? system : QLocale(QLocale::Spanish,QLocale::Mexico));
@@ -25,7 +26,10 @@ int main(int argc, char **argv) {
     cli.addOption({"db","Ruta absoluta de la biblioteca.","archivo",notes::Store::defaultPath()});
     cli.process(app);
     try {
-        notes::Store store(cli.value("db"));
+        // Flowen used to be Lunqio: the first start brings Lunqio's notes and preferences along.
+        notes::Store::adoptLunqio(cli.value("db"));
+        adoptLunqioSettings();
+        notes::Store store(notes::Store::resolve(cli.value("db")));
         Editor editor(store);
         QQuickStyle::setStyle("Basic");
         InlineEditor::registerType();
@@ -38,7 +42,7 @@ int main(int argc, char **argv) {
     } catch (const std::exception &e) {
         qCritical("%s",e.what());
 #ifdef Q_OS_WIN
-        MessageBoxW(nullptr,reinterpret_cast<LPCWSTR>(QString::fromUtf8(e.what()).utf16()),L"Lunqio",MB_ICONERROR);
+        MessageBoxW(nullptr,reinterpret_cast<LPCWSTR>(QString::fromUtf8(e.what()).utf16()),L"Flowen",MB_ICONERROR);
 #endif
         return 1;
     }

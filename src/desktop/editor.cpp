@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "appsettings.h"
 #include "pagefile.h"
 #include <QBuffer>
 #include <QClipboard>
@@ -17,7 +18,7 @@
 #endif
 
 using Obj = QJsonObject;
-static QSettings preferences() { return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor"); }
+static QSettings preferences() { return appSettings(); }
 Editor::Editor(notes::Store &store, const QString &codex, const QString &claude) : store(store), writing(store.path(),codex,claude) {
     connect(QGuiApplication::clipboard(),&QClipboard::dataChanged,this,&Editor::clipboardChanged);
 }
@@ -28,12 +29,12 @@ QVariant Editor::preference(const QString &key, const QVariant &fallback) const 
 void Editor::setPreference(const QString &key, const QVariant &value) {
     if (!key.isEmpty()) preferences().setValue("ui/"+key,value);
 }
-// Lunqio oscuro/claro, the usual Claro ("white") and Oscuro ("black"), or Claro/Oscuro as Windows is.
+// Flowen oscuro/claro, the usual Claro ("white") and Oscuro ("black"), or Claro/Oscuro as Windows is.
 static bool knownTheme(const QString &value) {
     return value == "dark" || value == "light" || value == "white" || value == "black" || value == "system";
 }
 QString Editor::theme() const {
-    const QString forced = qEnvironmentVariable("LUNQIO_THEME");
+    const QString forced = notes::environment("THEME");
     if (knownTheme(forced)) return forced;
     const QString saved = preferences().value("theme").toString();
     return knownTheme(saved) ? saved : QStringLiteral("dark");

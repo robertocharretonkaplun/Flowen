@@ -1,2 +1,0 @@
-// Icon of lunqio.exe in Explorer, the taskbar and Alt+Tab. Rebuild it with packaging/icon.py.
-IDI_ICON1 ICON "lunqio.ico"

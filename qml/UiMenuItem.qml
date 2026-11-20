@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// A row of a Lunqio menu: symbol, label, shortcut (or a check), and an arrow for submenus.
+// A row of a Flowen menu: symbol, label, shortcut (or a check), and an arrow for submenus.
 // Labels written "Deshacer    Ctrl+Z" show the part after the four spaces as the shortcut.
 // Hidden rows take no room, so menus can change with what was clicked.
 MenuItem {

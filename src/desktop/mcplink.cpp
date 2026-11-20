@@ -1,4 +1,5 @@
 #include "mcplink.h"
+#include "appsettings.h"
 #include <QCoreApplication>
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -7,7 +8,7 @@
 
 using Obj = QJsonObject;
 static QSettings preferences() {
-    return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor");
+    return appSettings();
 }
 McpLink::McpLink(QString path, QObject *parent) : QObject(parent), database(std::move(path)) {
     automatic = preferences().value("mcpAutoConnect",true).toBool();
@@ -71,15 +72,15 @@ void McpLink::open() {
     process->setStandardErrorFile(QProcess::nullDevice());
     connect(process,&QProcess::readyReadStandardOutput,this,&McpLink::consume);
     connect(process,&QProcess::errorOccurred,this,[this](QProcess::ProcessError error) {
-        if (error == QProcess::FailedToStart) stop("No se pudo iniciar notas-mcp. Comprueba que está junto a Lunqio.");
+        if (error == QProcess::FailedToStart) stop("No se pudo iniciar notas-mcp. Comprueba que está junto a Flowen.");
     });
     connect(process,&QProcess::finished,this,[this]{ stop("El proceso MCP local se cerró."); });
     connect(process,&QProcess::started,this,[this] {
         rpc("initialize",{{"protocolVersion","2025-11-25"},{"capabilities",Obj{}},
-            {"clientInfo",Obj{{"name","lunqio-desktop"},{"version",LUNQIO_VERSION}}}},[this](Obj result,QString error) {
+            {"clientInfo",Obj{{"name","flowen-desktop"},{"version",FLOWEN_VERSION}}}},[this](Obj result,QString error) {
             if (!process) return;
             if (!error.isEmpty() || result["protocolVersion"] != "2025-11-25" || !result["capabilities"].toObject().contains("tools")) {
-                stop("El servidor no admite la conexión MCP de Lunqio."); return;
+                stop("El servidor no admite la conexión MCP de Flowen."); return;
             }
             send({{"jsonrpc","2.0"},{"method","notifications/initialized"}});
             rpc("tools/list",{},[this](Obj list,QString why) {

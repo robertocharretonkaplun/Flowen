@@ -182,13 +182,13 @@ ScrollView {
                 }
                 Detail {
                     text: page.connected || page.connecting
-                          ? "La usa «Editar con IA» dentro de Lunqio. Cada cliente abre su propia conexión, incluso con Lunqio cerrado."
+                          ? "La usa «Editar con IA» dentro de Flowen. Cada cliente abre su propia conexión, incluso con Flowen cerrado."
                           : (page.link.detail || "Actívala para usar «Editar con IA». Los clientes conectados siguen funcionando aunque esté apagada.")
                 }
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.raised }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 12
-                    CheckBox { checked: page.link.autoConnect; text: "Conectar al abrir Lunqio"; onToggled: page.link.autoConnect = checked }
+                    CheckBox { checked: page.link.autoConnect; text: "Conectar al abrir Flowen"; onToggled: page.link.autoConnect = checked }
                     Item { Layout.fillWidth: true }
                     Label {
                         Layout.maximumWidth: 330; text: page.link.databasePath.replace(/\//g,"\\"); elide: Text.ElideMiddle
@@ -198,7 +198,7 @@ ScrollView {
             }
         }
 
-        Section { text: "IA dentro de Lunqio" }
+        Section { text: "IA dentro de Flowen" }
         Card {
             implicitHeight: writer.implicitHeight+32
             ColumnLayout {
@@ -227,7 +227,7 @@ ScrollView {
                 RowLayout {
                     visible: page.assistant.engine === "claude" && page.assistant.engineReady && page.assistant.claudeAccount === "out"
                     Layout.fillWidth: true; spacing: 10
-                    Detail { text: "La copia de Claude Code que usa Lunqio necesita que inicies sesión una vez. Se abrirá una ventana para hacerlo con tu cuenta de Claude."; color: Theme.warning }
+                    Detail { text: "La copia de Claude Code que usa Flowen necesita que inicies sesión una vez. Se abrirá una ventana para hacerlo con tu cuenta de Claude."; color: Theme.warning }
                     UiButton { text: "Iniciar sesión"; primary: true; onClicked: page.assistant.signInClaude() }
                     UiButton { text: "Comprobar"; quiet: true; onClicked: page.assistant.checkClaude() }
                 }

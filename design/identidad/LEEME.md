@@ -1,6 +1,6 @@
-# Lunqio · Pluma y diálogo
+# Flowen · Pluma y diálogo
 
-El paquete parte del ícono naranja de Lunqio. El original a color se usa en el lanzador. El símbolo monocromo y las firmas horizontales se usan en cabeceras, menús y documentos.
+El paquete parte del ícono naranja de Flowen. El original a color se usa en el lanzador. El símbolo monocromo y las firmas horizontales se usan en cabeceras, menús y documentos.
 
 ## Archivos del sistema
 

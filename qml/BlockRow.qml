@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import QtQml.Models
-import Lunqio
+import Flowen
 
 // One block of the page. Like Notion: Enter starts a new block, Backspace at the start joins
 // it to the previous one, "/" opens the block menu, Tab nests it, and ⋮⋮ in the margin drags it.

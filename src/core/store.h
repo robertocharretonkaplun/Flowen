@@ -4,14 +4,30 @@
 #include <QSqlQuery>
 
 /// The library: pages, their blocks, revisions, photos and comments in one SQLite file, shared by the
-/// window (Lunqio) and the MCP server (notas-mcp).
+/// window (Flowen) and the MCP server (notas-mcp).
 namespace notes {
+/// The environment variable FLOWEN_<name> (DB, THEME, USAGE_FILE…), or LUNQIO_<name> as it was called
+/// before Flowen was renamed.
+QString environment(const QString &name);
+/// Whether two paths name the same file, whether or not it exists yet (QFileInfo's == does not tell
+/// two missing files apart). Letter case does not count on Windows.
+bool samePath(const QString &a, const QString &b);
 /// One open library. Every change goes through the contract (contract.h) and keeps a revision, so the
 /// window and MCP clients can edit the same pages and notice conflicts (`expected_revision`).
 class Store {
 public:
-    /// Where the library lives unless LUNQIO_DB says otherwise (the user's application data folder).
+    /// Where the library lives unless FLOWEN_DB says otherwise (the user's application data folder).
     static QString defaultPath();
+    /// Where Lunqio, Flowen's former name, kept the library.
+    static QString legacyPath();
+    /// The library to open for `path`: Flowen's own when `path` is Lunqio's former library and it was
+    /// already copied over, so MCP entries registered before the rename reach the current notes.
+    static QString resolve(const QString &path);
+    /// The first time Flowen (or its MCP server) opens its usual library after being Lunqio, copies
+    /// Lunqio's library and usage log into the Flowen folder; Lunqio's files stay as they were.
+    /// `requested` is the library about to be opened: any other file (a test, --db elsewhere) copies
+    /// nothing. True when it copied.
+    static bool adoptLunqio(const QString &requested);
     /// The SQLite file this store has open.
     QString path() const { return db.databaseName(); }
     /// Opens (and if needed creates or upgrades) the library at `path`; `readOnly` only allows the read tools.
@@ -39,7 +55,7 @@ public:
     void setFavorite(const QString &id, bool on, int index = -1);
     /// Records that a page was opened, for Recientes; it creates no revision.
     void visit(const QString &id);
-    /// The passages most related to a question, for Preguntar a Lunqio (`current` first if it is relevant).
+    /// The passages most related to a question, for Preguntar a Flowen (`current` first if it is relevant).
     QJsonArray notesFor(const QString &question, const QString &current, int limit = 6);
     /// The templates saved from pages.
     QJsonArray templates();

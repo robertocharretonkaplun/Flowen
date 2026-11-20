@@ -1,7 +1,7 @@
 import QtQuick
-import Lunqio
+import Flowen
 
-// A symbol from Lunqio's icon set (design/identidad/iconografia): a 24-unit drawing with a 1.8 stroke.
+// A symbol from Flowen's icon set (design/identidad/iconografia): a 24-unit drawing with a 1.8 stroke.
 // In the default ink the outline is ivory and the detail coral, as the identity shows; any other
 // color (a state, a muted control, text on the accent) draws the whole symbol in that color.
 Item {

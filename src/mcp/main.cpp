@@ -54,7 +54,7 @@ public:
             QString version = params["protocolVersion"].toString();
             if (version != "2025-06-18" && version != "2025-03-26") version = "2025-11-25";
             state = Negotiated;
-            return send(id,"result",{{"protocolVersion",version},{"serverInfo",Obj{{"name","lunqio"},{"version",LUNQIO_VERSION}}},
+            return send(id,"result",{{"protocolVersion",version},{"serverInfo",Obj{{"name","flowen"},{"version",FLOWEN_VERSION}}},
                                      {"capabilities",Obj{{"tools",Obj{}}}}});
         }
         if (state != Ready) return fail(id,-32002,"Initialize the session first");
@@ -87,7 +87,9 @@ int main(int argc, char **argv) {
 #endif
     try {
         bool ro = cli.isSet("read-only");
-        notes::Store store(cli.value("db"),ro);
+        // Started before Flowen ever ran (or by an entry registered as Lunqio): bring the notes along first.
+        if (!ro) notes::Store::adoptLunqio(cli.value("db"));
+        notes::Store store(notes::Store::resolve(cli.value("db")),ro);
         Session session(store,ro);
         QByteArray line;
         bool overflow = false;

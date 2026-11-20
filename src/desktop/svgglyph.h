@@ -4,7 +4,7 @@
 #include <QQuickPaintedItem>
 #include <QUrl>
 
-/// One symbol of Lunqio's icon set (assets/glyphs, from design/identidad). The SVGs are drawn in two
+/// One symbol of Flowen's icon set (assets/glyphs, from design/identidad). The SVGs are drawn in two
 /// inks: the outline (#2C1312 in the files) takes `color` and the detail (#C83918) takes `accent`.
 class SvgGlyph : public QQuickPaintedItem {
     Q_OBJECT

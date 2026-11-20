@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory)][string]$BuildDir,
     [Parameter(Mandatory)][string]$QtDir,
     [string]$CrtDir,
-    [string]$OutputDir = (Join-Path $PSScriptRoot '../dist/Lunqio-x64')
+    [string]$OutputDir = (Join-Path $PSScriptRoot '../dist/Flowen-x64')
 )
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -23,14 +23,14 @@ if (-not (Test-Path (Join-Path $CrtDir 'msvcp140.dll'))) {
 $stage = Join-Path (Split-Path $target) ('.stage-' + [guid]::NewGuid().ToString('N'))
 $out = Join-Path $stage (Split-Path $target -Leaf)
 New-Item -ItemType Directory -Path $out -Force | Out-Null
-foreach ($exe in @('lunqio.exe','notas-mcp.exe')) {
+foreach ($exe in @('flowen.exe','notas-mcp.exe')) {
     Copy-Item -LiteralPath (Join-Path $build $exe) -Destination $out
 }
 $deploy = Join-Path $qt 'bin/windeployqt.exe'
 $previousPath = $env:PATH
 try {
     $env:PATH = (Join-Path $qt 'bin') + ';' + $previousPath
-    & $deploy --release --qmldir (Join-Path $repo 'qml') --no-translations --no-compiler-runtime --exclude-plugins qsqlmimer,qsqlodbc,qsqlpsql (Join-Path $out 'lunqio.exe') (Join-Path $out 'notas-mcp.exe')
+    & $deploy --release --qmldir (Join-Path $repo 'qml') --no-translations --no-compiler-runtime --exclude-plugins qsqlmimer,qsqlodbc,qsqlpsql (Join-Path $out 'flowen.exe') (Join-Path $out 'notas-mcp.exe')
     if ($LASTEXITCODE -ne 0) { throw 'windeployqt falló.' }
 } finally {
     $env:PATH = $previousPath

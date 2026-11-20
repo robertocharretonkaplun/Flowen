@@ -12,7 +12,7 @@ from time import monotonic
 
 def smoke(server, work):
     db = work / "aceptación.sqlite3"
-    config = "mcp_servers={lunqio_prueba={command=" + json.dumps(server.as_posix()) + \
+    config = "mcp_servers={flowen_prueba={command=" + json.dumps(server.as_posix()) + \
              ",args=[\"--db\"," + json.dumps(db.as_posix(), ensure_ascii=False) + "]}}"
     proc = subprocess.Popen([shutil.which("codex") or "codex", "-c", config, "app-server"],
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -44,14 +44,14 @@ def smoke(server, work):
                     raise RuntimeError(f"{method}: {reply['error']}")
                 return reply["result"]
     try:
-        rpc("initialize", {"clientInfo":{"name":"lunqio_acceptance","version":"1"},
+        rpc("initialize", {"clientInfo":{"name":"flowen_acceptance","version":"1"},
                            "capabilities":{"experimentalApi": True}})
         send({"method":"initialized","params":{}})
         thread = rpc("thread/start", {"cwd":str(work), "ephemeral":True})["thread"]["id"]
-        status = rpc("mcpServerStatus/list", {"threadId":thread,"serverName":"lunqio_prueba"})
+        status = rpc("mcpServerStatus/list", {"threadId":thread,"serverName":"flowen_prueba"})
         assert len(status["data"][0]["tools"]) == 8, "Codex no descubrió las ocho herramientas."
         def tool(name, **args):
-            result = rpc("mcpServer/tool/call", {"threadId":thread, "server":"lunqio_prueba",
+            result = rpc("mcpServer/tool/call", {"threadId":thread, "server":"flowen_prueba",
                          "tool":name, "arguments":args})
             assert not result.get("isError"), result
             return json.loads(result["content"][0]["text"])

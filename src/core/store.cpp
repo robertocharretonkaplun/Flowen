@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <QDateTime>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QHash>
@@ -24,10 +25,53 @@ QSqlQuery Store::sql(const QString &statement, const QVariantList &values) {
     if (!q.exec()) databaseError(q.lastError());
     return q;
 }
+QString environment(const QString &name) {
+    const QString value = qEnvironmentVariable(qPrintable("FLOWEN_"+name));
+    return value.isEmpty() ? qEnvironmentVariable(qPrintable("LUNQIO_"+name)) : value;
+}
+bool samePath(const QString &a, const QString &b) {
+#ifdef Q_OS_WIN
+    const auto letters = Qt::CaseInsensitive;
+#else
+    const auto letters = Qt::CaseSensitive;
+#endif
+    return QDir::cleanPath(QFileInfo(a).absoluteFilePath()).compare(QDir::cleanPath(QFileInfo(b).absoluteFilePath()),letters) == 0;
+}
+static QDir dataFolder() { return QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)); }
 QString Store::defaultPath() {
-    QString custom = qEnvironmentVariable("LUNQIO_DB");
+    const QString custom = environment("DB");
     if (!custom.isEmpty()) return custom;
-    return QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).filePath("Lunqio/notas.sqlite3");
+    return dataFolder().filePath("Flowen/notas.sqlite3");
+}
+QString Store::legacyPath() { return dataFolder().filePath("Lunqio/notas.sqlite3"); }
+QString Store::resolve(const QString &path) {
+    if (!environment("DB").isEmpty() || !samePath(path,legacyPath())) return path;
+    const QString current = defaultPath();
+    return QFileInfo::exists(current) ? current : path;
+}
+bool Store::adoptLunqio(const QString &requested) {
+    if (!environment("DB").isEmpty()) return false;
+    const QFileInfo target(defaultPath()), old(legacyPath());
+    if (!samePath(requested,target.absoluteFilePath()) && !samePath(requested,old.absoluteFilePath())) return false;
+    if (target.exists() || !old.exists() || !target.absoluteDir().mkpath(".")) return false;
+    // Flowen and its MCP server may start at the same moment: one copies, the other waits.
+    QLockFile lock(target.absoluteDir().filePath(".adopcion.lock"));
+    if (!lock.tryLock(15000) || QFileInfo::exists(target.absoluteFilePath())) return false;
+    try {
+        Store legacy(old.absoluteFilePath());
+        legacy.backup(target.absoluteFilePath());
+    } catch (const Error &) {
+        QFile::remove(target.absoluteFilePath());
+        return false;
+    }
+    const QString usage = old.absoluteDir().filePath("usage.jsonl");
+    if (QFileInfo::exists(usage)) QFile::copy(usage,target.absoluteDir().filePath("usage.jsonl"));
+    QFile note(old.absoluteDir().filePath("LEEME - ahora en Flowen.txt"));
+    if (note.open(QIODevice::WriteOnly | QIODevice::Text))
+        note.write(("Lunqio ahora se llama Flowen. Tus notas se copiaron el "+QDateTime::currentDateTime().toString("dd/MM/yyyy hh:mm")+
+                    " a:\r\n"+QDir::toNativeSeparators(target.absoluteFilePath())+
+                    "\r\n\r\nEsta copia de Lunqio queda como estaba y Flowen ya no la usa.\r\n").toUtf8());
+    return true;
 }
 Store::Store(const QString &path, bool ro) : db(QSqlDatabase::addDatabase("QSQLITE",newId())), readOnly(ro) {
     QFileInfo file(path);

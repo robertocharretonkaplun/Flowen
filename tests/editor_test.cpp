@@ -45,10 +45,10 @@ private slots:
         // Never read or write the real client configurations while testing.
         for (const auto &dir : {"claude","codex","desktop"}) QVERIFY(QDir(preferences.path()).mkpath(dir));
         qputenv("CLAUDE_CONFIG_DIR",QFile::encodeName(QDir(preferences.path()).filePath("claude")));
-        qputenv("LUNQIO_CLAUDE_DESKTOP_CONFIG",QFile::encodeName(QDir(preferences.path()).filePath("desktop/claude_desktop_config.json")));
-        if (!qEnvironmentVariableIsSet("LUNQIO_TEST_LIVE_CODEX"))
+        qputenv("FLOWEN_CLAUDE_DESKTOP_CONFIG",QFile::encodeName(QDir(preferences.path()).filePath("desktop/claude_desktop_config.json")));
+        if (!qEnvironmentVariableIsSet("FLOWEN_TEST_LIVE_CODEX"))
             qputenv("CODEX_HOME",QFile::encodeName(QDir(preferences.path()).filePath("codex")));
-        qputenv("LUNQIO_USAGE_FILE",QFile::encodeName(QDir(preferences.path()).filePath("usage.jsonl")));
+        qputenv("FLOWEN_USAGE_FILE",QFile::encodeName(QDir(preferences.path()).filePath("usage.jsonl")));
     }
     void formattingFlow() {
         QTemporaryDir temp;
@@ -79,7 +79,7 @@ private slots:
             return QString::fromUtf8(QJsonDocument(store.page(id)["blocks"].toArray()[index].toObject()["spans"].toArray()).toJson(QJsonDocument::Compact));
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(250);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -383,7 +383,7 @@ private slots:
         QTRY_VERIFY(std::abs(item->width()/item->height()-2.0) < 0.04);
         eval("showPage(currentId)");
         QCOMPARE(eval("draft()[1].width_percent").toInt(),55);
-        const QString preview = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+        const QString preview = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
         if (!preview.isEmpty()) {
             QTest::qWait(150);
             QVERIFY(win->grabWindow().save(QDir(preview).filePath("foto-editor.png")));
@@ -519,18 +519,18 @@ private slots:
         QTRY_COMPARE(desktop->state(),QString("off"));
         desktop->setEnabled(true);
         QTRY_COMPARE(desktop->state(),QString("on"));
-        QCOMPARE(desktop->serverName(),QString("lunqio"));
+        QCOMPARE(desktop->serverName(),QString("flowen"));
         auto config = readJson(desktopFile);
         QCOMPARE(config["preferences"].toObject()["tema"].toString(),QString("oscuro"));
         QCOMPARE(config["mcpServers"].toObject()["otro"].toObject()["command"].toString(),QString("node"));
-        auto entry = config["mcpServers"].toObject()["lunqio"].toObject();
+        auto entry = config["mcpServers"].toObject()["flowen"].toObject();
         QCOMPARE(entry["command"].toString(),server);
         QCOMPARE(entry["args"].toArray(),QJsonArray({"--db",db}));
-        QVERIFY(QFile::exists(desktopFile+".lunqio-backup"));
+        QVERIFY(QFile::exists(desktopFile+".flowen-backup"));
         desktop->setEnabled(false);
         QTRY_COMPARE(desktop->state(),QString("off"));
         config = readJson(desktopFile);
-        QVERIFY(!config["mcpServers"].toObject().contains("lunqio"));
+        QVERIFY(!config["mcpServers"].toObject().contains("flowen"));
         QVERIFY(config["mcpServers"].toObject().contains("otro"));
         // A broken file is reported and left untouched.
         writeText(desktopFile,"{ roto");
@@ -541,13 +541,13 @@ private slots:
         QCOMPARE(broken.readAll(),QByteArray("{ roto"));
         broken.close();
         // An entry left by a moved package is repaired under the same name.
-        writeText(desktopFile,QJsonDocument(Obj{{"mcpServers",Obj{{"lunqio",Obj{{"command","C:/ya/no/existe/notas-mcp.exe"},
+        writeText(desktopFile,QJsonDocument(Obj{{"mcpServers",Obj{{"flowen",Obj{{"command","C:/ya/no/existe/notas-mcp.exe"},
             {"args",QJsonArray{"--db",db}}}}}}}).toJson());
         desktop->inspect();
         QTRY_COMPARE(desktop->state(),QString("outdated"));
         desktop->setEnabled(true);
         QTRY_COMPARE(desktop->state(),QString("on"));
-        QCOMPARE(readJson(desktopFile)["mcpServers"].toObject()["lunqio"].toObject()["command"].toString(),server);
+        QCOMPARE(readJson(desktopFile)["mcpServers"].toObject()["flowen"].toObject()["command"].toString(),server);
 
         // Codex: enable, pause with its own `enabled` flag, resume and unregister.
         if (!codex.isEmpty()) {
@@ -556,7 +556,7 @@ private slots:
             QTRY_COMPARE_WITH_TIMEOUT(client->state(),QString("off"),20000);
             client->setEnabled(true);
             QTRY_COMPARE_WITH_TIMEOUT(client->state(),QString("on"),40000);
-            QCOMPARE(client->serverName(),QString("lunqio"));
+            QCOMPARE(client->serverName(),QString("flowen"));
             client->setEnabled(false);
             QTRY_COMPARE_WITH_TIMEOUT(client->state(),QString("paused"),20000);
             QFile toml(CodexConnector::configFile());
@@ -570,7 +570,7 @@ private slots:
             other.setProgram(codex);
             other.setEnabled(true);
             QTRY_COMPARE_WITH_TIMEOUT(other.state(),QString("on"),40000);
-            QVERIFY(other.serverName().startsWith("lunqio-"));
+            QVERIFY(other.serverName().startsWith("flowen-"));
             client->remove();
             QTRY_COMPARE_WITH_TIMEOUT(client->state(),QString("off"),40000);
         }
@@ -582,7 +582,7 @@ private slots:
             QTRY_COMPARE_WITH_TIMEOUT(code->state(),QString("off"),20000);
             code->setEnabled(true);
             QTRY_COMPARE_WITH_TIMEOUT(code->state(),QString("on"),40000);
-            entry = readJson(ClaudeCodeConnector::configFile())["mcpServers"].toObject()["lunqio"].toObject();
+            entry = readJson(ClaudeCodeConnector::configFile())["mcpServers"].toObject()["flowen"].toObject();
             QCOMPARE(entry["command"].toString(),server);
             QCOMPARE(entry["args"].toArray(),QJsonArray({"--db",db}));
             code->setEnabled(false);
@@ -590,7 +590,7 @@ private slots:
         }
 
         hub->copyConfiguration();
-        auto copied = QJsonDocument::fromJson(QGuiApplication::clipboard()->text().toUtf8()).object()["mcpServers"].toObject()["lunqio"].toObject();
+        auto copied = QJsonDocument::fromJson(QGuiApplication::clipboard()->text().toUtf8()).object()["mcpServers"].toObject()["flowen"].toObject();
         QCOMPARE(QFileInfo(copied["args"].toArray().at(1).toString()),QFileInfo(store.path()));
         QCOMPARE(QFileInfo(copied["command"].toString()),QFileInfo(McpLink::serverPath()));
 
@@ -614,7 +614,7 @@ private slots:
         QTest::mouseClick(win,Qt::LeftButton,Qt::NoModifier,point);
         QTRY_COMPARE(desktop->state(),QString("on"));
         QVERIFY(toggle->property("checked").toBool());
-        const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+        const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
         if (!dir.isEmpty()) {
             QTest::qWait(250);
             QVERIFY(win->grabWindow().save(QDir(dir).filePath("conectores.png")));
@@ -630,7 +630,7 @@ private slots:
         auto created = store.call("create_page",{{"title","Notas de la reunión"},{"blocks",QJsonArray{
             Obj{{"type","paragraph"},{"text",original}},Obj{{"type","task"},{"text","Compartir el resumen con el equipo."}}}}},"manual");
         QString id = created["id"].toString();
-        const bool live = qEnvironmentVariableIsSet("LUNQIO_TEST_LIVE_CODEX");
+        const bool live = qEnvironmentVariableIsSet("FLOWEN_TEST_LIVE_CODEX");
         Editor editor(store,live ? QString() : QCoreApplication::applicationFilePath());
         auto *assistant = editor.assistant();
         assistant->setEngine("codex");
@@ -655,7 +655,7 @@ private slots:
             QVERIFY(js("canEditSelection").toBool());
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(250);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -739,7 +739,7 @@ private slots:
         };
         auto type = [&](const QString &text) { for (QChar c : text) QTest::keyClick(window,c.toLatin1()); };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(250);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -865,7 +865,7 @@ private slots:
         auto type = [&](const QString &text) { for (QChar c : text) QTest::keyClick(window,c.toLatin1()); };
         auto key = [&](Qt::Key k) { QTest::keyClick(window,k); };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(250);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -987,7 +987,7 @@ private slots:
         };
         auto type = [&](const QString &text) { for (QChar c : text) QTest::keyClick(window,c.toLatin1()); };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -1096,7 +1096,7 @@ private slots:
         };
         auto type = [&](const QString &text) { for (QChar c : text) QTest::keyClick(window,c.toLatin1()); };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -1169,7 +1169,7 @@ private slots:
             return value;
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -1262,7 +1262,7 @@ private slots:
             return value;
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -1380,7 +1380,7 @@ private slots:
             return value;
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -1479,7 +1479,7 @@ private slots:
             return value;
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -1538,7 +1538,7 @@ private slots:
             return value;
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -1562,7 +1562,7 @@ private slots:
         QCOMPARE(store.page(meeting)["blocks"].toArray()[0].toObject()["text"].toString(),QString("Asistentes"));
         QVERIFY(!js("pageEmpty").toBool());
 
-        // Your own template: a copy of a page without its comments, offered next to Lunqio's.
+        // Your own template: a copy of a page without its comments, offered next to Flowen's.
         js(QString("selectPage('%1')").arg(source));
         QTRY_COMPARE(js("currentId").toString(),source);
         QVERIFY(js("saveTemplate('Sprint semanal')").toBool());
@@ -1589,10 +1589,10 @@ private slots:
         QVERIFY(window->close());
     }
     void themeFlow() {
-        // LUNQIO_THEME forces a theme for previews; this test checks the saved preference instead.
-        const QByteArray forced = qgetenv("LUNQIO_THEME");
-        qunsetenv("LUNQIO_THEME");
-        auto restoreEnv = qScopeGuard([&] { if (!forced.isEmpty()) qputenv("LUNQIO_THEME",forced); });
+        // FLOWEN_THEME forces a theme for previews; this test checks the saved preference instead.
+        const QByteArray forced = qgetenv("FLOWEN_THEME");
+        qunsetenv("FLOWEN_THEME");
+        auto restoreEnv = qScopeGuard([&] { if (!forced.isEmpty()) qputenv("FLOWEN_THEME",forced); });
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         notes::Store store(temp.filePath("tema.sqlite3"));
@@ -1621,7 +1621,7 @@ private slots:
             Obj{{"type","task"},{"text","Enviar las notas"},{"checked",true}},
             Obj{{"type","quote"},{"text",QString::fromUtf8("Escribir, comentar y revisar en un solo lugar.")}},
             Obj{{"type","callout"},{"text",QString::fromUtf8("Cambia la vista en Ver → Tema o con Ctrl+Shift+L.")},{"icon","💡"}},
-            Obj{{"type","code"},{"text","tema = \"lunqio\""}}});
+            Obj{{"type","code"},{"text","tema = \"flowen\""}}});
         store.setFavorite(page,true);
         Editor editor(store,QCoreApplication::applicationFilePath());
         editor.setTheme("dark");
@@ -1641,7 +1641,7 @@ private slots:
             return value;
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -1654,22 +1654,22 @@ private slots:
             cursor.setPosition(linkAt);
             return cursor.charFormat().foreground().color();
         };
-        auto saved = [] { return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor").value("theme").toString(); };
+        auto saved = [] { return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Flowen","Editor").value("theme").toString(); };
         js(QString("selectPage('%1')").arg(page));
         QTRY_COMPARE(js("currentId").toString(),page);
 
-        // Lunqio oscuro, the identity, by default.
+        // Flowen oscuro, the identity, by default.
         QCOMPARE(window->color(),QColor("#231B19"));
         QCOMPARE(linkInk(),QColor("#FF7959"));
         QCOMPARE(js("Theme.glyphAccent").value<QColor>(),QColor("#FF7959"));
-        capture("editor-lunqio-oscuro");
-        // Lunqio claro, from Ver → Tema, saved for the next start. Switching does not edit the page.
+        capture("editor-flowen-oscuro");
+        // Flowen claro, from Ver → Tema, saved for the next start. Switching does not edit the page.
         editor.setTheme("light");
         QTRY_COMPARE(window->color(),QColor("#FFF9F0"));
         QCOMPARE(saved(),QString("light"));
         QCOMPARE(linkInk(),QColor("#A82E13"));
         QCOMPARE(js("Theme.glyph").value<QColor>(),QColor("#2C1312"));
-        capture("editor-lunqio-claro");
+        capture("editor-flowen-claro");
         // The usual Claro and Oscuro: neutral white and black, a blue accent, one-colour symbols.
         editor.setTheme("white");
         QTRY_COMPARE(window->color(),QColor("#FFFFFF"));
@@ -1746,7 +1746,7 @@ private slots:
             return value;
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -1818,8 +1818,8 @@ private slots:
         content.append(Obj{{"type","task"},{"text","Enviar el informe"},{"checked",false}});
         const QString page = store.call("create_page",{{"title","Informe trimestral"},{"icon",QString::fromUtf8("📄")},
                                                        {"cover","gradient:aurora"},{"blocks",content}},"manual")["id"].toString();
-        auto settings = [] { return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor").value("ui/viewMode").toString(); };
-        auto forget = qScopeGuard([] { QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor").remove("ui"); });
+        auto settings = [] { return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Flowen","Editor").value("ui/viewMode").toString(); };
+        auto forget = qScopeGuard([] { QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Flowen","Editor").remove("ui"); });
         Editor editor(store,QCoreApplication::applicationFilePath());
         // The view is kept between sessions: this one starts in Modo lectura.
         editor.setPreference("viewMode","read");
@@ -1839,8 +1839,10 @@ private slots:
             return value;
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
+            // The pointer rests on the desk, so no button shows its tooltip in the picture.
+            QTest::mouseMove(window,QPoint(window->width()-60,window->height()/2));
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
         };
@@ -1965,6 +1967,87 @@ private slots:
         QVERIFY(shown("pageCover"));
         QVERIFY(window->close());
     }
+    void lunqioMigrationFlow() {
+        // Flowen used to be Lunqio. Data folders in Qt's test mode only: never the real ones.
+        QStandardPaths::setTestModeEnabled(true);
+        auto normal = qScopeGuard([] { QStandardPaths::setTestModeEnabled(false); });
+        const QDir data(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation));
+        QVERIFY2(data.absolutePath().contains("qttest",Qt::CaseInsensitive),qPrintable(data.absolutePath()));
+        QVERIFY(notes::environment("DB").isEmpty());
+        auto clean = [data] {
+            if (!data.absolutePath().contains("qttest",Qt::CaseInsensitive)) return;
+            QDir(data.filePath("Lunqio")).removeRecursively();
+            QDir(data.filePath("Flowen")).removeRecursively();
+        };
+        clean();
+        auto cleanAfter = qScopeGuard(clean);
+        const QString legacy = notes::Store::legacyPath(), current = notes::Store::defaultPath();
+        QVERIFY(legacy.endsWith("Lunqio/notas.sqlite3"));
+        QVERIFY(current.endsWith("Flowen/notas.sqlite3"));
+        QVERIFY(!notes::Store::adoptLunqio(current));             // No Lunqio library: nothing to bring.
+        QString id;
+        {
+            notes::Store old(legacy);
+            id = old.call("create_page",{{"title","Diario de Lunqio"},{"blocks",QJsonArray{
+                Obj{{"type","paragraph"},{"text","Antes del cambio de nombre"}}}}},"manual")["id"].toString();
+        }
+        {
+            QFile usage(data.filePath("Lunqio/usage.jsonl"));
+            QVERIFY(usage.open(QIODevice::WriteOnly));
+            usage.write("{\"tokens\":1}\n");
+        }
+        // Another library (a test, --db elsewhere) never copies Lunqio's.
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        QVERIFY(!notes::Store::adoptLunqio(temp.filePath("otra.sqlite3")));
+        QVERIFY(!QFileInfo::exists(current));
+        // The usual library copies it once, with the usage log; Lunqio's copy stays, with a note.
+        QVERIFY(notes::Store::adoptLunqio(current));
+        QVERIFY(!notes::Store::adoptLunqio(current));
+        QVERIFY(QFileInfo::exists(legacy));
+        QVERIFY(QFileInfo::exists(data.filePath("Flowen/usage.jsonl")));
+        QVERIFY(QFileInfo::exists(data.filePath("Lunqio/LEEME - ahora en Flowen.txt")));
+        {
+            notes::Store store(current);
+            QCOMPARE(store.page(id)["title"].toString(),QString("Diario de Lunqio"));
+        }
+        // A server registered with Lunqio's library opens Flowen's; any other path stays as it is.
+        QCOMPARE(QFileInfo(notes::Store::resolve(legacy)),QFileInfo(current));
+        QCOMPARE(notes::Store::resolve(temp.filePath("otra.sqlite3")),temp.filePath("otra.sqlite3"));
+
+        // A Claude Desktop entry that Lunqio left on moves to Flowen's library by itself, named "flowen";
+        // the other servers stay. One Lunqio left off waits for the person (outdated).
+        auto readJson = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? QJsonDocument::fromJson(file.readAll()).object() : Obj();
+        };
+        auto writeJson = [](const QString &path, const Obj &value) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            file.write(QJsonDocument(value).toJson());
+        };
+        const QString config = temp.filePath("claude_desktop_config.json");
+        writeJson(config,Obj{{"mcpServers",Obj{
+            {"lunqio",Obj{{"command","C:/Lunqio/notas-mcp.exe"},{"args",QJsonArray{"--db",QDir::toNativeSeparators(legacy)}}}},
+            {"otro",Obj{{"command","node"},{"args",QJsonArray{"servidor.js"}}}}}}});
+        ClaudeDesktopConnector desktop(current,config);
+        desktop.inspect();
+        QTRY_COMPARE(desktop.state(),QString("on"));
+        QCOMPARE(desktop.serverName(),QString("flowen"));
+        auto servers = readJson(config)["mcpServers"].toObject();
+        QVERIFY(!servers.contains("lunqio"));
+        QVERIFY(servers.contains("otro"));
+        QCOMPARE(servers["flowen"].toObject()["args"].toArray(),
+                 QJsonArray({"--db",QDir::toNativeSeparators(QFileInfo(current).absoluteFilePath())}));
+        writeJson(config,Obj{{"mcpServers",Obj{
+            {"lunqio",Obj{{"command","C:/Lunqio/notas-mcp.exe"},{"args",QJsonArray{"--db",QDir::toNativeSeparators(legacy)}},{"disabled",true}}}}}});
+        ClaudeDesktopConnector paused(current,config);
+        paused.inspect();
+        QTRY_COMPARE(paused.state(),QString("outdated"));
+        QTest::qWait(200);
+        QCOMPARE(paused.state(),QString("outdated"));
+        QVERIFY(readJson(config)["mcpServers"].toObject().contains("lunqio"));
+    }
     void helpAboutFlow() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
@@ -1989,7 +2072,7 @@ private slots:
             return value;
         };
         auto capture = [&](const QString &name) {
-            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
             if (dir.isEmpty()) return;
             QTest::qWait(300);
             QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
@@ -2022,7 +2105,7 @@ private slots:
         QVERIFY(lockup->property("source").toUrl().toString().endsWith("ao-lockup-white.png"));
         QTRY_COMPARE(lockup->property("status").toInt(),1);
         QCOMPARE(js("aboutDialog.site").toString(),QString("https://www.attributeoverload.com"));
-        QCOMPARE(js("aboutDialog.repository").toString(),QString("https://github.com/robertocharretonkaplun/lunqio-"));
+        QCOMPARE(js("aboutDialog.repository").toString(),QString("https://github.com/robertocharretonkaplun/Flowen"));
         find("aboutSite"); find("aboutCode"); find("aboutDocs");
         capture("acerca-de");
         editor.setTheme("light");
@@ -2065,7 +2148,7 @@ int main(int argc,char **argv) {
         }
         Obj answer;
         if (schema.contains("\"answer\"")) {
-            // "Preguntar a Lunqio": answer from the note that has the task, and name a note it was not given too.
+            // "Preguntar a Flowen": answer from the note that has the task, and name a note it was not given too.
             const auto data = QJsonDocument::fromJson(prompt.mid(prompt.indexOf('\n')+1)).object();
             QJsonArray used{QString("00000000-0000-0000-0000-000000000000")};
             QString text = "No encontré nada sobre eso en tus notas.";

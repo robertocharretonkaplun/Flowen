@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 
-// Lunqio's menu: a rounded panel on the theme's surface with a soft shadow, a short fade, and rows
+// Flowen's menu: a rounded panel on the theme's surface with a soft shadow, a short fade, and rows
 // drawn by UiMenuItem (also for submenus and actions). `glyph` is the symbol its entry shows in a
 // parent menu.
 Menu {

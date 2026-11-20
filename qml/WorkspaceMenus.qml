@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Lunqio
+import Flowen
 
 MenuBar {
     id: bar
@@ -67,7 +67,7 @@ MenuBar {
         UiMenuItem { glyph: "panel"; action: Action { text: "Barra lateral"; checkable: true; checked: bar.workspace.sidebarShown; shortcut: "Ctrl+\\";
                 onTriggered: bar.workspace.sidebarShown = !bar.workspace.sidebarShown } }
         UiMenuItem { glyph: "search"; action: Action { text: "Buscar páginas"; shortcut: "Ctrl+K"; onTriggered: bar.workspace.focusSearch() } }
-        UiMenuItem { glyph: "sparkles"; action: Action { text: "Preguntar a Lunqio"; shortcut: "Ctrl+Shift+P"; onTriggered: bar.workspace.openAsk() } }
+        UiMenuItem { glyph: "sparkles"; action: Action { text: "Preguntar a Flowen"; shortcut: "Ctrl+Shift+P"; onTriggered: bar.workspace.openAsk() } }
         UiMenuItem { glyph: "history"; text: "Historial de revisiones…"; enabled: bar.live; onTriggered: bar.workspace.openHistory() }
         UiMenuItem { glyph: "trash"; text: "Papelera"; onTriggered: bar.workspace.browseTrash(true) }
         UiMenuSeparator {}
@@ -80,13 +80,13 @@ MenuBar {
             action: Action { text: "Diseño de página"; shortcut: "Ctrl+Shift+D"; onTriggered: bar.workspace.setViewMode("page") } }
         PaperMenu { workspace: bar.workspace }
         UiMenuSeparator {}
-        // Lunqio's identity in its two versions, the usual Claro and Oscuro, or those as Windows is.
+        // Flowen's identity in its two versions, the usual Claro and Oscuro, or those as Windows is.
         // Ctrl+Shift+L flips between the light and dark version of the current look, as in Notion.
         UiMenu {
             title: "Tema"; glyph: "palette"
             ActionGroup { id: themes; exclusive: true }
-            UiMenuItem { action: Action { text: "Lunqio oscuro"; checkable: true; checked: backend.theme === "dark"; ActionGroup.group: themes; onTriggered: backend.theme = "dark" } }
-            UiMenuItem { action: Action { text: "Lunqio claro"; checkable: true; checked: backend.theme === "light"; ActionGroup.group: themes; onTriggered: backend.theme = "light" } }
+            UiMenuItem { action: Action { text: "Flowen oscuro"; checkable: true; checked: backend.theme === "dark"; ActionGroup.group: themes; onTriggered: backend.theme = "dark" } }
+            UiMenuItem { action: Action { text: "Flowen claro"; checkable: true; checked: backend.theme === "light"; ActionGroup.group: themes; onTriggered: backend.theme = "light" } }
             UiMenuSeparator {}
             UiMenuItem { action: Action { text: "Claro"; checkable: true; checked: backend.theme === "white"; ActionGroup.group: themes; onTriggered: backend.theme = "white" } }
             UiMenuItem { action: Action { text: "Oscuro"; checkable: true; checked: backend.theme === "black"; ActionGroup.group: themes; onTriggered: backend.theme = "black" } }
@@ -94,7 +94,7 @@ MenuBar {
         }
         UiMenuItem { action: Action {
                 readonly property var flip: ({dark: "light", light: "dark", white: "black", black: "white"})
-                readonly property var names: ({dark: "Lunqio oscuro", light: "Lunqio claro", white: "Claro", black: "Oscuro"})
+                readonly property var names: ({dark: "Flowen oscuro", light: "Flowen claro", white: "Claro", black: "Oscuro"})
                 text: "Cambiar a " + names[flip[Theme.scheme]]; shortcut: "Ctrl+Shift+L"
                 onTriggered: backend.theme = flip[Theme.scheme] } }
         UiMenuSeparator {}
@@ -105,10 +105,10 @@ MenuBar {
         UiMenuItem { glyph: "help"; text: "Guía y atajos…"; onTriggered: bar.workspace.openHelp() }
         UiMenuItem { glyph: "plug"; text: "Conectores…"; onTriggered: bar.workspace.openConnection() }
         UiMenuSeparator {}
-        UiMenuItem { glyph: "book"; text: "Documentación"; onTriggered: Qt.openUrlExternally("https://robertocharretonkaplun.github.io/lunqio-/") }
-        UiMenuItem { glyph: "code"; text: "Código en GitHub"; onTriggered: Qt.openUrlExternally("https://github.com/robertocharretonkaplun/lunqio-") }
+        UiMenuItem { glyph: "book"; text: "Documentación"; onTriggered: Qt.openUrlExternally("https://robertocharretonkaplun.github.io/Flowen/") }
+        UiMenuItem { glyph: "code"; text: "Código en GitHub"; onTriggered: Qt.openUrlExternally("https://github.com/robertocharretonkaplun/Flowen") }
         UiMenuItem { glyph: "globe"; text: "Attribute Overload"; onTriggered: Qt.openUrlExternally("https://www.attributeoverload.com") }
         UiMenuSeparator {}
-        UiMenuItem { glyph: "bulb"; text: "Acerca de Lunqio"; onTriggered: bar.workspace.openAbout() }
+        UiMenuItem { glyph: "bulb"; text: "Acerca de Flowen"; onTriggered: bar.workspace.openAbout() }
     }
 }

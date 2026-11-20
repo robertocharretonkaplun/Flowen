@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import Lunqio
+import Flowen
 
 // A photo of the page: width as a share of the column, where it sits (left, centre, right) and its
 // style (rounded corners, a border or a shadow). A double click shows it at full size.

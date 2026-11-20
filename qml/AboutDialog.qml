@@ -2,16 +2,16 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// Ayuda → Acerca de Lunqio: the app and its version, and Attribute Overload, the studio that makes it,
+// Ayuda → Acerca de Flowen: the app and its version, and Attribute Overload, the studio that makes it,
 // with its site, the project's code and its documentation. The studio's lockup has a white name on
 // dark themes and an ink one on light themes.
 Dialog {
     id: dialog
     required property string version
     readonly property string site: "https://www.attributeoverload.com"
-    readonly property string repository: "https://github.com/robertocharretonkaplun/lunqio-"
-    readonly property string documentation: "https://robertocharretonkaplun.github.io/lunqio-/"
-    title: "Acerca de Lunqio"
+    readonly property string repository: "https://github.com/robertocharretonkaplun/Flowen"
+    readonly property string documentation: "https://robertocharretonkaplun.github.io/Flowen/"
+    title: "Acerca de Flowen"
     modal: true; anchors.centerIn: parent
     width: Math.min(520,parent.width-40)
     padding: 24; topPadding: 4
@@ -27,10 +27,10 @@ Dialog {
         spacing: 16
         RowLayout {
             spacing: 16
-            Image { source: "../assets/lunqio-256.png"; sourceSize: Qt.size(128,128); Layout.preferredWidth: 64; Layout.preferredHeight: 64; smooth: true; mipmap: true }
+            Image { source: "../assets/flowen-256.png"; sourceSize: Qt.size(128,128); Layout.preferredWidth: 64; Layout.preferredHeight: 64; smooth: true; mipmap: true }
             ColumnLayout {
                 spacing: 2
-                Label { text: "Lunqio"; color: Theme.text; font.pixelSize: 26; font.weight: Font.DemiBold }
+                Label { text: "Flowen"; color: Theme.text; font.pixelSize: 26; font.weight: Font.DemiBold }
                 Label { objectName: "aboutVersion"; text: "Versión " + dialog.version; color: Theme.muted; font.pixelSize: 13 }
             }
         }

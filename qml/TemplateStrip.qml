@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// On an empty page, as in Notion: start from a template. Lunqio's own come first, then yours
+// On an empty page, as in Notion: start from a template. Flowen's own come first, then yours
 // (saved with ⋯ → Guardar como plantilla…, removable with ×). "{fecha}" becomes today's date.
 ColumnLayout {
     id: strip

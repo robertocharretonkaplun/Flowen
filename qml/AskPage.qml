@@ -2,9 +2,9 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// "Preguntar a Lunqio": questions about your notes, answered by Claude or Codex from the pages that
+// "Preguntar a Flowen": questions about your notes, answered by Claude or Codex from the pages that
 // match them best (the open page always goes too). Each answer names its pages; open them, copy the
-// answer or keep it as a page. The conversation lasts until Lunqio closes.
+// answer or keep it as a page. The conversation lasts until Flowen closes.
 Item {
     id: page
     required property var assistant
@@ -43,7 +43,7 @@ Item {
             Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter
             Layout.leftMargin: 24; Layout.rightMargin: 24; spacing: 10
             Glyph { name: "sparkles"; font.pixelSize: 22 }
-            Label { text: "Preguntar a Lunqio"; font.pixelSize: 26; font.weight: Font.DemiBold; color: Theme.text; Layout.fillWidth: true }
+            Label { text: "Preguntar a Flowen"; font.pixelSize: 26; font.weight: Font.DemiBold; color: Theme.text; Layout.fillWidth: true }
             UiButton { visible: page.assistant.conversation.length > 0; text: "Nueva conversación"; quiet: true; onClicked: page.assistant.clearConversation() }
             EngineSwitch { assistant: page.assistant }
         }

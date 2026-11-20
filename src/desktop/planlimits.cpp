@@ -1,4 +1,5 @@
 #include "planlimits.h"
+#include "appsettings.h"
 #include <QDateTime>
 #include <QDir>
 #include <QJsonDocument>
@@ -7,7 +8,7 @@
 #include <utility>
 
 namespace {
-QSettings preferences() { return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor"); }
+QSettings preferences() { return appSettings(); }
 qint64 nowMs() { return QDateTime::currentMSecsSinceEpoch(); }
 // Reset times arrive in seconds; keep milliseconds for QML dates.
 qint64 toMs(qint64 value) { return value > 0 && value < 100000000000LL ? value*1000 : value; }
@@ -78,7 +79,7 @@ void PlanLimits::refreshCodex() {
         stop(); emit changed();
     });
     process->start(program,{"app-server"});
-    send({{"id",1},{"method","initialize"},{"params",QJsonObject{{"clientInfo",QJsonObject{{"name","lunqio"},{"version","1"}}}}}});
+    send({{"id",1},{"method","initialize"},{"params",QJsonObject{{"clientInfo",QJsonObject{{"name","flowen"},{"version","1"}}}}}});
     timeout.start(25000);
     emit changed();
 }

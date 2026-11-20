@@ -28,19 +28,19 @@ QJsonObject threadOf(const QString &json) { return QJsonDocument::fromJson(json.
 QString compact(const QJsonObject &o) { return QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)); }
 
 // The library stores only the style flags, link and comment. These are the colours the editor uses
-// to draw them in each look (qml/Theme.qml: Lunqio oscuro/claro, the usual Claro/Oscuro); exports use
+// to draw them in each look (qml/Theme.qml: Flowen oscuro/claro, the usual Claro/Oscuro); exports use
 // their own palette.
 struct Inks { QColor code, codeBack, comment, highlight, mention, mentionBack, link; };
 const Inks &inks(const QString &scheme) {
-    static const Inks lunqioDark{QColor("#FF9C82"),QColor("#3D2F2B"),QColor("#4A3A1F"),QColor("#5E4720"),
+    static const Inks flowenDark{QColor("#FF9C82"),QColor("#3D2F2B"),QColor("#4A3A1F"),QColor("#5E4720"),
                                  QColor("#FBF1E0"),QColor("#46362F"),QColor("#FF7959")};
-    static const Inks lunqioLight{QColor("#A82E13"),QColor("#F4E7D6"),QColor("#F6E3B8"),QColor("#F5D987"),
+    static const Inks flowenLight{QColor("#A82E13"),QColor("#F4E7D6"),QColor("#F6E3B8"),QColor("#F5D987"),
                                   QColor("#2C1312"),QColor("#EFDFCC"),QColor("#A82E13")};
     static const Inks white{QColor("#C0362C"),QColor("#F2F2F0"),QColor("#FBEFC5"),QColor("#FCE49A"),
                             QColor("#1F1F1F"),QColor("#EBEBE9"),QColor("#1F6FD1")};
     static const Inks black{QColor("#E3A096"),QColor("#363539"),QColor("#453B22"),QColor("#5E4C22"),
                             QColor("#DCE6F3"),QColor("#2C313A"),QColor("#9DBDF0")};
-    return scheme == "light" ? lunqioLight : scheme == "white" ? white : scheme == "black" ? black : lunqioDark;
+    return scheme == "light" ? flowenLight : scheme == "white" ? white : scheme == "black" ? black : flowenDark;
 }
 // Tone of a palette colour: the first is for text, the second for backgrounds.
 QColor tone(const QVariantMap &tones, const QString &name, int which) {
@@ -92,7 +92,7 @@ QTextCharFormat visual(const InlineEditor::Piece &p, const QString &scheme, cons
 }
 
 void InlineEditor::registerType() {
-    qmlRegisterType<InlineEditor>("Lunqio",1,0,"InlineEditor");
+    qmlRegisterType<InlineEditor>("Flowen",1,0,"InlineEditor");
 }
 QTextDocument *InlineEditor::doc() const {
     return source ? source->textDocument() : nullptr;

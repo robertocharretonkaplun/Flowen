@@ -1,6 +1,7 @@
 # Genera la documentación con Doxygen (docs/Doxyfile) y la publica en GitHub Pages:
-# https://robertocharretonkaplun.github.io/lunqio-/
+# https://robertocharretonkaplun.github.io/Flowen/
 # Una sola vez, en GitHub: Settings → Pages → Build and deployment → Source: GitHub Actions.
+# Sin ese paso, la publicación (deploy) falla con «Not Found»: Pages todavía no existe en el repositorio.
 name: Documentación
 
 on:
@@ -9,7 +10,6 @@ on:
     paths:
       - "src/**"
       - "docs/**"
-      - "README.md"
       - "assets/**"
       - "design/vistas/**"
       - "CMakeLists.txt"
@@ -30,16 +30,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Instalar Doxygen y Graphviz
         run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
       - name: Generar la documentación
         run: |
-          export LUNQIO_VERSION="$(sed -n 's/^project(Lunqio VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          export FLOWEN_VERSION="$(sed -n 's/^project(Flowen VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
           doxygen --version
           doxygen docs/Doxyfile
           test -f build-docs/html/index.html
-      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build-docs/html

@@ -1,4 +1,4 @@
-# Componentes distribuidos con Lunqio
+# Componentes distribuidos con Flowen
 
 La aplicación carga dinámicamente bibliotecas de Qt 6.8.3. Qt es obra de The Qt Company y sus colaboradores. Los módulos empleados de Qt Base, Qt Declarative y Qt SVG se distribuyen con las opciones de licencia indicadas en sus fuentes y en el inventario SPDX de la carpeta `licenses`. Este paquete utiliza la opción LGPL v3 para esas bibliotecas. La carpeta incluye la LGPL v3 y la GPL v3 que esta incorpora. Las DLL y los módulos QML se pueden sustituir por compilaciones compatibles. Se permite la ingeniería inversa necesaria para depurar modificaciones a las bibliotecas cubiertas por LGPL.
 

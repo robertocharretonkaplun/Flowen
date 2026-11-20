@@ -1,13 +1,13 @@
 pragma Singleton
 import QtQuick
 
-// The looks of Lunqio. `mode` is the saved choice:
-//   "dark" / "light"   Lunqio oscuro / claro, the identity "Pluma y diálogo" (design/identidad/tokens.json):
+// The looks of Flowen. `mode` is the saved choice:
+//   "dark" / "light"   Flowen oscuro / claro, the identity "Pluma y diálogo" (design/identidad/tokens.json):
 //                      warm surfaces, coral or rust accent, two-tone ivory/coral symbols.
 //   "white" / "black"  the usual Claro and Oscuro themes: neutral white and black, a blue accent and
 //                      one-colour symbols.
 //   "system"           Claro or Oscuro, as Windows is.
-// Canvas, surface, text, muted, line, accent, glyph and success of the Lunqio themes come straight from
+// Canvas, surface, text, muted, line, accent, glyph and success of the Flowen themes come straight from
 // the tokens; the steps between canvas and line are the surfaces the interface needs for hover,
 // pressed and borders. The window binds `mode` to the preference saved by the editor.
 QtObject {
@@ -17,7 +17,7 @@ QtObject {
         : (["dark","light","white","black"].indexOf(mode) >= 0 ? mode : "dark")
     readonly property bool dark: scheme === "dark" || scheme === "black"
     readonly property bool identity: scheme === "dark" || scheme === "light"
-    //                          Lunqio oscuro  Lunqio claro  Claro      Oscuro
+    //                          Flowen oscuro  Flowen claro  Claro      Oscuro
     function pick(night, day, white, black) {
         return scheme === "light" ? day : scheme === "white" ? white : scheme === "black" ? black : night
     }
@@ -55,7 +55,7 @@ QtObject {
     readonly property color accentLine: pick("#9A4A39", "#D79A87", "#9FC2EC", "#3E5F8C")  // calm accent border
     readonly property color focus: accent
     readonly property color selection: pick("#7A3627", "#F3C8B9", "#CCE0F7", "#294D73")   // selected text
-    // Symbols: two inks in Lunqio, one in the usual Claro and Oscuro.
+    // Symbols: two inks in Flowen, one in the usual Claro and Oscuro.
     readonly property color glyph: pick("#FBF1E0", "#2C1312", "#3B3B39", "#D6D4DA")
     readonly property color glyphAccent: pick("#FF7959", "#C83918", "#3B3B39", "#D6D4DA")
 

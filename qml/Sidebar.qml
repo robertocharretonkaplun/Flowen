@@ -43,7 +43,7 @@ Rectangle {
             alignLeft: true; quiet: workspace.settingsShown || !!workspace.currentId || workspace.trashMode; symbol: "home"; text: "Inicio"
             onClicked: workspace.browseTrash(false) }
         UiButton { objectName: "askEntry"; Layout.leftMargin: 9
-            alignLeft: true; quiet: !workspace.askOpen; symbol: "sparkles"; text: "Preguntar a Lunqio"
+            alignLeft: true; quiet: !workspace.askOpen; symbol: "sparkles"; text: "Preguntar a Flowen"
             hint: "Preguntar sobre tus notas (Ctrl+Shift+P)"; onClicked: workspace.openAsk() }
         ListView {
             id: navList; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 8; Layout.rightMargin: 8; Layout.topMargin: 4
@@ -137,7 +137,7 @@ Rectangle {
         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.hover }
         RowLayout {
             Layout.fillWidth: true; Layout.margins: 10; spacing: 3
-            Image { objectName: "appLogo"; source: "../assets/lunqio-64.png"; sourceSize: Qt.size(64,64)
+            Image { objectName: "appLogo"; source: "../assets/flowen-64.png"; sourceSize: Qt.size(64,64)
                 Layout.preferredWidth: 29; Layout.preferredHeight: 29; smooth: true; mipmap: true; Accessible.ignored: true }
             Button {
                 id: mcpBadge; flat: true; Layout.fillWidth: true; implicitHeight: 39
@@ -145,7 +145,7 @@ Rectangle {
                 background: Rectangle { radius: 5; color: mcpBadge.hovered ? Theme.hover : "transparent"; border.width: mcpBadge.visualFocus ? 1 : 0; border.color: Theme.focus }
                 contentItem: ColumnLayout {
                     spacing: 1
-                    Label { text: "Lunqio"; font.weight: Font.DemiBold; font.pixelSize: 14 }
+                    Label { text: "Flowen"; font.weight: Font.DemiBold; font.pixelSize: 14 }
                     RowLayout { spacing: 5
                         Rectangle { width: 6; height: 6; radius: 3; color: workspace.assistant.link.state === "connected" ? Theme.success : workspace.assistant.link.state === "connecting" ? Theme.warning : Theme.muted }
                         Label { id: mcpText; font.pixelSize: 11; color: Theme.secondary; text: workspace.assistant.link.state === "connected" ? "MCP conectado" : workspace.assistant.link.state === "connecting" ? "Conectando MCP…" : "MCP desconectado" }

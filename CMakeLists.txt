@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
-project(Lunqio VERSION 0.5.0 LANGUAGES CXX)
+project(Flowen VERSION 0.5.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 # One version for the window, notas-mcp and the About dialog.
-add_compile_definitions(LUNQIO_VERSION="${PROJECT_VERSION}")
+add_compile_definitions(FLOWEN_VERSION="${PROJECT_VERSION}")
 if(MSVC)
   add_compile_options(/utf-8 /W4)
 endif()
@@ -15,12 +15,12 @@ target_link_libraries(notes_core PUBLIC Qt6::Core Qt6::Sql)
 add_executable(notas-mcp src/mcp/main.cpp)
 target_link_libraries(notas-mcp PRIVATE notes_core)
 set(EDITOR_SOURCES src/desktop/editor.cpp src/desktop/mcplink.cpp src/desktop/connectors.cpp src/desktop/writingassistant.cpp src/desktop/pagefile.cpp src/desktop/inlineeditor.cpp src/desktop/usagelog.cpp src/desktop/planlimits.cpp src/desktop/svgglyph.cpp)
-# Lunqio's symbols (design/identidad/iconografia), drawn by SvgGlyph.
+# Flowen's symbols (design/identidad/iconografia), drawn by SvgGlyph.
 file(GLOB GLYPH_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS assets/glyphs/*.svg)
-qt_add_executable(lunqio WIN32 src/desktop/main.cpp ${EDITOR_SOURCES})
-target_link_libraries(lunqio PRIVATE notes_core Qt6::Quick Qt6::QuickControls2 Qt6::Svg)
-qt_add_resources(lunqio glyphs PREFIX "/glyphs" BASE assets/glyphs FILES ${GLYPH_FILES})
-qt_add_resources(lunqio views PREFIX "/" FILES qml/Main.qml qml/qmldir qml/Theme.qml qml/UiButton.qml qml/BlockRow.qml
+qt_add_executable(flowen WIN32 src/desktop/main.cpp ${EDITOR_SOURCES})
+target_link_libraries(flowen PRIVATE notes_core Qt6::Quick Qt6::QuickControls2 Qt6::Svg)
+qt_add_resources(flowen glyphs PREFIX "/glyphs" BASE assets/glyphs FILES ${GLYPH_FILES})
+qt_add_resources(flowen views PREFIX "/" FILES qml/Main.qml qml/qmldir qml/Theme.qml qml/UiButton.qml qml/BlockRow.qml
     qml/Glyph.qml qml/WorkspaceMenus.qml qml/WritingDialog.qml qml/PhotoBlock.qml qml/ConnectorsPage.qml qml/SelectionBubble.qml
     qml/AiComposer.qml qml/EngineSwitch.qml qml/AiProblem.qml qml/CommentCard.qml qml/CommentRail.qml qml/UsagePage.qml
     qml/PlanLimitsView.qml qml/UsageButton.qml qml/SlashMenu.qml
@@ -28,9 +28,9 @@ qt_add_resources(lunqio views PREFIX "/" FILES qml/Main.qml qml/qmldir qml/Theme
     qml/SidebarSection.qml qml/RecentCards.qml qml/EngineMark.qml qml/TemplateStrip.qml qml/AskPage.qml qml/UiMenu.qml qml/UiMenuItem.qml qml/UiMenuSeparator.qml qml/PageOutline.qml qml/Sidebar.qml
     qml/ViewSwitch.qml qml/PaperSheets.qml qml/PaperMenu.qml qml/HelpDialog.qml qml/AboutDialog.qml
     assets/brand/ao-lockup-white.png assets/brand/ao-lockup-ink.png
-    assets/lunqio-64.png assets/lunqio-256.png)
+    assets/flowen-64.png assets/flowen-256.png)
 if(WIN32)
-  target_sources(lunqio PRIVATE assets/lunqio.rc)
+  target_sources(flowen PRIVATE assets/flowen.rc)
 endif()
 include(CTest)
 if(BUILD_TESTING)

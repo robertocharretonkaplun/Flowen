@@ -1,4 +1,5 @@
 #include "writingassistant.h"
+#include "appsettings.h"
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -14,7 +15,7 @@
 
 using Obj = QJsonObject;
 namespace {
-QSettings preferences() { return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor"); }
+QSettings preferences() { return appSettings(); }
 const QByteArray editSchema =
     R"({"type":"object","properties":{"replacement":{"type":"string"}},"required":["replacement"],"additionalProperties":false})";
 const QByteArray askSchema =
@@ -86,7 +87,7 @@ void WritingAssistant::setExecutable(const QUrl &file) {
     QString path = file.toLocalFile();
     if (!QFileInfo(path).isExecutable()) { fail("Selecciona un ejecutable válido de Codex.","setup"); return; }
     cli = path;
-    QSettings("Lunqio","Editor").setValue("codexExecutable",path);
+    appSettings().setValue("codexExecutable",path);
     hub.codex()->setProgram(path);
     plans.setCodexProgram(path);
     emit executableChanged();
@@ -239,7 +240,7 @@ void WritingAssistant::compose(QVariantMap place,QString instruction) {
         return true;
     });
 }
-// "Preguntar a Lunqio": the assistant answers only from the notes it is given (picked by the editor
+// "Preguntar a Flowen": the assistant answers only from the notes it is given (picked by the editor
 // from the question) and names the ones it used. No tools: it cannot change the library.
 void WritingAssistant::ask(QString question,QVariantList notes) {
     if (stage == "applying" || stage == "generating") return;

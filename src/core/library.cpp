@@ -6,7 +6,7 @@
 #include <algorithm>
 
 // The library's desktop side: favorites and recent visits, templates, backlinks and the notes sent with
-// a question to "Preguntar a Lunqio". Favorites, visits and templates live in tables of their own and
+// a question to "Preguntar a Flowen". Favorites, visits and templates live in tables of their own and
 // never create page revisions; MCP does not use any of this.
 namespace notes {
 // Favorites and visits never create revisions; pages in the trash are left out until restored.
@@ -56,7 +56,7 @@ void Store::visit(const QString &id) {
     tx.commit();
 }
 
-// The notes most related to a question, for "Preguntar a Lunqio": the open page first, then the pages
+// The notes most related to a question, for "Preguntar a Flowen": the open page first, then the pages
 // whose title and text share most of the question's words (accents and case aside). A question about
 // tasks also gets the unfinished tasks of the whole library. Each text is cut so the whole fits a prompt.
 Arr Store::notesFor(const QString &question, const QString &current, int limit) {

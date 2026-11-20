@@ -1,4 +1,5 @@
 #include "usagelog.h"
+#include "store.h"
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -26,9 +27,9 @@ UsageLog::UsageLog(QString file, QObject *parent) : QObject(parent), path(file.i
     if (items.size() > Kept) items = items.mid(items.size()-Kept);
 }
 QString UsageLog::defaultFile() {
-    const QString forced = qEnvironmentVariable("LUNQIO_USAGE_FILE");
+    const QString forced = notes::environment("USAGE_FILE");
     if (!forced.isEmpty()) return forced;
-    return QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).filePath("Lunqio/usage.jsonl");
+    return QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).filePath("Flowen/usage.jsonl");
 }
 void UsageLog::add(QJsonObject record) {
     record["total"] = tokens(record);

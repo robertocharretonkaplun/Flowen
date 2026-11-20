@@ -30,7 +30,7 @@ class WritingAssistant : public QObject {
     Q_PROPERTY(QString engineName READ engineName NOTIFY engineChanged)
     Q_PROPERTY(bool engineReady READ engineReady NOTIFY engineChanged)
     Q_PROPERTY(QString claudeAccount READ claudeAccount NOTIFY engineChanged)
-    /// "Preguntar a Lunqio": questions answered from the notes sent with them, this session only.
+    /// "Preguntar a Flowen": questions answered from the notes sent with them, this session only.
     Q_PROPERTY(QVariantList conversation READ conversation NOTIFY changed)
 public:
     explicit WritingAssistant(const QString &db, QString executable = {}, const QString &claude = {});

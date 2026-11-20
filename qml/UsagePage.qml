@@ -84,7 +84,7 @@ ScrollView {
         Label { text: "Uso"; font.pixelSize: 30; font.weight: Font.Bold; color: Theme.text }
         Detail {
             Layout.topMargin: 6; Layout.maximumWidth: 640; font.pixelSize: 14
-            text: "Tokens que consumen «Crear con IA», «Editar con IA» y «Preguntar a Lunqio» en este equipo, según los informa cada asistente."
+            text: "Tokens que consumen «Crear con IA», «Editar con IA» y «Preguntar a Flowen» en este equipo, según los informa cada asistente."
         }
 
         GridLayout {
@@ -99,7 +99,7 @@ ScrollView {
             }
         }
 
-        // The plans' own limits, which also count what you use outside Lunqio.
+        // The plans' own limits, which also count what you use outside Flowen.
         Section { text: "Límites del plan" }
         GridLayout {
             Layout.fillWidth: true
@@ -194,7 +194,7 @@ ScrollView {
                     }
                     Label {
                         Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.secondary; font.pixelSize: 13
-                        text: (({create: "Crear con IA", ask: "Preguntar a Lunqio"})[page.last.kind] || "Editar con IA") + ", " + page.when(page.last.at)
+                        text: (({create: "Crear con IA", ask: "Preguntar a Flowen"})[page.last.kind] || "Editar con IA") + ", " + page.when(page.last.at)
                               + (page.last.ms ? " · " + (page.last.ms/1000).toLocaleString(Qt.locale(),'f',1) + " s" : "")
                               + (page.last.ok === false ? " · sin resultado" : "")
                     }

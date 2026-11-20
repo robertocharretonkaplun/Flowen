@@ -86,7 +86,7 @@ AbstractButton {
             RowLayout {
                 Layout.fillWidth: true; spacing: 8
                 EngineMark { size: 10; color: button.colors[button.engine] || Theme.secondary; Layout.alignment: Qt.AlignVCenter }
-                Label { text: "Lunqio hoy"; color: Theme.secondary; font.pixelSize: 13; Layout.fillWidth: true }
+                Label { text: "Flowen hoy"; color: Theme.secondary; font.pixelSize: 13; Layout.fillWidth: true }
                 Label {
                     color: Theme.text; font.pixelSize: 13; font.features: {"tnum": 1}
                     text: (button.today.total >= 1000 ? (button.today.total/1000).toLocaleString(Qt.locale(),'f',1) + " k" : button.today.total)
