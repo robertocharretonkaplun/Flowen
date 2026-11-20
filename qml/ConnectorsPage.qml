@@ -115,18 +115,18 @@ ScrollView {
                 symbol: "more"; quiet: true; hint: "Más opciones de " + client.connector.title
                 Layout.alignment: Qt.AlignTop; Layout.topMargin: 2
                 onClicked: options.popup()
-                Menu {
+                UiMenu {
                     id: options
-                    MenuItem { text: "Comprobar de nuevo"; enabled: !client.connector.busy; onTriggered: client.connector.inspect() }
-                    MenuItem {
+                    UiMenuItem { text: "Comprobar de nuevo"; enabled: !client.connector.busy; onTriggered: client.connector.inspect() }
+                    UiMenuItem {
                         visible: client.connector.usesProgram; height: visible ? implicitHeight : 0
                         text: client.connector.key === "codex" ? "Elegir codex.exe…" : "Elegir claude.exe…"
                         enabled: !client.connector.busy
                         onTriggered: client.connector.key === "codex" ? page.chooseCodex() : page.chooseClaude()
                     }
-                    MenuItem { text: "Mostrar archivo de configuración"; enabled: !!client.connector.location; onTriggered: client.connector.reveal() }
-                    MenuSeparator {}
-                    MenuItem {
+                    UiMenuItem { text: "Mostrar archivo de configuración"; enabled: !!client.connector.location; onTriggered: client.connector.reveal() }
+                    UiMenuSeparator {}
+                    UiMenuItem {
                         text: "Quitar registro"
                         enabled: client.connector.registered && client.connector.ready && !client.connector.busy
                         onTriggered: client.connector.remove()

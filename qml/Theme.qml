@@ -36,6 +36,8 @@ QtObject {
     readonly property color hover: pick("#3D2F2B", "#EEDDCA", "#EBEBE9", "#333335")      // hover on surfaces
     readonly property color pressed: pick("#46362F", "#E6D2BE", "#E0E0DD", "#3E3D41")
     readonly property color line: pick("#5B4640", "#DACAC0", "#DDDDD9", "#4A4A4E")       // borders
+    // Print layout: the desk around the sheets (the sheets themselves are the canvas).
+    readonly property color desk: pick("#17110F", "#ECE1D2", "#E6E6E3", "#0F0F0F")
 
     // Text, strongest to faintest.
     readonly property color text: pick("#FBF1E0", "#2C1312", "#1F1F1F", "#EFEDF0")

@@ -120,12 +120,12 @@ Rectangle {
                 symbol: "more"; quiet: true; hint: "Más opciones del comentario"; focusPolicy: Qt.NoFocus
                 Layout.preferredWidth: 30
                 onClicked: menu.popup()
-                Menu {
+                UiMenu {
                     id: menu
-                    MenuItem { text: "Editar"; onTriggered: card.startEdit() }
-                    MenuItem { text: "Eliminar"; onTriggered: card.remove() }
-                    MenuSeparator {}
-                    MenuItem { text: "Cambiar mi nombre…"; onTriggered: card.rename() }
+                    UiMenuItem { text: "Editar"; onTriggered: card.startEdit() }
+                    UiMenuItem { text: "Eliminar"; onTriggered: card.remove() }
+                    UiMenuSeparator {}
+                    UiMenuItem { text: "Cambiar mi nombre…"; onTriggered: card.rename() }
                 }
             }
         }

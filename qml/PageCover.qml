@@ -5,7 +5,7 @@ import QtQuick.Layouts
 // The page cover: a gradient or a photo across the top, changed or removed on hover.
 Item {
     id: cover
-    required property var page          // the window: pageCover, covers, setPageCover(), deleted
+    required property var page          // the window: pageCover, covers, setPageCover(), locked
     signal uploadRequested()
     readonly property string value: page.pageCover
     readonly property bool photo: value.indexOf("photo:") === 0
@@ -29,7 +29,7 @@ Item {
     Row {
         anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 12
         spacing: 6
-        opacity: !cover.page.deleted && (hover.hovered || choices.opened) ? 1 : 0
+        opacity: !cover.page.locked && (hover.hovered || choices.opened) ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 120 } }
         UiButton { id: change; objectName: "changeCover"; text: "Cambiar portada"; onClicked: choices.open() }
         UiButton { text: "Quitar"; onClicked: cover.page.setPageCover("") }

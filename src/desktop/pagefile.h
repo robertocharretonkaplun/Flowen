@@ -8,5 +8,8 @@ QString storePhoto(notes::Store &store,const QString &path);
 // The clipboard as photos: image files copied in Explorer, or an image with no text of its own.
 bool clipboardHasPhoto(const QMimeData *data);
 QJsonArray storeClipboardPhotos(notes::Store &store,const QMimeData *data);
+// A photo of the library as a file (PNG or JPEG, as its name asks; converted if needed) or on the clipboard.
+QString savePhoto(notes::Store &store,const QString &asset,QString path);
+void copyPhoto(notes::Store &store,const QString &asset);
 void save(notes::Store &store,const QJsonObject &page,const QString &path);
 }

@@ -27,6 +27,9 @@ public:
     QString author() const;
     void setAuthor(const QString &name);
     Q_INVOKABLE QUrl photoUrl(const QString &asset);
+    // Small settings of the window kept between sessions (view mode, paper size…), under "ui/".
+    Q_INVOKABLE QVariant preference(const QString &key, const QVariant &fallback = {}) const;
+    Q_INVOKABLE void setPreference(const QString &key, const QVariant &value);
     Q_INVOKABLE QUrl suggestedFile(const QUrl &folder,QString title) const;
     Q_INVOKABLE QVariantMap run(const QString &action, const QVariantMap &arguments = {});
 signals:

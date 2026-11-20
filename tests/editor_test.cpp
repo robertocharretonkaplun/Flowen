@@ -1347,6 +1347,99 @@ private slots:
             QVERIFY2(data.contains(piece),piece);
         QVERIFY(window->close());
     }
+    void pagesMenuFlow() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("menu.sqlite3"));
+        auto make = [&](const QString &title, const QJsonValue &parent, const QJsonArray &blocks) {
+            return store.call("create_page",{{"title",title},{"parent_id",parent},{"blocks",blocks}},"manual")["id"].toString();
+        };
+        const QString course = make("Curso",QJsonValue::Null,{Obj{{"type","paragraph"},{"text","Índice"}}});
+        const QString unit = make("Unidad 1",course,{Obj{{"type","paragraph"},{"text","Temas"}}});
+        const QString lesson = make("Lección",unit,{
+            Obj{{"type","heading"},{"text","Objetivos"},{"level",1}},Obj{{"type","paragraph"},{"text","Aprender"}},
+            Obj{{"type","heading"},{"text","Actividades"},{"level",2}},Obj{{"type","paragraph"},{"text","Practicar"},
+                {"spans",QJsonArray{Obj{{"start",0},{"end",9},{"style",0},{"comment","Revisar"}}}}}});
+        const QString notes = make("Notas sueltas",QJsonValue::Null,{Obj{{"type","paragraph"},{"text","Nada"}}});
+        Editor editor(store,QCoreApplication::applicationFilePath());
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1400,880);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        auto find = [&](const QString &name) {
+            QQuickItem *item = nullptr;
+            [&] { QTRY_VERIFY((item = visibleItem(window->contentItem(),name)) && item->isVisible() && item->width() > 0); }();
+            return item;
+        };
+        auto centre = [](QQuickItem *it) { return it->mapToScene(it->boundingRect().center()).toPoint(); };
+
+        // Breadcrumbs above the title, and the outline of its headings at the right.
+        js("collapsed = {}; refreshNavigation()");
+        js(QString("selectPage('%1')").arg(lesson));
+        QTRY_COMPARE(js("ancestors.map(p => p.title).join(' / ')").toString(),QString("Curso / Unidad 1"));
+        QCOMPARE(js("headings.length").toInt(),2);
+        auto *outline = find("pageOutline");
+        QTest::mouseMove(window,centre(outline));
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find(QString("outline-2"))));
+        QTRY_COMPARE(js("editIndex").toInt(),2);
+
+        // Ctrl+D copies the block below it, without its comment.
+        js("blockRepeater.itemAt(3).focusAt(0)");
+        QTest::keyClick(window,Qt::Key_D,Qt::ControlModifier);
+        QTRY_COMPARE(js("blocks.count").toInt(),5);
+        QCOMPARE(js("draft()[4].text").toString(),QString("Practicar"));
+        QVERIFY(!js("draft()[4].spans").isValid());
+        QVERIFY(js("flush()").toBool());
+
+        // Right click on a page of the sidebar: send it to the trash, then Deshacer.
+        js("sidebar.rowMenu.show('" + notes + "')");
+        QTRY_VERIFY(js("sidebar.rowMenu.opened").toBool());
+        capture("menu-pagina");
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("rowTrash")));
+        QTRY_VERIFY(!store.page(notes)["deleted_at"].isNull());
+        QTRY_VERIFY(find("toast")->isVisible());
+        QCOMPARE(js("currentId").toString(),lesson);
+        capture("papelera-deshacer");
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("toastAction")));
+        QTRY_VERIFY(store.page(notes)["deleted_at"].isNull());
+        // Trashing the open page shows another one.
+        QVERIFY(js(QString("trashPage('%1')").arg(lesson)).toBool());
+        QTRY_VERIFY(js("currentId").toString() != lesson);
+        QVERIFY(js(QString("restorePage('%1')").arg(lesson)).toBool());
+
+        // Duplicate, rename and move.
+        const QString copy = js(QString("duplicatePage('%1')").arg(lesson)).toString();
+        QVERIFY2(!copy.isEmpty(),qPrintable(js("notice").toString()+" "+QString::fromUtf8(QJsonDocument(store.page(lesson)).toJson(QJsonDocument::Compact))));
+        QCOMPARE(store.page(copy)["title"].toString(),QString::fromUtf8("Lección (copia)"));
+        QCOMPARE(store.page(copy)["parent_id"].toString(),unit);
+        QCOMPARE(store.page(copy)["blocks"].toArray().size(),5);
+        QVERIFY(!store.page(copy)["blocks"].toArray()[3].toObject().contains("spans"));
+        QVERIFY(js(QString("renamePage('%1','Notas del curso')").arg(notes)).toBool());
+        QCOMPARE(store.page(notes)["title"].toString(),QString("Notas del curso"));
+        QVERIFY(js(QString("movePage('%1','%2')").arg(notes,course)).toBool());
+        QCOMPARE(store.page(notes)["parent_id"].toString(),course);
+        // The move dialog never offers the page itself or the pages inside it.
+        js(QString("moveDialog.pageId = '%1'").arg(course));
+        QCOMPARE(js(QString("moveDialog.targets.some(p => p.id === '%1' || p.id === '%2' || p.id === '%3')").arg(course,unit,lesson)).toBool(),false);
+        QVERIFY(window->close());
+    }
     void askFlow() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
@@ -1707,6 +1800,167 @@ private slots:
         capture("inicio-recientes");
         QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,center(item("recentCard-1")));
         QTRY_COMPARE(js("currentId").toString(),plan);
+        QVERIFY(window->close());
+    }
+    void viewModesFlow() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("vistas.sqlite3"));
+        // A report long enough for several sheets: a heading every six blocks, paragraphs of 1 to 4 sentences.
+        const QString sentence = QString::fromUtf8("El equipo revisó las notas de la semana y acordó los siguientes pasos para el informe. ");
+        QJsonArray content;
+        for (int i = 0; i < 36; ++i) {
+            if (i % 6 == 0) content.append(Obj{{"type","heading"},{"text",QString::fromUtf8("Sección %1").arg(i/6+1)},{"level",2}});
+            else content.append(Obj{{"type","paragraph"},{"text",sentence.repeated(1+i%4).trimmed()}});
+        }
+        content.append(Obj{{"type","task"},{"text","Enviar el informe"},{"checked",false}});
+        const QString page = store.call("create_page",{{"title","Informe trimestral"},{"icon",QString::fromUtf8("📄")},
+                                                       {"cover","gradient:aurora"},{"blocks",content}},"manual")["id"].toString();
+        auto settings = [] { return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor").value("ui/viewMode").toString(); };
+        auto forget = qScopeGuard([] { QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor").remove("ui"); });
+        Editor editor(store,QCoreApplication::applicationFilePath());
+        // The view is kept between sessions: this one starts in Modo lectura.
+        editor.setPreference("viewMode","read");
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1400,900);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        auto find = [&](const QString &name) {
+            QQuickItem *item = nullptr;
+            [&] { QTRY_VERIFY((item = visibleItem(window->contentItem(),name)) && item->isVisible() && item->width() > 0); }();
+            return item;
+        };
+        auto type = [&](const QString &text) { for (QChar c : text) QTest::keyClick(window,c.toLatin1()); };
+        auto shown = [&](const QString &name) { auto *item = visibleItem(window->contentItem(),name); return item && item->isVisible(); };
+        auto centre = [](QQuickItem *it) { return it->mapToScene(it->boundingRect().center()).toPoint(); };
+        js(QString("selectPage('%1')").arg(page));
+        QTRY_COMPARE(js("currentId").toString(),page);
+
+        // Modo lectura: the page reads the same, nothing on it changes, and the tools give way to «Editar».
+        QCOMPARE(js("viewMode").toString(),QString("read"));
+        QVERIFY(!js("blockRepeater.itemAt(1).editable").toBool());
+        QVERIFY(js("titleInput.readOnly").toBool());
+        find("readingBar");
+        QVERIFY(!shown("composeButton"));
+        const QString before = js("blocks.get(1).body").toString();
+        js("blockRepeater.itemAt(1).focusAt(0)");
+        type("xyz");
+        QTest::keyClick(window,Qt::Key_Return);
+        QTest::keyClick(window,Qt::Key_Backspace);
+        QTest::keyClick(window,Qt::Key_J,Qt::ControlModifier);
+        QTest::qWait(100);
+        QCOMPARE(js("blocks.get(1).body").toString(),before);
+        QCOMPARE(js("blocks.count").toInt(),37);
+        QVERIFY(!js("composer.visible").toBool());
+        QVERIFY(!js("dirty").toBool());
+        capture("vista-lectura");
+        // A new page is for writing, so it opens in Edición.
+        js("newPage(null)");
+        QTRY_COMPARE(js("viewMode").toString(),QString("edit"));
+        QVERIFY(js("titleInput.activeFocus && !titleInput.readOnly").toBool());
+        js(QString("selectPage('%1')").arg(page));
+        QTRY_COMPARE(js("currentId").toString(),page);
+        // The view buttons of the top bar, and «Editar» from the reading bar.
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("view-read")));
+        QTRY_COMPARE(js("viewMode").toString(),QString("read"));
+        QCOMPARE(settings(),QString("read"));
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("leaveReading")));
+        QTRY_COMPARE(js("viewMode").toString(),QString("edit"));
+        QVERIFY(js("blockRepeater.itemAt(1).editable").toBool());
+        find("composeButton");
+
+        // Diseño de página (Ctrl+Shift+D): Carta in Mexico with 2,54 cm margins, as many sheets as the text needs.
+        QTest::keyClick(window,Qt::Key_D,Qt::ControlModifier|Qt::ShiftModifier);
+        QTRY_COMPARE(js("viewMode").toString(),QString("page"));
+        QCOMPARE(settings(),QString("page"));
+        QCOMPARE(js("paper").toString(),QString("letter"));
+        auto *sheets = find("paperSheets");
+        QCOMPARE(sheets->width(),816.);
+        QCOMPARE(js("pageColumn.width").toDouble(),816.-2*96);
+        QVERIFY(!shown("pageCover"));
+        QTRY_VERIFY(js("sheetCount").toInt() >= 3);
+        // No block runs into the bottom margin of its sheet, and a heading stays on the sheet of what follows it.
+        const QString layout = R"((function() {
+            const stride = paperHeight+sheetGap, usable = paperHeight-2*marginY
+            const sheetOf = r => Math.floor((r.y+1)/stride)
+            for (let i = 0; i < blocks.count; ++i) {
+                const r = blockRepeater.itemAt(i), local = r.y-sheetOf(r)*stride
+                if (local < -1 || (r.height <= usable && local+r.height > usable+1)) return "block " + i + " at " + local
+                if (r.kind === "heading" && i+1 < blocks.count && sheetOf(blockRepeater.itemAt(i+1)) !== sheetOf(r)) return "heading " + i
+            }
+            const last = blockRepeater.itemAt(blocks.count-1)
+            return sheetOf(last)+1 === sheetCount ? "" : "sheets " + sheetCount + " for " + (sheetOf(last)+1)
+        })())";
+        QTRY_COMPARE(js(layout).toString(),QString());
+        QVERIFY(js("pageBreaks.some(g => g > 0)").toBool());
+        QTRY_COMPARE(sheets->property("count").toInt(),js("sheetCount").toInt());
+        QCOMPARE(find("sheetCounter")->property("text").toString(),
+                 QString("Página 1 de %1").arg(js("sheetCount").toInt()));
+        capture("vista-pagina");
+        // Between two sheets, and the same in the usual Claro theme.
+        js("pageScroll.contentItem.contentY = deskMargin+paperHeight-pageScroll.availableHeight/4");
+        QTRY_COMPARE(js("currentSheet").toInt(),2);
+        capture("vista-pagina-salto");
+        editor.setTheme("white");
+        capture("vista-pagina-claro");
+        editor.setTheme("dark");
+        js("pageScroll.contentItem.contentY = pageScroll.contentHeight-pageScroll.availableHeight");
+        QTRY_COMPARE(js("currentSheet").toInt(),js("sheetCount").toInt());
+        capture("vista-pagina-final");
+        // Writing goes on as in Edición.
+        js("pageScroll.contentItem.contentY = 0; blockRepeater.itemAt(1).focusAt(0)");
+        type("Hoy: ");
+        QTRY_VERIFY(js("blocks.get(1).body").toString().startsWith("Hoy: "));
+        QVERIFY(js("flush()").toBool());
+
+        // The paper button: A4, then narrow margins; the text column follows and the sheets are laid out again.
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("paperButton")));
+        QTRY_VERIFY(js("paperMenu.opened").toBool());
+        capture("vista-pagina-papel");
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("paper-a4")));
+        QTRY_COMPARE(js("paper").toString(),QString("a4"));
+        QTRY_COMPARE(sheets->width(),794.);
+        QTRY_COMPARE(sheets->height(),js("sheetCount").toInt()*1123.+(js("sheetCount").toInt()-1)*24.);
+        js("setMargins('narrow')");
+        QTRY_COMPARE(js("pageColumn.width").toDouble(),794.-2*48);
+        QTRY_COMPARE(js(layout).toString(),QString());
+        QCOMPARE(editor.preference("paper").toString(),QString("a4"));
+        QCOMPARE(editor.preference("margins").toString(),QString("narrow"));
+        // A PDF comes out on that paper: A4 is 595 × 842 points.
+        const QString pdf = temp.filePath("informe.pdf");
+        QVERIFY(js(QString("!!call('export',{id: currentId, url: '%1', paper: paper, margins: margins})")
+                   .arg(QUrl::fromLocalFile(pdf).toString())).toBool());
+        QFile file(pdf);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QByteArray data = file.readAll();
+        const qsizetype box = data.indexOf("/MediaBox");
+        QVERIFY(box > 0);
+        QVERIFY2(data.mid(box,40).contains("595"),data.mid(box,40).constData());
+
+        // Back in Edición (Ctrl+Shift+E) the page is as before: cover, a single column, no sheets.
+        QTest::keyClick(window,Qt::Key_E,Qt::ControlModifier|Qt::ShiftModifier);
+        QTRY_COMPARE(js("viewMode").toString(),QString("edit"));
+        QTRY_COMPARE(js("pageBreaks.length").toInt(),0);
+        QVERIFY(!sheets->isVisible());
+        QVERIFY(js("pageColumn.width").toDouble() <= 780);
+        QVERIFY(shown("pageCover"));
         QVERIFY(window->close());
     }
 };

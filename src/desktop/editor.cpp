@@ -3,6 +3,7 @@
 #include <QBuffer>
 #include <QClipboard>
 #include <QFileInfo>
+#include <QHash>
 #include <QImage>
 #include <QGuiApplication>
 #include <QRegularExpression>
@@ -21,6 +22,12 @@ Editor::Editor(notes::Store &store, const QString &codex, const QString &claude)
     connect(QGuiApplication::clipboard(),&QClipboard::dataChanged,this,&Editor::clipboardChanged);
 }
 bool Editor::clipboardPhoto() const { return pagefile::clipboardHasPhoto(QGuiApplication::clipboard()->mimeData()); }
+QVariant Editor::preference(const QString &key, const QVariant &fallback) const {
+    return preferences().value("ui/"+key,fallback);
+}
+void Editor::setPreference(const QString &key, const QVariant &value) {
+    if (!key.isEmpty()) preferences().setValue("ui/"+key,value);
+}
 // Lunqio oscuro/claro, the usual Claro ("white") and Oscuro ("black"), or Claro/Oscuro as Windows is.
 static bool knownTheme(const QString &value) {
     return value == "dark" || value == "light" || value == "white" || value == "black" || value == "system";
@@ -80,72 +87,71 @@ QUrl Editor::photoUrl(const QString &asset) {
     }
     return QUrl::fromLocalFile(path);
 }
+// A file the person chose in a dialog.
+static QString chosenFile(const Obj &args) {
+    const QString path = QUrl(args["url"].toString()).toLocalFile();
+    if (path.isEmpty()) throw notes::Error("invalid_argument","Elige un archivo local.");
+    return path;
+}
+namespace {
+// One request from the window: its arguments, and the page and revision most actions are about.
+struct Request { notes::Store &store; const Obj &args; QString id; int expected; };
+using Handler = Obj (*)(const Request &);
+QString localFile(const Obj &args) { return QUrl(args["url"].toString()).toLocalFile(); }
+// What the window asks of the library, by name. Anything not listed is a library tool, the same ones
+// MCP offers (create_page, update_page, trash_page, apply_block_changes…), run as a manual change.
+const QHash<QString,Handler> &handlers() {
+    static const QHash<QString,Handler> table{
+        // Reading.
+        {"page",[](const Request &r) -> Obj { return r.store.page(r.id); }},
+        {"navigation",[](const Request &r) -> Obj {
+            return {{"pages",r.store.navigation()},{"favorites",r.store.favorites()},{"recent",r.store.recent(8)}}; }},
+        {"generation",[](const Request &r) -> Obj { return {{"value",r.store.generation()}}; }},
+        {"history",[](const Request &r) -> Obj { return {{"rows",r.store.history(r.id)}}; }},
+        {"backlinks",[](const Request &r) -> Obj { return {{"pages",r.store.backlinks(r.id)}}; }},
+        {"ask_notes",[](const Request &r) -> Obj { return {{"notes",r.store.notesFor(r.args["question"].toString(),r.id)}}; }},
+        // Favorites, recent pages and templates: desktop lists outside page revisions.
+        {"favorite",[](const Request &r) -> Obj {
+            r.store.setFavorite(r.id,r.args["on"].toBool(),r.args.contains("index") ? r.args["index"].toInt() : -1);
+            return {{"favorites",r.store.favorites()}}; }},
+        {"visit",[](const Request &r) -> Obj { r.store.visit(r.id); return {{"recent",r.store.recent(8)}}; }},
+        {"templates",[](const Request &r) -> Obj { return {{"templates",r.store.templates()}}; }},
+        {"save_template",[](const Request &r) -> Obj {
+            r.store.saveTemplate(r.id,r.args["name"].toString()); return {{"templates",r.store.templates()}}; }},
+        {"remove_template",[](const Request &r) -> Obj {
+            r.store.removeTemplate(r.args["template"].toString()); return {{"templates",r.store.templates()}}; }},
+        // Saving the page being edited.
+        {"save",[](const Request &r) -> Obj {
+            return r.store.saveDraft(r.id,r.expected,r.args["title"].toString(),r.args["blocks"].toArray()); }},
+        {"restore_revision",[](const Request &r) -> Obj { return r.store.restoreRevision(r.id,r.expected,r.args["target"].toInt()); }},
+        // Photos.
+        {"insert_photo",[](const Request &r) -> Obj { return pagefile::insertPhoto(r.store,r.id,r.expected,localFile(r.args)); }},
+        {"store_photo",[](const Request &r) -> Obj {
+            const QString path = localFile(r.args);
+            return {{"asset",pagefile::storePhoto(r.store,path)},{"caption",QFileInfo(path).completeBaseName()}}; }},
+        {"clipboard_photo",[](const Request &r) -> Obj {
+            return {{"photos",pagefile::storeClipboardPhotos(r.store,QGuiApplication::clipboard()->mimeData())}}; }},
+        {"photo_save",[](const Request &r) -> Obj { return {{"path",pagefile::savePhoto(r.store,r.args["asset"].toString(),localFile(r.args))}}; }},
+        {"photo_copy",[](const Request &r) -> Obj { pagefile::copyPhoto(r.store,r.args["asset"].toString()); return {}; }},
+        {"cover_photo",[](const Request &r) -> Obj {
+            const QString asset = pagefile::storePhoto(r.store,localFile(r.args));
+            return r.store.call("update_page",{{"id",r.id},{"expected_revision",r.expected},{"cover","photo:"+asset}},"manual"); }},
+        // Files: a backup of the library, a page or an unsaved draft exported.
+        {"backup",[](const Request &r) -> Obj { r.store.backup(chosenFile(r.args)); return {}; }},
+        {"export",[](const Request &r) -> Obj {
+            Obj page = r.store.page(r.id);
+            // A PDF follows the paper and margins of Diseño de página.
+            for (const char *key : {"paper","margins"}) if (r.args.contains(key)) page.insert(key,r.args.value(key));
+            pagefile::save(r.store,page,chosenFile(r.args)); return {}; }},
+        {"draft",[](const Request &r) -> Obj { pagefile::save(r.store,r.args,chosenFile(r.args)); return {}; }},
+    };
+    return table;
+}
+}
 Obj Editor::dispatch(const QString &action, const Obj &a) {
-    const auto id = a["id"].toString();
-    const int expected = a["expected_revision"].toInt();
-    if (action == "page") return store.page(id);
-    if (action == "navigation") return {{"pages",store.navigation()},{"favorites",store.favorites()},{"recent",store.recent(8)}};
-    if (action == "favorite") {
-        store.setFavorite(id,a["on"].toBool(),a.contains("index") ? a["index"].toInt() : -1);
-        return {{"favorites",store.favorites()}};
-    }
-    if (action == "ask_notes") return {{"notes",store.notesFor(a["question"].toString(),id)}};
-    if (action == "templates") return {{"templates",store.templates()}};
-    if (action == "save_template") { store.saveTemplate(id,a["name"].toString()); return {{"templates",store.templates()}}; }
-    if (action == "remove_template") { store.removeTemplate(a["template"].toString()); return {{"templates",store.templates()}}; }
-    if (action == "visit") { store.visit(id); return {{"recent",store.recent(8)}}; }
-    if (action == "generation") return {{"value",store.generation()}};
-    if (action == "history") return {{"rows",store.history(id)}};
-    if (action == "backlinks") return {{"pages",store.backlinks(id)}};
-    if (action == "save") return store.saveDraft(id,expected,a["title"].toString(),a["blocks"].toArray());
-    if (action == "restore_revision") return store.restoreRevision(id,expected,a["target"].toInt());
-    if (action == "insert_photo") return pagefile::insertPhoto(store,id,expected,QUrl(a["url"].toString()).toLocalFile());
-    if (action == "store_photo") {
-        const QString path = QUrl(a["url"].toString()).toLocalFile();
-        return {{"asset",pagefile::storePhoto(store,path)},{"caption",QFileInfo(path).completeBaseName()}};
-    }
-    // A photo of the library saved as a file (in the format its name asks for) or put on the clipboard.
-    if (action == "photo_save" || action == "photo_copy") {
-        QString mime;
-        const QByteArray bytes = store.photo(a["asset"].toString(),mime);
-        QImage image;
-        if (action == "photo_copy") {
-            if (!image.loadFromData(bytes)) throw notes::Error("file_error","No se pudo leer la foto.");
-            QGuiApplication::clipboard()->setImage(image);
-            return {};
-        }
-        QString path = QUrl(a["url"].toString()).toLocalFile();
-        if (path.isEmpty()) throw notes::Error("invalid_argument","Elige un archivo local.");
-        QString suffix = QFileInfo(path).suffix().toLower();
-        const QString own = mime == "image/png" ? "png" : "jpg";
-        if (suffix != "png" && suffix != "jpg" && suffix != "jpeg") { path += "."+own; suffix = own; }
-        QByteArray out = bytes;
-        if ((suffix == "png") != (own == "png")) {
-            if (!image.loadFromData(bytes)) throw notes::Error("file_error","No se pudo leer la foto.");
-            out.clear();
-            QBuffer buffer(&out);
-            buffer.open(QIODevice::WriteOnly);
-            if (!image.save(&buffer,suffix == "png" ? "PNG" : "JPEG",suffix == "png" ? -1 : 94))
-                throw notes::Error("file_error","No se pudo convertir la foto.");
-        }
-        QSaveFile file(path);
-        if (!file.open(QIODevice::WriteOnly) || file.write(out) != out.size() || !file.commit())
-            throw notes::Error("file_error","No se pudo guardar la foto.");
-        return {{"path",path}};
-    }
-    if (action == "clipboard_photo") return {{"photos",pagefile::storeClipboardPhotos(store,QGuiApplication::clipboard()->mimeData())}};
-    if (action == "cover_photo") {
-        const QString asset = pagefile::storePhoto(store,QUrl(a["url"].toString()).toLocalFile());
-        return store.call("update_page",{{"id",id},{"expected_revision",expected},{"cover","photo:"+asset}},"manual");
-    }
-    if (action == "backup" || action == "export" || action == "draft") {
-        auto path = QUrl(a["url"].toString()).toLocalFile();
-        if (path.isEmpty()) throw notes::Error("invalid_argument","Elige un archivo local.");
-        if (action == "backup") store.backup(path);
-        else pagefile::save(store,action == "draft" ? a : store.page(id),path);
-        return {};
-    }
-    return store.call(action,a,"manual");
+    const auto found = handlers().constFind(action);
+    if (found == handlers().constEnd()) return store.call(action,a,"manual");
+    return (*found)({store,a,a["id"].toString(),a["expected_revision"].toInt()});
 }
 QVariantMap Editor::run(const QString &action, const QVariantMap &arguments) {
     try {

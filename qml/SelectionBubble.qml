@@ -323,7 +323,7 @@ Rectangle {
         }
     }
 
-    Menu {
+    UiMenu {
         id: turnMenu
         onClosed: bubble.refocus()
         Instantiator {
@@ -333,7 +333,7 @@ Rectangle {
                     {key: "heading3", text: "Encabezado 3"},{key: "list", text: "Lista con viñetas"},{key: "numbered", text: "Lista numerada"},
                     {key: "task", text: "Tarea"},{key: "toggle", text: "Desplegable"},{key: "quote", text: "Cita"},
                     {key: "callout", text: "Nota destacada"},{key: "code", text: "Código"}]
-            delegate: MenuItem {
+            delegate: UiMenuItem {
                 required property var modelData
                 text: modelData.text; checkable: true
                 checked: modelData.key === bubble.kind || modelData.key === "heading" + bubble.level && bubble.kind === "heading"
@@ -341,14 +341,14 @@ Rectangle {
             }
         }
     }
-    Menu {
+    UiMenu {
         id: moreMenu
         onClosed: bubble.refocus()
-        MenuItem { text: "Copiar    Ctrl+C"; onTriggered: if (bubble.target) bubble.target.copy() }
-        MenuItem { text: "Cortar    Ctrl+X"; enabled: !!bubble.target && !bubble.target.readOnly; onTriggered: bubble.target.cut() }
-        MenuSeparator {}
-        MenuItem { text: "Quitar enlace"; enabled: !!bubble.formatter && !!bubble.formatter.activeLink; onTriggered: bubble.formatter.setLink("") }
-        MenuItem {
+        UiMenuItem { glyph: "copy"; text: "Copiar    Ctrl+C"; onTriggered: if (bubble.target) bubble.target.copy() }
+        UiMenuItem { text: "Cortar    Ctrl+X"; enabled: !!bubble.target && !bubble.target.readOnly; onTriggered: bubble.target.cut() }
+        UiMenuSeparator {}
+        UiMenuItem { text: "Quitar enlace"; enabled: !!bubble.formatter && !!bubble.formatter.activeLink; onTriggered: bubble.formatter.setLink("") }
+        UiMenuItem {
             text: "Quitar comentario"; enabled: !!bubble.formatter && !!bubble.formatter.activeComment
             onTriggered: bubble.formatter.activeThread ? bubble.formatter.removeComment(bubble.formatter.activeThread) : bubble.formatter.setComment("")
         }

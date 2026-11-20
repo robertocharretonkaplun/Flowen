@@ -7,7 +7,7 @@ if(MSVC)
   add_compile_options(/utf-8 /W4)
 endif()
 find_package(Qt6 6.8 REQUIRED COMPONENTS Core Sql Gui Qml Quick QuickControls2 Svg)
-add_library(notes_core STATIC src/core/contract.cpp src/core/store.cpp src/core/inlines.cpp)
+add_library(notes_core STATIC src/core/contract.cpp src/core/store.cpp src/core/library.cpp src/core/inlines.cpp)
 target_include_directories(notes_core PUBLIC src/core)
 target_link_libraries(notes_core PUBLIC Qt6::Core Qt6::Sql)
 add_executable(notas-mcp src/mcp/main.cpp)
@@ -23,7 +23,8 @@ qt_add_resources(lunqio views PREFIX "/" FILES qml/Main.qml qml/qmldir qml/Theme
     qml/AiComposer.qml qml/EngineSwitch.qml qml/AiProblem.qml qml/CommentCard.qml qml/CommentRail.qml qml/UsagePage.qml
     qml/PlanLimitsView.qml qml/UsageButton.qml qml/SlashMenu.qml
     qml/EmojiPicker.qml qml/PageIcon.qml qml/PageHeader.qml qml/PageCover.qml qml/PageMenu.qml
-    qml/SidebarSection.qml qml/RecentCards.qml qml/EngineMark.qml qml/TemplateStrip.qml qml/AskPage.qml
+    qml/SidebarSection.qml qml/RecentCards.qml qml/EngineMark.qml qml/TemplateStrip.qml qml/AskPage.qml qml/UiMenu.qml qml/UiMenuItem.qml qml/UiMenuSeparator.qml qml/PageOutline.qml qml/Sidebar.qml
+    qml/ViewSwitch.qml qml/PaperSheets.qml qml/PaperMenu.qml
     assets/lunqio-64.png assets/lunqio-256.png)
 if(WIN32)
   target_sources(lunqio PRIVATE assets/lunqio.rc)

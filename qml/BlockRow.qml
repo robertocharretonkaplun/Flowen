@@ -74,6 +74,7 @@ Item {
     // A change to the look (role is align, tint, fill or frame) and the photo actions.
     signal lookRequested(string role, string value)
     signal photoAction(string name)
+    signal duplicateRequested()
     // Set by the page: adds the clipboard's photo below this block; false when it holds no photo.
     property var pastePhoto: function() { return false }
     property var undoStructure: function() { return false }
@@ -207,25 +208,25 @@ Item {
                 onActiveChanged: active ? row.dragStarted() : row.dragFinished()
                 onCentroidChanged: if (active) row.dragMoved(centroid.scenePosition.y)
             }
-            Menu {
+            UiMenu {
                 id: optionsMenu
-                Menu {
-                    title: "Convertir en"
+                UiMenu {
+                    title: "Convertir en"; glyph: "sync"
                     enabled: row.textual
-                    MenuItem { text: "Texto"; onTriggered: row.changeKind("paragraph") }
-                    MenuItem { text: "Encabezado 1"; onTriggered: row.changeKind("heading1") }
-                    MenuItem { text: "Encabezado 2"; onTriggered: row.changeKind("heading2") }
-                    MenuItem { text: "Encabezado 3"; onTriggered: row.changeKind("heading3") }
-                    MenuItem { text: "Lista con viñetas"; onTriggered: row.changeKind("list") }
-                    MenuItem { text: "Lista numerada"; onTriggered: row.changeKind("numbered") }
-                    MenuItem { text: "Tarea"; onTriggered: row.changeKind("task") }
-                    MenuItem { text: "Desplegable"; onTriggered: row.changeKind("toggle") }
-                    MenuItem { text: "Cita"; onTriggered: row.changeKind("quote") }
-                    MenuItem { text: "Nota destacada"; onTriggered: row.changeKind("callout") }
-                    MenuItem { text: "Código"; onTriggered: row.changeKind("code") }
+                    UiMenuItem { text: "Texto"; onTriggered: row.changeKind("paragraph") }
+                    UiMenuItem { text: "Encabezado 1"; onTriggered: row.changeKind("heading1") }
+                    UiMenuItem { text: "Encabezado 2"; onTriggered: row.changeKind("heading2") }
+                    UiMenuItem { text: "Encabezado 3"; onTriggered: row.changeKind("heading3") }
+                    UiMenuItem { text: "Lista con viñetas"; onTriggered: row.changeKind("list") }
+                    UiMenuItem { text: "Lista numerada"; onTriggered: row.changeKind("numbered") }
+                    UiMenuItem { text: "Tarea"; onTriggered: row.changeKind("task") }
+                    UiMenuItem { text: "Desplegable"; onTriggered: row.changeKind("toggle") }
+                    UiMenuItem { text: "Cita"; onTriggered: row.changeKind("quote") }
+                    UiMenuItem { text: "Nota destacada"; onTriggered: row.changeKind("callout") }
+                    UiMenuItem { text: "Código"; onTriggered: row.changeKind("code") }
                 }
-                Menu {
-                    id: tintMenu; title: "Color del texto"; enabled: row.textual
+                UiMenu {
+                    id: tintMenu; title: "Color del texto"; glyph: "palette"; enabled: row.textual
                     ToneItem { block: row; tone: ""; role: "tint" }
                     Instantiator {
                         model: Theme.toneNames
@@ -234,8 +235,8 @@ Item {
                         onObjectRemoved: function(i, item) { tintMenu.removeItem(item) }
                     }
                 }
-                Menu {
-                    id: fillMenu; title: "Color de fondo"; enabled: row.textual
+                UiMenu {
+                    id: fillMenu; title: "Color de fondo"; glyph: "highlight"; enabled: row.textual
                     ToneItem { block: row; tone: ""; role: "fill" }
                     Instantiator {
                         model: Theme.toneNames
@@ -244,59 +245,61 @@ Item {
                         onObjectRemoved: function(i, item) { fillMenu.removeItem(item) }
                     }
                 }
-                Menu {
-                    title: "Alinear"; enabled: row.textual
+                UiMenu {
+                    title: "Alinear"; glyph: "text"; enabled: row.textual
                     LookItem { block: row; text: "Izquierda"; role: "align"; value: "" }
                     LookItem { block: row; text: "Centro"; role: "align"; value: "center" }
                     LookItem { block: row; text: "Derecha"; role: "align"; value: "right" }
                     LookItem { block: row; text: "Justificado"; role: "align"; value: "justify" }
                 }
-                MenuSeparator {}
-                MenuItem { text: "Aumentar sangría    Tab"; enabled: row.index > 0; onTriggered: row.indentRequested(1) }
-                MenuItem { text: "Reducir sangría    Mayús+Tab"; enabled: row.indent > 0; onTriggered: row.indentRequested(-1) }
-                MenuSeparator {}
-                MenuItem { text: "Subir"; enabled: row.index > 0; onTriggered: row.shift(-1) }
-                MenuItem { text: "Bajar"; enabled: row.index + 1 < row.total; onTriggered: row.shift(1) }
-                MenuSeparator {}
-                MenuItem { text: "Eliminar bloque"; onTriggered: row.removeRow() }
+                UiMenuSeparator {}
+                UiMenuItem { glyph: "indent"; text: "Aumentar sangría    Tab"; enabled: row.index > 0; onTriggered: row.indentRequested(1) }
+                UiMenuItem { glyph: "outdent"; text: "Reducir sangría    Mayús+Tab"; enabled: row.indent > 0; onTriggered: row.indentRequested(-1) }
+                UiMenuSeparator {}
+                UiMenuItem { glyph: "copy"; text: "Duplicar    Ctrl+D"; onTriggered: row.duplicateRequested() }
+                UiMenuItem { glyph: "up"; text: "Subir"; enabled: row.index > 0; onTriggered: row.shift(-1) }
+                UiMenuItem { glyph: "down"; text: "Bajar"; enabled: row.index + 1 < row.total; onTriggered: row.shift(1) }
+                UiMenuSeparator {}
+                UiMenuItem { glyph: "trash"; danger: true; text: "Eliminar bloque"; onTriggered: row.removeRow() }
             }
             // Photos: where they sit, their style and size, and what to do with the picture.
-            Menu {
+            UiMenu {
                 id: photoMenu
-                Menu {
-                    title: "Alinear"
+                UiMenu {
+                    title: "Alinear"; glyph: "text"
                     LookItem { block: row; text: "Izquierda"; role: "align"; value: "" }
                     LookItem { block: row; text: "Centro"; role: "align"; value: "center" }
                     LookItem { block: row; text: "Derecha"; role: "align"; value: "right" }
                 }
-                Menu {
-                    title: "Estilo"
+                UiMenu {
+                    title: "Estilo"; glyph: "palette"
                     LookItem { block: row; text: "Normal"; role: "frame"; value: "" }
                     LookItem { block: row; text: "Esquinas redondeadas"; role: "frame"; value: "rounded" }
                     LookItem { block: row; text: "Con borde"; role: "frame"; value: "border" }
                     LookItem { block: row; text: "Con sombra"; role: "frame"; value: "shadow" }
                 }
-                Menu {
-                    title: "Ancho"
-                    MenuItem { text: "Pequeña (25 %)"; checkable: true; checked: row.photoPercent === 25; onTriggered: row.resizePhoto(25) }
-                    MenuItem { text: "Mediana (50 %)"; checkable: true; checked: row.photoPercent === 50; onTriggered: row.resizePhoto(50) }
-                    MenuItem { text: "Grande (75 %)"; checkable: true; checked: row.photoPercent === 75; onTriggered: row.resizePhoto(75) }
-                    MenuItem { text: "Columna completa"; checkable: true; checked: row.photoPercent === 100; onTriggered: row.resizePhoto(100) }
+                UiMenu {
+                    title: "Ancho"; glyph: "expand"
+                    UiMenuItem { text: "Pequeña (25 %)"; checkable: true; checked: row.photoPercent === 25; onTriggered: row.resizePhoto(25) }
+                    UiMenuItem { text: "Mediana (50 %)"; checkable: true; checked: row.photoPercent === 50; onTriggered: row.resizePhoto(50) }
+                    UiMenuItem { text: "Grande (75 %)"; checkable: true; checked: row.photoPercent === 75; onTriggered: row.resizePhoto(75) }
+                    UiMenuItem { text: "Columna completa"; checkable: true; checked: row.photoPercent === 100; onTriggered: row.resizePhoto(100) }
                 }
-                MenuSeparator {}
-                MenuItem { text: "Ver a tamaño completo"; onTriggered: row.photoAction("view") }
-                MenuItem { text: "Reemplazar foto…"; onTriggered: row.photoAction("replace") }
-                MenuItem { text: "Guardar foto como…"; onTriggered: row.photoAction("save") }
-                MenuItem { text: "Copiar imagen"; onTriggered: row.photoAction("copy") }
-                MenuSeparator {}
-                MenuItem { text: "Subir"; enabled: row.index > 0; onTriggered: row.shift(-1) }
-                MenuItem { text: "Bajar"; enabled: row.index + 1 < row.total; onTriggered: row.shift(1) }
-                MenuItem { text: "Eliminar foto"; onTriggered: row.removeRow() }
+                UiMenuSeparator {}
+                UiMenuItem { glyph: "expand"; text: "Ver a tamaño completo"; onTriggered: row.photoAction("view") }
+                UiMenuItem { glyph: "sync"; text: "Reemplazar foto…"; onTriggered: row.photoAction("replace") }
+                UiMenuItem { glyph: "download"; text: "Guardar foto como…"; onTriggered: row.photoAction("save") }
+                UiMenuItem { glyph: "copy"; text: "Copiar imagen"; onTriggered: row.photoAction("copy") }
+                UiMenuItem { glyph: "copy"; text: "Duplicar"; onTriggered: row.duplicateRequested() }
+                UiMenuSeparator {}
+                UiMenuItem { glyph: "up"; text: "Subir"; enabled: row.index > 0; onTriggered: row.shift(-1) }
+                UiMenuItem { glyph: "down"; text: "Bajar"; enabled: row.index + 1 < row.total; onTriggered: row.shift(1) }
+                UiMenuItem { glyph: "trash"; danger: true; text: "Eliminar foto"; onTriggered: row.removeRow() }
             }
         }
     }
     // A menu choice for one value of the look; checked while the block has it.
-    component LookItem: MenuItem {
+    component LookItem: UiMenuItem {
         required property Item block
         required property string role
         required property string value
@@ -304,7 +307,7 @@ Item {
         onTriggered: block.lookRequested(role,value)
     }
     // A palette colour, shown as a coloured "A" (text) or a swatch (background).
-    component ToneItem: MenuItem {
+    component ToneItem: UiMenuItem {
         required property Item block
         id: toneItem
         required property string tone
@@ -450,6 +453,7 @@ Item {
             }
             Keys.onPressed: function(event) {
                 if (event.key === Qt.Key_Escape && row.escapeKey()) { event.accepted = true; return }
+                if (event.key === Qt.Key_D && event.modifiers === Qt.ControlModifier && row.editable) { row.duplicateRequested(); event.accepted = true; return }
                 if (event.matches(StandardKey.Paste) && row.editable && row.pastePhoto()) { event.accepted = true; return }
                 // Once this block's text has nothing left to undo, Ctrl+Z undoes the last change to the blocks.
                 if (event.matches(StandardKey.Undo) && !input.canUndo && row.undoStructure()) { event.accepted = true; return }
@@ -492,12 +496,14 @@ Item {
                     else if (/^https?:\/\//i.test(link)) Qt.openUrlExternally(link)
                 }
             }
-            // As in Notion, a page mention opens with a single click.
+            // As in Notion, a page mention opens with a single click; while the page cannot be changed
+            // (Modo lectura, the trash) so does a web link.
             TapHandler {
                 acceptedButtons: Qt.LeftButton; acceptedModifiers: Qt.NoModifier
                 onTapped: function(eventPoint) {
                     const link = input.linkAt(eventPoint.position.x,eventPoint.position.y)
                     if (link.indexOf("lunqio://page/") === 0) row.openPage(link.slice(14))
+                    else if (!row.editable && /^https?:\/\//i.test(link)) Qt.openUrlExternally(link)
                 }
             }
             TapHandler {
@@ -509,15 +515,15 @@ Item {
                     context.popup(input,eventPoint.position.x,eventPoint.position.y)
                 }
             }
-            Menu {
+            UiMenu {
                 id: context
-                MenuItem { text: "Editar con IA…"; enabled: row.editable && !!input.selectedText; onTriggered: row.askAi() }
-                MenuSeparator {}
-                MenuItem { text: "Cortar"; enabled: row.editable && !!input.selectedText; onTriggered: { input.forceActiveFocus(); input.cut() } }
-                MenuItem { text: "Copiar"; enabled: !!input.selectedText; onTriggered: input.copy() }
-                MenuItem { text: "Pegar"; enabled: row.editable && (input.canPaste || backend.clipboardPhoto)
+                UiMenuItem { glyph: "sparkles"; text: "Editar con IA…"; enabled: row.editable && !!input.selectedText; onTriggered: row.askAi() }
+                UiMenuSeparator {}
+                UiMenuItem { text: "Cortar"; enabled: row.editable && !!input.selectedText; onTriggered: { input.forceActiveFocus(); input.cut() } }
+                UiMenuItem { glyph: "copy"; text: "Copiar"; enabled: !!input.selectedText; onTriggered: input.copy() }
+                UiMenuItem { text: "Pegar"; enabled: row.editable && (input.canPaste || backend.clipboardPhoto)
                     onTriggered: { input.forceActiveFocus(); if (!row.pastePhoto()) input.paste() } }
-                MenuItem { text: "Seleccionar todo"; onTriggered: { input.forceActiveFocus(); input.selectAll() } }
+                UiMenuItem { text: "Seleccionar todo"; onTriggered: { input.forceActiveFocus(); input.selectAll() } }
             }
         }
     }

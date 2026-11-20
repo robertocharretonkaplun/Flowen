@@ -8,7 +8,7 @@ ColumnLayout {
     required property var page          // the window: pageIcon, pageCover, setPageIcon(), setPageCover()
     property var picker: null
     property bool titleHovered: false
-    readonly property bool editable: !page.deleted
+    readonly property bool editable: !page.locked
     spacing: 2
     HoverHandler { id: zone }
     AbstractButton {
@@ -34,7 +34,8 @@ ColumnLayout {
         }
         UiButton {
             objectName: "addCover"
-            visible: !header.page.pageCover; quiet: true; symbol: "photo"; text: "Añadir portada"; enabled: header.editable
+            // Diseño de página has no cover, as a printed page.
+            visible: !header.page.pageCover && !header.page.paged; quiet: true; symbol: "photo"; text: "Añadir portada"; enabled: header.editable
             // Like Notion, a cover appears right away; it can be changed afterwards.
             onClicked: {
                 const names = Object.keys(header.page.covers)

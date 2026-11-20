@@ -1,6 +1,8 @@
 #include "pagefile.h"
 #include "inlines.h"
 #include <QBuffer>
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QImageReader>
@@ -83,6 +85,32 @@ QJsonArray storeClipboardPhotos(notes::Store &store,const QMimeData *data) {
     if (bytes.size() > 32*1024*1024) fail("La imagen del portapapeles supera 32 MiB.");
     photos.append(Obj{{"asset",store.addPhoto(mime,bytes)},{"caption",""}});
     return photos;
+}
+QString savePhoto(notes::Store &store,const QString &asset,QString path) {
+    if (path.isEmpty()) fail("Elige un archivo local.");
+    QString mime;
+    const QByteArray bytes = store.photo(asset,mime);
+    QString suffix = QFileInfo(path).suffix().toLower();
+    const QString own = mime == "image/png" ? "png" : "jpg";
+    if (suffix != "png" && suffix != "jpg" && suffix != "jpeg") { path += "."+own; suffix = own; }
+    QByteArray out = bytes;
+    if ((suffix == "png") != (own == "png")) {
+        QImage image;
+        if (!image.loadFromData(bytes)) fail("No se pudo leer la foto.");
+        out.clear();
+        QBuffer buffer(&out);
+        buffer.open(QIODevice::WriteOnly);
+        if (!image.save(&buffer,suffix == "png" ? "PNG" : "JPEG",suffix == "png" ? -1 : 94)) fail("No se pudo convertir la foto.");
+    }
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(out) != out.size() || !file.commit()) fail("No se pudo guardar la foto.");
+    return path;
+}
+void copyPhoto(notes::Store &store,const QString &asset) {
+    QString mime;
+    QImage image;
+    if (!image.loadFromData(store.photo(asset,mime))) fail("No se pudo leer la foto.");
+    QGuiApplication::clipboard()->setImage(image);
 }
 static QByteArray readPhoto(const QString &path,QString &mime) {
     QFile file(path);
@@ -185,8 +213,14 @@ static QString titled(const Obj &page) {
 }
 static void printable(notes::Store &store,const Obj &page,QSaveFile &file) {
     QPdfWriter writer(&file);
-    writer.setPageSize(QPageSize(QPageSize::A4));
-    writer.setPageMargins(QMarginsF(16,16,16,16),QPageLayout::Millimeter);
+    // The sheet of Diseño de página when the window says it ("letter" or "a4", margins "normal", "narrow"
+    // or "wide" as in Word); otherwise A4 with 16 mm all round.
+    const QString paper = page["paper"].toString(), margins = page["margins"].toString();
+    writer.setPageSize(QPageSize(paper == "letter" ? QPageSize::Letter : QPageSize::A4));
+    const bool chosen = margins == "normal" || margins == "narrow" || margins == "wide";
+    const double side = !chosen ? 16 : margins == "narrow" ? 12.7 : margins == "wide" ? 50.8 : 25.4;
+    const double edge = !chosen ? 16 : margins == "narrow" ? 12.7 : 25.4;
+    writer.setPageMargins(QMarginsF(side,edge,side,edge),QPageLayout::Millimeter);
     writer.setResolution(96);
     writer.setTitle(page["title"].toString());
     const QSize area = writer.pageLayout().paintRectPixels(96).size();

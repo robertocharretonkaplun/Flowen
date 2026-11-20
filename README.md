@@ -14,11 +14,40 @@ Editor de notas para Windows x64 con páginas anidadas, tareas y un servidor MCP
 
 La barra lateral reúne la búsqueda, Inicio, las páginas privadas y la papelera. La búsqueda no distingue mayúsculas ni acentos («arbol» encuentra «Árbol»). Primero muestra la página que se llama así, luego las que empiezan o contienen el texto en el título, y después las que lo mencionan; dentro de cada grupo, las editadas más recientemente. El lápiz de arriba crea una página. Al pasar sobre una página, el botón **+** crea una subpágina. Puedes plegar **Privado**, ocultar la barra o arrastrar su borde derecho para cambiar el ancho. Un doble clic en el borde recupera el ancho automático. El estado de MCP aparece junto al espacio de trabajo, en la parte inferior.
 
+Con **clic derecho** sobre cualquier página de la barra lateral (también en Favoritos y Recientes) puedes **Abrir**, **Añadir a favoritos**, crear una **Nueva subpágina**, **Duplicar**, **Cambiar nombre…**, **Mover a…** o **Enviar a la papelera**. La página va a la papelera al momento (con sus subpáginas) y abajo aparece un aviso con **Deshacer** durante unos segundos. Lo mismo ocurre con **⋯ → Enviar a la papelera**. En la papelera, el clic derecho ofrece **Restaurar**. **Duplicar** copia el aspecto y los bloques de la página, pero no sus comentarios ni sus subpáginas. **Mover a…** no ofrece la propia página ni las que están dentro de ella.
+
+### Vistas: Edición, Lectura y Diseño de página
+
+Los tres botones de la barra superior, junto a la estrella, cambian cómo se muestra la página, como los botones de vista de Word. También están en **Ver**. Lunqio recuerda la vista, el papel y los márgenes para la próxima vez.
+
+| Vista | Atajo | Qué hace |
+| --- | --- | --- |
+| Edición | Ctrl+Shift+E | El editor de siempre. |
+| Modo lectura | Ctrl+Shift+R | La página no se puede cambiar: el texto se puede seleccionar y copiar, pero no se escribe, no se arrastran bloques ni se pegan fotos. Se ocultan las herramientas de abajo, las plantillas y los comentarios. Los enlaces web se abren con un clic. Abajo, **Editar** vuelve a Edición. Crear una página nueva también vuelve a Edición. |
+| Diseño de página | Ctrl+Shift+D | La página sobre hojas de papel, como en Word: márgenes, número en cada hoja y **Página 2 de 5** en la barra superior. Se sigue escribiendo igual. Un bloque que no cabe en lo que queda de la hoja pasa a la siguiente, y un encabezado se queda con el bloque que le sigue. La portada no aparece, como en una hoja impresa. Los comentarios van al margen derecho de la hoja. |
+
+En Diseño de página, el botón **Carta** (o **A4**) elige el papel y los márgenes, y ofrece **Guardar como PDF…**. El PDF sale con ese mismo papel y esos márgenes. Mientras no elijas un papel, Lunqio usa Carta en los países de América que lo usan (México, Estados Unidos, Colombia, Chile y otros) y A4 en el resto.
+
+| Papel o márgenes | Medida |
+| --- | --- |
+| Carta | 21,6 × 27,9 cm |
+| A4 | 21 × 29,7 cm |
+| Márgenes normales | 2,54 cm |
+| Márgenes estrechos | 1,27 cm |
+| Márgenes anchos | 2,54 cm arriba y abajo, 5,08 cm a los lados |
+
+Lunqio no corta un párrafo entre dos hojas: si un bloque es más alto que una hoja entera, se queda donde está y puede pasar al margen.
+
+### Navegar por la página
+
+- Arriba, junto al título, se ven las **páginas superiores** (hasta tres). Un clic abre cualquiera.
+- Si la página tiene al menos dos encabezados, en su borde derecho aparece un **índice**: una línea corta por encabezado. Al pasar el puntero muestra los títulos, y un clic lleva a ese punto. Si hay comentarios a la derecha, el índice pasa al borde izquierdo.
+
 **Archivo → Guardar como…** (**Ctrl+Shift+S**) guarda una copia de la página en la carpeta que elijas. **Ctrl+S** guarda los cambios en la biblioteca local.
 
 | Formato | Fotos |
 | --- | --- |
-| PDF | Incluye las imágenes con su proporción y ancho de impresión. |
+| PDF | Incluye las imágenes con su proporción y ancho de impresión. Usa el papel y los márgenes de Diseño de página. |
 | HTML | Incluye las imágenes en el mismo archivo. |
 | Markdown | Guarda los archivos de imagen en una carpeta `.media` junto al documento. Para compartirlo con fotos, incluye esa carpeta. |
 | Texto plano | Usa el pie de foto para identificar cada imagen. |
@@ -55,6 +84,7 @@ También puedes pegar una imagen con **Ctrl+V** (o **Pegar** en el menú context
 - **Tab** anida el bloque bajo el anterior (como mucho un nivel más) y **Mayús+Tab** lo saca. Las viñetas cambian con el nivel (•, ◦, ▪) y las listas numeradas cuentan por nivel. Un **desplegable** oculta lo que tiene anidado debajo; pulsa su triángulo para abrirlo o cerrarlo, e **Intro** en un desplegable abierto crea su primer elemento.
 - En un bloque de **código**, **Intro** añade una línea, **Tab** inserta espacios y **Ctrl+Intro** sale del bloque. En una **nota destacada**, pulsa el emoji para cambiarlo.
 - Al pasar el puntero por un bloque aparecen, a su izquierda, **+** (añade una línea debajo con el menú «/» abierto) y **⋮⋮**. Arrastra ⋮⋮ para mover el bloque; una línea marca dónde quedará. Un clic en ⋮⋮ abre el menú del bloque: convertir, **Color del texto**, **Color de fondo**, **Alinear**, sangría, subir, bajar o eliminar.
+- **Ctrl+D** (o **Duplicar** en el menú ⋮⋮) copia el bloque justo debajo, sin sus comentarios.
 - **Ctrl+Z** deshace también lo que cambia los bloques: dividir con Intro, unir con Retroceso, añadir, mover o eliminar, cambiar el tipo, la sangría, el color o la alineación, e insertar fotos. Primero se deshace el texto que escribiste en el bloque; cuando ya no queda nada, Ctrl+Z vuelve al estado anterior de los bloques. **Ctrl+Y** lo rehace.
 
 ## Enlaces entre páginas
@@ -244,6 +274,8 @@ ctest --test-dir build --output-on-failure
 Si Visual Studio no ha definido `VCToolsRedistDir`, indica `-CrtDir` con la ruta absoluta de la carpeta redistribuible x64 `Microsoft.VC*.CRT`. El empaquetado produce `dist/Lunqio-x64` y `dist/Lunqio-x64.zip`. Acepta `-OutputDir` para crear otra distribución. [Despliegue de Qt en Windows](https://doc.qt.io/qt-6/windows-deployment.html)
 
 El icono de la aplicación sale de `Lunquio-icon.png`, en la raíz. Si cambias la imagen, regenera `assets/lunqio.ico` y los PNG con `python packaging/icon.py Lunquio-icon.png assets` (requiere Pillow) y vuelve a compilar. El script descarta los restos sueltos alrededor del cuadro.
+
+La organización del código (biblioteca, servidor MCP, editor e interfaz) y las reglas para ampliarlo están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
 Para repetir la prueba con el cliente Codex instalado, ejecuta `python tests/codex_smoke.py dist/Lunqio-x64/notas-mcp.exe` desde el repositorio. Esta prueba usa una biblioteca temporal y las llamadas locales del app-server de Codex. Se verificó con `codex-cli 0.169.0-alpha.11.1`.
 

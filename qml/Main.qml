@@ -13,6 +13,9 @@ ApplicationWindow {
     palette.light: Theme.pressed; palette.midlight: Theme.line; palette.mid: Theme.line; palette.dark: Theme.hover
     palette.highlight: Theme.accentLine; palette.highlightedText: Theme.text; palette.placeholderText: Theme.muted
     property bool sidebarShown: true
+    property alias search: sidebar.searchField
+    readonly property bool askOpen: workspaceTabs.currentIndex === 3
+    function openUsage() { workspaceTabs.currentIndex = 2 }
     property int sidebarPreferredWidth: 0
     property bool pagesExpanded: true
     property var textTarget: null
@@ -21,7 +24,7 @@ ApplicationWindow {
     readonly property bool settingsShown: workspaceTabs.currentIndex !== 0
     property bool resumeWriting: false
     readonly property var assistant: backend.assistant
-    readonly property bool canEditSelection: !settingsShown && !!currentId && !deleted && !conflict && !!textTarget && editIndex >= 0 && !!textTarget.selectedText
+    readonly property bool canEditSelection: !settingsShown && !!currentId && !locked && !conflict && !!textTarget && editIndex >= 0 && !!textTarget.selectedText
     readonly property bool canFormat: canEditSelection && !!textTarget.formatter
     menuBar: WorkspaceMenus { workspace: win }
     // The saved theme (Ver → Tema) drives every colour in Theme.
@@ -47,13 +50,108 @@ ApplicationWindow {
     readonly property var covers: ({aurora: ["#1f3b5a","#5b3a6e"], atardecer: ["#c8654a","#e8a764"], bosque: ["#1e4b3f","#5f9a6d"],
                                     oceano: ["#1b5f7d","#58a9c2"], noche: ["#151d2e","#2f405f"], arena: ["#a87e62","#d8b285"],
                                     menta: ["#2f8f7a","#2b5c8f"], niebla: ["#4d555e","#8d97a1"]})
-    function setPageIcon(emoji) { if (currentId && !deleted) action("update_page",{icon: emoji ? emoji : null}) }
-    function setPageCover(value) { if (currentId && !deleted) action("update_page",{cover: value ? value : null}) }
+    function setPageIcon(emoji) { if (currentId && !locked) action("update_page",{icon: emoji ? emoji : null}) }
+    function setPageCover(value) { if (currentId && !locked) action("update_page",{cover: value ? value : null}) }
     // The page's typography (⋯ menu): font, smaller text and full width.
     property string pageFont: "sans"
     property bool pageSmall: false
     property bool pageWide: false
     readonly property string pageFamily: pageFont === "serif" ? "Georgia" : pageFont === "mono" ? Theme.mono : Theme.family
+    // How pages are shown (the view buttons of the top bar, Ver): "edit"; "read", Modo lectura, where the
+    // page cannot be changed and the tools around the text go away; or "page", Diseño de página, the page
+    // on sheets of paper with margins and numbers, as in Word. Kept between sessions, like the paper.
+    readonly property var viewModes: ["edit","read","page"]
+    property string viewMode: { const v = String(backend.preference("viewMode","edit")); return viewModes.indexOf(v) >= 0 ? v : "edit" }
+    readonly property bool reading: viewMode === "read"
+    readonly property bool paged: viewMode === "page"
+    // Nothing on the page can change: it is in the trash, or being read.
+    readonly property bool locked: deleted || reading
+    function setViewMode(mode) {
+        if (viewModes.indexOf(mode) < 0 || mode === viewMode) return
+        if (mode === "read") {
+            slash = null; commentDraft = null
+            if (textTarget) textTarget.deselect()
+            flush()
+        }
+        viewMode = mode
+        backend.setPreference("viewMode",mode)
+    }
+    // The sheet of Diseño de página and of PDF files: Carta or A4 (as the region uses, until one is chosen),
+    // with Word's margins: normales 2,54 cm, estrechos 1,27 cm, anchos 5,08 cm at the sides. 96 px per inch.
+    property string paper: { const v = String(backend.preference("paper","")); return v === "letter" || v === "a4" ? v : regionPaper() }
+    property string margins: { const v = String(backend.preference("margins","normal")); return ["normal","narrow","wide"].indexOf(v) >= 0 ? v : "normal" }
+    function regionPaper() {
+        const letter = ["US","CA","MX","CO","VE","CL","PH","GT","CR","PA","DO","PR","SV","HN","NI"]
+        return letter.indexOf(Qt.locale().name.split("_")[1] || "") >= 0 ? "letter" : "a4"
+    }
+    function setPaper(value) { if (value === "letter" || value === "a4") { paper = value; backend.setPreference("paper",value) } }
+    function setMargins(value) { if (["normal","narrow","wide"].indexOf(value) >= 0) { margins = value; backend.setPreference("margins",value) } }
+    readonly property int paperWidth: paper === "letter" ? 816 : 794
+    readonly property int paperHeight: paper === "letter" ? 1056 : 1123
+    readonly property int marginX: margins === "narrow" ? 48 : margins === "wide" ? 192 : 96
+    readonly property int marginY: margins === "narrow" ? 48 : 96
+    readonly property int sheetGap: 24
+    readonly property int deskMargin: 28
+    // Where blocks start a new sheet. A block that does not fit in what is left of a sheet moves to the top
+    // of the next one, and a heading right above it goes along; a block taller than a whole sheet stays.
+    // pageBreaks[i] is the room added above block i; the sheets are as many as the text needs.
+    property var pageBreaks: []
+    property int sheetCount: 1
+    function paginate() {
+        if (!paged || !currentId) {
+            if (pageBreaks.length) pageBreaks = []
+            sheetCount = 1
+            return
+        }
+        // Hidden behind another tab the blocks are not laid out; this runs again when the page shows.
+        if (!pageScroll.visible) return
+        const stride = paperHeight+sheetGap, usable = paperHeight-2*marginY
+        // The visible blocks where they would be without the added room.
+        const rows = []
+        let present = 0
+        for (let i = 0; i < blocks.count; ++i) {
+            const row = blockRepeater.itemAt(i)
+            if (!row || !row.visible) continue
+            present += row.breakGap
+            rows.push({index: i, top: row.y-present, height: row.height, heading: row.kind === "heading"})
+        }
+        const gaps = []
+        for (let i = 0; i < blocks.count; ++i) gaps.push(0)
+        let added = 0
+        for (let k = 0; k < rows.length; ++k) {
+            const r = rows[k], top = r.top+added
+            const sheet = Math.floor(top/stride), local = top-sheet*stride
+            if (local <= 0 || local+r.height <= usable || r.height > usable) continue
+            const prev = k > 0 ? rows[k-1] : null
+            if (prev && prev.heading && !gaps[prev.index]) {
+                const above = prev.top+added, at = Math.floor(above/stride)
+                if (at === sheet && above-at*stride > 0) {
+                    gaps[prev.index] = (sheet+1)*stride-above
+                    added += gaps[prev.index]
+                    --k          // This block follows its heading on the next sheet; check it again there.
+                    continue
+                }
+            }
+            gaps[r.index] = (sheet+1)*stride-top
+            added += gaps[r.index]
+        }
+        const height = pageColumn.implicitHeight-present+added
+        const count = Math.max(1,Math.floor(Math.max(0,height-1)/stride)+1)
+        if (JSON.stringify(gaps) !== JSON.stringify(pageBreaks)) pageBreaks = gaps
+        if (count !== sheetCount) sheetCount = count
+    }
+    Timer { id: paginateTimer; interval: 40; onTriggered: win.paginate() }
+    function schedulePages() { if (paged || pageBreaks.length) paginateTimer.restart() }
+    onPagedChanged: schedulePages()
+    onPaperChanged: schedulePages()
+    onMarginsChanged: schedulePages()
+    onStructureChanged: schedulePages()
+    // The sheet in the middle of the view, for "Página 2 de 5".
+    readonly property int currentSheet: {
+        if (!paged || !pageScroll.contentItem) return 1
+        const middle = pageScroll.contentItem.contentY+pageScroll.availableHeight/3-deskMargin
+        return Math.max(1,Math.min(sheetCount,Math.floor(middle/(paperHeight+sheetGap))+1))
+    }
     function setPageLook(field, value) {
         if (!currentId || deleted) return
         const change = {}
@@ -64,13 +162,13 @@ ApplicationWindow {
     property var userTemplates: []
     readonly property bool pageEmpty: {
         structure; blocks.count
-        if (!currentId || deleted || blocks.count > 1) return false
+        if (!currentId || locked || blocks.count > 1) return false
         return blocks.count === 0 || (blocks.get(0).kind === "paragraph" && !blocks.get(0).body)
     }
     function today() { return new Date().toLocaleDateString(Qt.locale(),"d 'de' MMMM 'de' yyyy") }
     // The page takes the template's blocks, its look and, while it has no name of its own, its title.
     function applyTemplate(t) {
-        if (!currentId || deleted || !t) return
+        if (!currentId || locked || !t) return
         rememberStructure()
         const dated = s => (s || "").split("{fecha}").join(today())
         if (!titleInput.text.trim() || titleInput.text === "Sin título") titleInput.text = dated(t.title) || "Sin título"
@@ -96,6 +194,45 @@ ApplicationWindow {
         return true
     }
     function removeTemplate(id) { const r = call("remove_template",{template: id}); if (r) userTemplates = r.templates }
+    // The pages above the open one, nearest last (at most three).
+    readonly property var ancestors: {
+        const out = []
+        let page = pages.find(x => x.id === currentId)
+        for (let guard = 0; page && page.parent_id && guard < 32; ++guard) {
+            page = pages.find(x => x.id === page.parent_id)
+            if (page) out.unshift(page)
+        }
+        return out.slice(-3)
+    }
+    // The headings of the page, for its outline.
+    readonly property var headings: {
+        structure; blocks.count
+        const out = []
+        for (let i = 0; i < blocks.count; ++i) {
+            const b = blocks.get(i)
+            if (b.kind === "heading" && b.body.trim()) out.push({index: i, level: b.level || 1, text: b.body.trim()})
+        }
+        return out
+    }
+    // Scrolls a block to the top of the page area and puts the caret in it.
+    function goToBlock(index) {
+        const row = blockRepeater.itemAt(index), flick = pageScroll.contentItem
+        if (!row || !flick) return
+        const top = row.mapToItem(flick.contentItem,0,0).y
+        flick.contentY = Math.max(0,Math.min(top-32,pageScroll.contentHeight-pageScroll.availableHeight))
+        row.focusAt(-1)
+    }
+    // Ctrl+D or Duplicar: a copy right below, without comments.
+    function duplicateBlock(index) {
+        if (index < 0 || index >= blocks.count || locked) return
+        rememberStructure()
+        const copy = Object.assign({}, draft()[index], {id: ""})
+        if (copy.spans) copy.spans = copy.spans.map(s => { const t = Object.assign({}, s); delete t.comment; delete t.thread; return t })
+                                         .filter(s => s.style || s.link || s.color || s.background)
+        blocks.insert(index+1,rowOf(copy))
+        markDirty(); commentTick++
+        Qt.callLater(function() { const row = blockRepeater.itemAt(index+1); if (row) row.focusAt(-1) })
+    }
     // A block's look from its menu (align, tint, fill or frame); one undo step.
     function setBlockLook(index, role, value) {
         if (index < 0 || index >= blocks.count || blocks.get(index)[role] === value) return
@@ -110,7 +247,7 @@ ApplicationWindow {
         if (!b || b.kind !== "image") return
         photoIndex = index
         if (name === "view") photoViewer.show(b.asset,b.body)
-        else if (name === "replace" && !deleted) replaceDialog.open()
+        else if (name === "replace" && !locked) replaceDialog.open()
         else if (name === "save") {
             savePhotoDialog.selectedFile = backend.suggestedFile(savePhotoDialog.currentFolder,b.body || "Foto")
             savePhotoDialog.open()
@@ -145,7 +282,7 @@ ApplicationWindow {
     }
     // Tab nests a block under the one above (one level deeper at most); Shift+Tab brings it back.
     function setIndent(index, step) {
-        if (index < 0 || index >= blocks.count) return
+        if (index < 0 || index >= blocks.count || locked) return
         rememberStructure()
         const current = blocks.get(index).indent || 0
         const limit = index > 0 ? Math.min(6,(blocks.get(index-1).indent || 0)+1) : 0
@@ -211,14 +348,14 @@ ApplicationWindow {
     }
     // A photo on the clipboard (a screenshot, "Copiar imagen", image files) goes in like a chosen one.
     function pastePhoto(index) {
-        if (!currentId || deleted || !backend.clipboardPhoto) return false
+        if (!currentId || locked || !backend.clipboardPhoto) return false
         const r = call("clipboard_photo")
         if (!r) return true                       // The notice says why (too large, unreadable).
         return insertPhotos(index,r.photos)
     }
     // Photo files chosen in the dialog or dropped on the page; saved at once.
     function insertPhotoFiles(urls, index, exact) {
-        if (!currentId || deleted) return false
+        if (!currentId || locked) return false
         const photos = []
         for (const url of urls) {
             const r = call("store_photo",{url: url.toString()})
@@ -236,11 +373,86 @@ ApplicationWindow {
         if (resumeWriting) { resumeWriting = false; assistant.cancel() }
         workspaceTabs.currentIndex = 0
     }
-    function openTrashConfirmation() { trashDialog.open() }
+    // The open page goes to the trash at once; the notice offers to bring it back (as in Notion).
+    function openTrashConfirmation() { trashPage(currentId) }
+    // Operations on any page of the sidebar (right click), not only the open one.
+    function trashPage(id) {
+        if (!id || (id === currentId && !flush())) return false
+        const p = call("page",{id: id})
+        if (!p || p.deleted_at || !call("trash_page",{id: id, expected_revision: p.revision})) return false
+        refreshNavigation()
+        // When the open page (or one above it) went too, show the first page left.
+        if (currentId && !pages.some(x => x.id === currentId)) showPage(navigationRows.length ? navigationRows[0].page.id : "")
+        toast("«" + p.title + "» está en la papelera.","Deshacer",function() { restorePage(id) })
+        return true
+    }
+    function restorePage(id) {
+        const p = call("page",{id: id})
+        if (!p || !p.deleted_at || !call("restore_page",{id: id, expected_revision: p.revision})) return false
+        refreshNavigation()
+        if (id === currentId) showPage(id)
+        toast("«" + p.title + "» se restauró.")
+        return true
+    }
+    // A copy next to the page: its look and blocks, without comments (subpages stay with the original).
+    function duplicatePage(id) {
+        if (id === currentId && !flush()) return ""
+        const p = call("page",{id: id})
+        if (!p) return ""
+        const copies = p.blocks.map(b => {
+            const c = Object.assign({}, b)
+            delete c.id
+            if (c.spans) c.spans = c.spans.map(s => { const t = Object.assign({}, s); delete t.comment; delete t.thread; return t })
+                                     .filter(s => s.style || s.link || s.color || s.background)
+            if (c.spans && !c.spans.length) delete c.spans
+            return c
+        })
+        const made = call("create_page",{title: (p.title + " (copia)").slice(0,240), parent_id: p.parent_id, icon: p.icon,
+                                         cover: p.cover, font: p.font || "sans", small_text: !!p.small_text, full_width: !!p.full_width,
+                                         blocks: copies.slice(0,128)})
+        if (!made) return ""
+        // create_page takes 128 blocks at a time; the rest follow in order.
+        let revision = made.revision
+        for (let at = 128; at < copies.length; at += 128) {
+            const r = call("apply_block_changes",{id: made.id, expected_revision: revision, changes: copies.slice(at,at+128).map(b => ({op: "insert", block: b}))})
+            if (!r) break
+            revision = r.revision
+        }
+        refreshNavigation(); selectPage(made.id)
+        toast("Se duplicó «" + p.title + "».")
+        return made.id
+    }
+    function renamePage(id, title) {
+        title = (title || "").trim()
+        if (!title) return false
+        if (id === currentId) { titleInput.text = title; markDirty(); return flush() }
+        const p = call("page",{id: id})
+        if (!p || !call("update_page",{id: id, expected_revision: p.revision, title: title})) return false
+        refreshNavigation()
+        return true
+    }
+    function movePage(id, parent) {
+        if (id === currentId) return action("update_page",{parent_id: parent})
+        const p = call("page",{id: id})
+        if (!p || !call("update_page",{id: id, expected_revision: p.revision, parent_id: parent})) return false
+        if (parent) collapsed[parent] = false
+        refreshNavigation()
+        return true
+    }
+    function openRename(id) {
+        const p = pages.find(x => x.id === id)
+        renameDialog.pageId = id; renameField.text = p ? p.title : ""; renameDialog.open()
+    }
+    function openMove(id) { if (id !== currentId || flush()) { moveDialog.pageId = id; moveDialog.open() } }
+    // A short notice at the bottom, with one action (Deshacer); it leaves by itself.
+    function toast(message, label, run) {
+        toastBox.message = message; toastBox.label = label || ""; toastBox.run = run || null
+        toastTimer.restart()
+    }
     // "Foto", "/Foto" or Edición → Insertar foto: the photos land where you are writing.
     property int photoTarget: -1
     function choosePhoto(index) {
-        if (!currentId || deleted) return
+        if (!currentId || locked) return
         photoTarget = index === undefined ? editIndex : index
         photoDialog.open()
     }
@@ -292,7 +504,7 @@ ApplicationWindow {
     }
     function commentAction(thread, name, value) {
         const row = blockRepeater.itemAt(thread.index)
-        if (!row || !row.formatter || deleted) return
+        if (!row || !row.formatter || locked) return
         const f = row.formatter
         if (name === "reply") f.reply(thread.id,value,backend.author)
         else if (name === "resolve") { f.setResolved(thread.id,value); if (value && activeComment === thread.id) activeComment = "" }
@@ -307,6 +519,7 @@ ApplicationWindow {
     property real dropY: 0
     property real dropX: 0
     function insertBlock(index, kind, text, styles, caret, after, indent) {
+        if (locked) return
         rememberStructure()
         blocks.insert(index,rowOf({type: "paragraph", text: text, spans: styles || "[]", indent: indent}))
         setKind(index,kind)
@@ -319,6 +532,7 @@ ApplicationWindow {
         })
     }
     function splitBlock(index, position) {
+        if (locked) return
         rememberStructure()
         const block = blocks.get(index), row = blockRepeater.itemAt(index)
         if (!row || block.kind === "image") return
@@ -331,7 +545,7 @@ ApplicationWindow {
         insertBlock(index+1,listLike ? block.kind : "paragraph",tail.text,tail.spans,0,undefined,(block.indent || 0)+(child ? 1 : 0))
     }
     function mergeBlock(index) {
-        if (index <= 0) return
+        if (index <= 0 || locked) return
         rememberStructure()
         const current = blockRepeater.itemAt(index), previous = blockRepeater.itemAt(index-1)
         if (!current || !previous) return
@@ -491,7 +705,7 @@ ApplicationWindow {
     }
     // "Crear con IA" at a block (its index), or -2 for the line being edited (else the end of the page).
     function openComposer(index) {
-        if (settingsShown || !currentId || deleted || conflict) return
+        if (settingsShown || !currentId || locked || conflict) return
         if (index === -2) index = editIndex >= 0 && !!textTarget && !!textTarget.formatter ? editIndex : blocks.count-1
         if (!flush()) return
         const texts = []
@@ -562,7 +776,7 @@ ApplicationWindow {
         undoDepth = undoStack.length; redoDepth = 0
     }
     function restoreStructure(from, to) {
-        if (!from.length || deleted) return false
+        if (!from.length || locked) return false
         const step = from.pop()
         to.push(snapshot())
         undoDepth = undoStack.length; redoDepth = redoStack.length
@@ -711,6 +925,8 @@ ApplicationWindow {
         const p = call("create_page",{title:"Sin título",parent_id:parent || null,blocks:[{type:"paragraph",text:""}]})
         if (!p) return
         enterEditor()
+        // A new page is for writing: Modo lectura gives way to Edición.
+        if (reading) setViewMode("edit")
         trashMode = false; pagesExpanded = true; search.clear(); info("")
         if (parent) collapsed[parent] = false
         refreshNavigation(); showPage(p.id)
@@ -724,6 +940,7 @@ ApplicationWindow {
         return true
     }
     function add(kind) {
+        if (!currentId || locked) return
         rememberStructure()
         blocks.append(rowOf({type: kind})); markDirty()
         Qt.callLater(function() {
@@ -732,9 +949,11 @@ ApplicationWindow {
             if (pageScroll.contentItem) pageScroll.contentItem.contentY = Math.max(0,pageScroll.contentHeight-pageScroll.availableHeight)
         })
     }
-    function requestFile(kind) {
+    // kind: "export", "draft" or "backup"; format "pdf" picks that type in the dialog.
+    function requestFile(kind, format) {
         if (kind !== "draft" && !flush()) return
         fileAction = kind
+        if (format === "pdf") fileDialog.selectedNameFilter.index = 1
         fileDialog.selectedFile = backend.suggestedFile(fileDialog.currentFolder,kind === "backup" ? "Copia de Lunqio" : titleInput.text)
         fileDialog.open()
     }
@@ -757,141 +976,7 @@ ApplicationWindow {
     function openAsk() { if (flush()) workspaceTabs.currentIndex = 3 }
     RowLayout {
         anchors.fill: parent; spacing: 0
-        Rectangle {
-            id: sidebar
-            visible: win.sidebarShown
-            Layout.preferredWidth: Math.max(200,Math.min(win.width-525,win.sidebarPreferredWidth || Math.min(320,Math.round(win.width*0.225))))
-            Layout.fillHeight: true
-            color: Theme.sidebar
-            ColumnLayout {
-                anchors.fill: parent; spacing: 0
-                RowLayout {
-                    Layout.fillWidth: true; Layout.leftMargin: 8; Layout.rightMargin: 8; Layout.preferredHeight: 45
-                    UiButton { symbol: "panel"; hint: "Ocultar barra lateral"; quiet: true; onClicked: win.sidebarShown = false }
-                    Item { Layout.fillWidth: true }
-                    UiButton { symbol: "history"; hint: "Historial de esta página"; enabled: !win.settingsShown && !!win.currentId && !win.deleted; quiet: true; onClicked: win.openHistory() }
-                    UiButton { symbol: "newPage"; hint: "Nueva página (Ctrl+N)"; quiet: true; onClicked: win.newPage(null) }
-                }
-                TextField {
-                    id: search; Layout.fillWidth: true; Layout.leftMargin: 9; Layout.rightMargin: 11; Layout.preferredHeight: 36
-                    placeholderText: "Buscar páginas"; Accessible.name: "Buscar páginas"; maximumLength: 240
-                    leftPadding: 32; rightPadding: 48; selectByMouse: true
-                    onActiveFocusChanged: if (activeFocus) win.remember(search,-1)
-                    background: Rectangle {
-                        radius: Theme.radiusButton; border.color: search.activeFocus ? Theme.accent : Theme.line; color: Theme.surface
-                        Glyph { name: "search"; anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 14 }
-                        Rectangle { width: 39; height: 19; radius: 4; color: Theme.hover; anchors.right: parent.right; anchors.rightMargin: 7; anchors.verticalCenter: parent.verticalCenter; visible: !search.text
-                            Label { anchors.centerIn: parent; text: "Ctrl+K"; font.pixelSize: 10; color: Theme.secondary } }
-                    }
-                    onTextChanged: if (win.initialized) { if (text) { win.trashMode = false; win.pagesExpanded = true } win.refreshNavigation() }
-                }
-                UiButton { Layout.topMargin: 12; Layout.leftMargin: 9
-                    alignLeft: true; quiet: win.settingsShown || !!win.currentId || win.trashMode; symbol: "home"; text: "Inicio"
-                    onClicked: win.browseTrash(false) }
-                UiButton { objectName: "askEntry"; Layout.leftMargin: 9
-                    alignLeft: true; quiet: workspaceTabs.currentIndex !== 3; symbol: "sparkles"; text: "Preguntar a Lunqio"
-                    hint: "Preguntar sobre tus notas (Ctrl+Shift+P)"; onClicked: win.openAsk() }
-                ListView {
-                    id: navList; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 8; Layout.rightMargin: 8; Layout.topMargin: 4
-                    clip: true; spacing: 2; model: win.pagesExpanded ? win.navigationRows : []
-                    ScrollBar.vertical: ScrollBar {}
-                    // Favoritos and Recientes scroll with the page tree; searching or the trash hides them.
-                    readonly property bool shortcuts: !win.trashMode && !search.text.trim()
-                    header: ColumnLayout {
-                        width: navList.width; spacing: 0
-                        SidebarSection {
-                            objectName: "favorites"; Layout.fillWidth: true
-                            visible: navList.shortcuts && win.favoriteRows.length > 0
-                            title: "Favoritos"; favorites: true; rows: win.favoriteRows
-                            currentId: win.settingsShown ? "" : win.currentId
-                            onChosen: function(id) { win.selectPage(id) }
-                            onUnfavorite: function(id) { win.setFavorite(id,false) }
-                            onMoved: function(id, index) { win.setFavorite(id,true,index) }
-                            onMenuRequested: function(id) { pageRowMenu.show(id) }
-                        }
-                        SidebarSection {
-                            objectName: "recent"; Layout.fillWidth: true
-                            visible: navList.shortcuts && win.recentRows.length > 0
-                            title: "Recientes"; rows: win.recentRows.slice(0,5)
-                            currentId: win.settingsShown ? "" : win.currentId
-                            onChosen: function(id) { win.selectPage(id) }
-                            onMenuRequested: function(id) { pageRowMenu.show(id) }
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true; Layout.topMargin: 8; Layout.bottomMargin: 2
-                            UiButton { text: win.trashMode ? "Papelera" : search.text.trim() ? "Resultados" : "Privado"
-                                quiet: true; alignLeft: true; symbol: win.pagesExpanded ? "down" : "right"; hint: "Mostrar u ocultar las páginas"
-                                onClicked: win.pagesExpanded = !win.pagesExpanded }
-                            Item { Layout.fillWidth: true }
-                            UiButton { symbol: "add"; quiet: true; hint: "Crear página en la raíz"; onClicked: win.newPage(null) }
-                        }
-                    }
-                    Menu {
-                        id: pageRowMenu
-                        property string pageId: ""
-                        readonly property bool favorite: win.favoriteIds.indexOf(pageId) >= 0
-                        function show(id) { pageId = id; popup() }
-                        MenuItem { text: pageRowMenu.favorite ? "Quitar de favoritos" : "Añadir a favoritos"
-                            onTriggered: win.setFavorite(pageRowMenu.pageId,!pageRowMenu.favorite) }
-                        MenuItem { text: "Nueva subpágina"; onTriggered: win.newPage(pageRowMenu.pageId) }
-                    }
-                    delegate: Rectangle {
-                        id: navRow
-                        required property var modelData
-                        HoverHandler { id: rowHover }
-                        TapHandler { acceptedButtons: Qt.RightButton; enabled: !win.trashMode; onTapped: pageRowMenu.show(navRow.modelData.page.id) }
-                        width: navList.width; height: 34; radius: 5
-                        color: !win.settingsShown && modelData.page.id === win.currentId ? Theme.hover : rowHover.hovered ? Theme.raised : "transparent"
-                        RowLayout {
-                            anchors.fill: parent; anchors.leftMargin: 8 + Math.min(6,navRow.modelData.depth)*12; anchors.rightMargin: 6; spacing: 3
-                            UiButton {
-                                visible: navRow.modelData.branch; Layout.preferredWidth: 19; quiet: true; hint: "Mostrar u ocultar subpáginas"
-                                symbol: win.collapsed[navRow.modelData.page.id] ? "right" : "down"
-                                onClicked: { win.collapsed[navRow.modelData.page.id] = !win.collapsed[navRow.modelData.page.id]; win.refreshNavigation() }
-                            }
-                            Button {
-                                id: navButton; flat: true; Layout.fillWidth: true; Layout.fillHeight: true; padding: 3
-                                background: Rectangle { color: "transparent"; radius: 4; border.width: navButton.visualFocus ? 1 : 0; border.color: Theme.focus }
-                                contentItem: RowLayout {
-                                    spacing: 9
-                                    PageIcon { icon: navRow.modelData.page.icon || ""; size: 15 }
-                                    Label { text: navRow.modelData.page.title; color: navRow.modelData.page.id === win.currentId ? Theme.text : Theme.secondary; Layout.fillWidth: true; elide: Text.ElideRight }
-                                }
-                                Accessible.name: navRow.modelData.page.title; onClicked: win.selectPage(navRow.modelData.page.id)
-                                ToolTip.visible: hovered && !!navRow.modelData.page.snippet
-                                ToolTip.text: navRow.modelData.page.snippet || ""
-                            }
-                            UiButton { visible: (rowHover.hovered || visualFocus) && !win.trashMode
-                                symbol: "add"; quiet: true; hint: "Crear subpágina"; Layout.preferredWidth: 26
-                                onClicked: win.newPage(navRow.modelData.page.id) }
-                        }
-                    }
-                    Label { visible: win.pagesExpanded && !navList.count; anchors.left: parent.left; anchors.leftMargin: 12; text: win.trashMode ? "Papelera vacía" : search.text ? "Sin coincidencias" : "Aún no hay páginas"; color: Theme.muted; font.pixelSize: 13 }
-                }
-                UiButton { Layout.fillWidth: true; Layout.margins: 9; quiet: !win.trashMode; alignLeft: true; text: "Papelera"; symbol: "trash"; onClicked: win.browseTrash(!win.trashMode) }
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.hover }
-                RowLayout {
-                    Layout.fillWidth: true; Layout.margins: 10; spacing: 3
-                    Image { objectName: "appLogo"; source: "../assets/lunqio-64.png"; sourceSize: Qt.size(64,64)
-                        Layout.preferredWidth: 29; Layout.preferredHeight: 29; smooth: true; mipmap: true; Accessible.ignored: true }
-                    Button {
-                        id: mcpBadge; flat: true; Layout.fillWidth: true; implicitHeight: 39
-                        Accessible.name: mcpText.text + ". Ajustes de conexión"; onClicked: win.openConnection()
-                        background: Rectangle { radius: 5; color: mcpBadge.hovered ? Theme.hover : "transparent"; border.width: mcpBadge.visualFocus ? 1 : 0; border.color: Theme.focus }
-                        contentItem: ColumnLayout {
-                            spacing: 1
-                            Label { text: "Lunqio"; font.weight: Font.DemiBold; font.pixelSize: 14 }
-                            RowLayout { spacing: 5
-                                Rectangle { width: 6; height: 6; radius: 3; color: win.assistant.link.state === "connected" ? Theme.success : win.assistant.link.state === "connecting" ? Theme.warning : Theme.muted }
-                                Label { id: mcpText; font.pixelSize: 11; color: Theme.secondary; text: win.assistant.link.state === "connected" ? "MCP conectado" : win.assistant.link.state === "connecting" ? "Conectando MCP…" : "MCP desconectado" }
-                            }
-                        }
-                    }
-                    UsageButton { objectName: "usageButton"; assistant: win.assistant; onOpenUsage: workspaceTabs.currentIndex = 2 }
-                    UiButton { symbol: "settings"; quiet: true; hint: "Conectores"; onClicked: win.openConnection() }
-                }
-            }
-        }
+        Sidebar { id: sidebar; workspace: win }
         Rectangle {
             visible: win.sidebarShown; Layout.preferredWidth: 1; Layout.fillHeight: true; z: 5
             color: splitter.containsMouse ? Theme.accent : Theme.hover
@@ -934,13 +1019,56 @@ ApplicationWindow {
                 visible: !win.settingsShown
                 Layout.fillWidth: true; Layout.preferredHeight: 48; Layout.leftMargin: 18; Layout.rightMargin: 14; spacing: 8
                 UiButton { visible: !win.sidebarShown; symbol: "panel"; hint: "Mostrar barra lateral"; quiet: true; onClicked: win.sidebarShown = true }
+                // Breadcrumbs: the pages above this one (the last three), each a click away.
+                Repeater {
+                    model: win.currentId ? win.ancestors : []
+                    delegate: RowLayout {
+                        id: crumb
+                        required property var modelData
+                        spacing: 2
+                        AbstractButton {
+                            implicitHeight: 28; leftPadding: 6; rightPadding: 6; hoverEnabled: true
+                            Accessible.name: "Abrir " + crumb.modelData.title
+                            onClicked: win.selectPage(crumb.modelData.id)
+                            background: Rectangle { radius: 6; color: parent.hovered ? Theme.hover : "transparent" }
+                            contentItem: RowLayout {
+                                spacing: 6
+                                PageIcon { icon: crumb.modelData.icon || ""; size: 13 }
+                                Text { text: crumb.modelData.title; color: Theme.secondary; font.pixelSize: 13; elide: Text.ElideRight; Layout.maximumWidth: 150 }
+                            }
+                        }
+                        Text { text: "/"; color: Theme.faint; font.pixelSize: 13 }
+                    }
+                }
                 PageIcon { icon: win.currentId ? win.pageIcon : ""; glyph: win.currentId ? "page" : "home"; size: 15 }
                 Label { text: win.currentId ? titleInput.text : win.trashMode ? "Papelera" : "Inicio"; elide: Text.ElideRight; Layout.maximumWidth: 290; font.pixelSize: 14 }
                 Glyph { name: "lock"; font.pixelSize: 11; visible: !!win.currentId }
                 Label { visible: !!win.currentId; text: win.deleted ? "Papelera" : "Privada"; color: Theme.muted; font.pixelSize: 12 }
                 Item { Layout.fillWidth: true }
                 Label { visible: !!win.currentId; text: win.conflict ? "Conflicto de edición" : win.dirty ? "Cambios pendientes" : "Guardado · v" + win.revision; color: win.dirty ? Theme.warning : Theme.muted; font.pixelSize: 12 }
-                UiButton { visible: !win.sidebarShown; symbol: "link"; text: mcpText.text; quiet: true; hint: "Conectores"; onClicked: win.openConnection() }
+                UiButton { visible: !win.sidebarShown; symbol: "link"; text: sidebar.mcpLabel; quiet: true; hint: "Conectores"; onClicked: win.openConnection() }
+                // Diseño de página: where you are, and the paper (as Word's status bar and Disposición menu).
+                Label {
+                    objectName: "sheetCounter"; visible: win.paged && !!win.currentId
+                    text: "Página " + win.currentSheet + " de " + win.sheetCount; color: Theme.muted; font.pixelSize: 12
+                    font.features: {"tnum": 1}
+                }
+                UiButton {
+                    objectName: "paperButton"; visible: win.paged && !!win.currentId; quiet: true
+                    symbol: "page"; text: win.paper === "letter" ? "Carta" : "A4"
+                    hint: "Tamaño del papel y márgenes"
+                    onClicked: paperMenu.popup(this,0,height+4)
+                    PaperMenu {
+                        id: paperMenu; objectName: "paperMenu"; workspace: win
+                        UiMenuSeparator {}
+                        UiMenuItem { glyph: "download"; text: "Guardar como PDF…"; onTriggered: win.requestFile("export","pdf") }
+                    }
+                }
+                ViewSwitch {
+                    objectName: "viewSwitch"; visible: !!win.currentId
+                    mode: win.viewMode
+                    onChosen: function(mode) { win.setViewMode(mode) }
+                }
                 UiButton {
                     objectName: "favoriteButton"; visible: !!win.currentId && !win.deleted; quiet: true
                     symbol: win.isFavorite ? "starFilled" : "star"; symbolColor: win.isFavorite ? Theme.favorite : Theme.secondary
@@ -950,25 +1078,25 @@ ApplicationWindow {
                 UiButton {
                     symbol: "more"; hint: "Opciones de página"; quiet: true; visible: !!win.currentId && !win.deleted
                     onClicked: pageMenu.popup()
-                    Menu { id: pageMenu
-                        MenuItem { text: win.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"; onTriggered: win.setFavorite(win.currentId,!win.isFavorite) }
-                        Menu {
-                            title: "Fuente"
-                            MenuItem { text: "Predeterminada"; checkable: true; checked: win.pageFont === "sans"; onTriggered: win.setPageLook("font","sans") }
-                            MenuItem { text: "Serif"; checkable: true; checked: win.pageFont === "serif"; onTriggered: win.setPageLook("font","serif") }
-                            MenuItem { text: "Mono"; checkable: true; checked: win.pageFont === "mono"; onTriggered: win.setPageLook("font","mono") }
+                    UiMenu { id: pageMenu
+                        UiMenuItem { text: win.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"; onTriggered: win.setFavorite(win.currentId,!win.isFavorite) }
+                        UiMenu {
+                            title: "Fuente"; glyph: "text"
+                            UiMenuItem { text: "Predeterminada"; checkable: true; checked: win.pageFont === "sans"; onTriggered: win.setPageLook("font","sans") }
+                            UiMenuItem { text: "Serif"; checkable: true; checked: win.pageFont === "serif"; onTriggered: win.setPageLook("font","serif") }
+                            UiMenuItem { text: "Mono"; checkable: true; checked: win.pageFont === "mono"; onTriggered: win.setPageLook("font","mono") }
                         }
-                        MenuItem { text: "Texto pequeño"; checkable: true; checked: win.pageSmall; onTriggered: win.setPageLook("small_text",!win.pageSmall) }
-                        MenuItem { text: "Ancho completo"; checkable: true; checked: win.pageWide; onTriggered: win.setPageLook("full_width",!win.pageWide) }
-                        MenuItem { text: "Guardar como plantilla…"; onTriggered: { templateName.text = titleInput.text; templateDialog.open() } }
-                        MenuSeparator {}
-                        MenuItem { text: "Nueva subpágina"; onTriggered: win.newPage(win.currentId) }
-                        MenuItem { text: "Mover página…"; onTriggered: if (win.flush()) moveDialog.open() }
-                        MenuItem { text: "Historial de revisiones…"; onTriggered: win.openHistory() }
-                        MenuItem { text: "Guardar como…"; onTriggered: win.requestFile("export") }
-                        MenuItem { text: "Insertar foto…"; onTriggered: win.choosePhoto() }
-                        MenuSeparator {}
-                        MenuItem { text: "Enviar a la papelera…"; onTriggered: win.openTrashConfirmation() }
+                        UiMenuItem { glyph: "text"; text: "Texto pequeño"; checkable: true; checked: win.pageSmall; onTriggered: win.setPageLook("small_text",!win.pageSmall) }
+                        UiMenuItem { glyph: "expand"; text: "Ancho completo"; checkable: true; checked: win.pageWide; onTriggered: win.setPageLook("full_width",!win.pageWide) }
+                        UiMenuItem { glyph: "bookmark"; text: "Guardar como plantilla…"; onTriggered: { templateName.text = titleInput.text; templateDialog.open() } }
+                        UiMenuSeparator {}
+                        UiMenuItem { glyph: "newPage"; text: "Nueva subpágina"; onTriggered: win.newPage(win.currentId) }
+                        UiMenuItem { glyph: "move"; text: "Mover página…"; onTriggered: if (win.flush()) moveDialog.open() }
+                        UiMenuItem { glyph: "history"; text: "Historial de revisiones…"; onTriggered: win.openHistory() }
+                        UiMenuItem { glyph: "download"; text: "Guardar como…"; onTriggered: win.requestFile("export") }
+                        UiMenuItem { glyph: "photo"; text: "Insertar foto…"; onTriggered: win.choosePhoto() }
+                        UiMenuSeparator {}
+                        UiMenuItem { glyph: "trash"; danger: true; text: "Enviar a la papelera"; onTriggered: win.openTrashConfirmation() }
                     }
                 }
             }
@@ -1003,26 +1131,43 @@ ApplicationWindow {
             }
             ScrollView {
                 id: pageScroll; visible: !win.settingsShown && !!win.currentId; Layout.fillWidth: true; Layout.fillHeight: true
-                clip: true; contentWidth: availableWidth
-                contentHeight: pageColumn.y+Math.max(pageColumn.implicitHeight,rail.visible && !rail.floating ? rail.contentBottom+40 : 0)
+                clip: true
+                // Diseño de página: the desk scrolls sideways when the sheet is wider than the window.
+                contentWidth: win.paged ? Math.max(availableWidth,win.paperWidth+2*win.deskMargin+(withRail && railFits ? 332 : 0)) : availableWidth
+                contentHeight: Math.max(win.paged ? sheets.y+sheets.height+win.deskMargin : pageColumn.y+pageColumn.implicitHeight,
+                                        rail.visible && !rail.floating ? pageColumn.y+rail.contentBottom+40 : 0)
                 // With comments, the text column narrows to leave a 300 px margin for the cards (as in Google Docs).
                 readonly property int gutter: win.width >= 1150 ? 148 : 72
                 readonly property bool withRail: rail.threads.length > 0 || !!win.commentDraft
-                readonly property bool railFits: availableWidth-gutter-332 >= 460
+                readonly property bool railFits: win.paged ? availableWidth-win.paperWidth-2*win.deskMargin-332 >= 0
+                                                           : availableWidth-gutter-332 >= 460
+                background: Rectangle { color: win.paged ? Theme.desk : "transparent" }
+                onVisibleChanged: if (visible) win.schedulePages()
                 PageCover {
                     id: pageCoverItem; objectName: "pageCover"
+                    visible: !win.paged && !!win.pageCover
                     page: win; width: pageScroll.availableWidth; height: 200
                     onUploadRequested: coverDialog.open()
                 }
+                PaperSheets {
+                    id: sheets; objectName: "paperSheets"
+                    visible: win.paged
+                    x: Math.max(win.deskMargin,Math.round((pageScroll.availableWidth-width-(pageScroll.withRail && pageScroll.railFits ? 332 : 0))/2))
+                    y: win.deskMargin
+                    count: win.sheetCount; gap: win.sheetGap; bottomMargin: win.marginY
+                    paperWidth: win.paperWidth; paperHeight: win.paperHeight
+                }
                 ColumnLayout {
                     id: pageColumn
-                    y: win.pageCover ? (win.pageIcon ? 156 : 200) : 0
-                    x: pageScroll.withRail && pageScroll.railFits ? Math.round((pageScroll.availableWidth-width-332)/2) : Math.round((pageScroll.availableWidth-width)/2)
-                    width: Math.min(win.pageWide ? 1600 : 780, pageScroll.availableWidth-pageScroll.gutter-(pageScroll.withRail && pageScroll.railFits ? 332 : 0))
+                    y: win.paged ? sheets.y+win.marginY : win.pageCover ? (win.pageIcon ? 156 : 200) : 0
+                    x: win.paged ? sheets.x+win.marginX
+                       : pageScroll.withRail && pageScroll.railFits ? Math.round((pageScroll.availableWidth-width-332)/2) : Math.round((pageScroll.availableWidth-width)/2)
+                    width: win.paged ? win.paperWidth-2*win.marginX
+                           : Math.min(win.pageWide ? 1600 : 780, pageScroll.availableWidth-pageScroll.gutter-(pageScroll.withRail && pageScroll.railFits ? 332 : 0))
                     spacing: 9
-                    onHeightChanged: rail.schedule()
-                    onWidthChanged: rail.schedule()
-                    Item { Layout.preferredHeight: win.pageCover ? (win.pageIcon ? 0 : 20) : Math.min(94,win.height*0.1) }
+                    onHeightChanged: { rail.schedule(); win.schedulePages() }
+                    onWidthChanged: { rail.schedule(); win.schedulePages() }
+                    Item { Layout.preferredHeight: win.paged ? 0 : win.pageCover ? (win.pageIcon ? 0 : 20) : Math.min(94,win.height*0.1) }
                     PageHeader { id: pageHeader; Layout.fillWidth: true; page: win; picker: emojiPicker; titleHovered: titleArea.hovered || titleInput.activeFocus }
                     Label { visible: win.location !== "Biblioteca" && !win.deleted; text: win.location; color: Theme.muted; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
                     TextArea {
@@ -1030,12 +1175,12 @@ ApplicationWindow {
                         wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText; font.pixelSize: (win.width >= 1150 ? 38 : 32)-(win.pageSmall ? 4 : 0); font.weight: Font.DemiBold; font.family: win.pageFamily
                         color: Theme.text; padding: 0; bottomPadding: 12; background: Item {}
                         placeholderText: "Sin título"; Accessible.name: "Título de la página"; placeholderTextColor: Theme.faint
-                        selectByMouse: true; readOnly: win.deleted; persistentSelection: true
+                        selectByMouse: true; readOnly: win.locked; persistentSelection: true
                         onTextChanged: if (activeFocus && !win.loadingPage) win.markDirty()
                         onActiveFocusChanged: if (activeFocus) win.remember(titleInput,-1)
                         HoverHandler { id: titleArea }
                         Keys.onReturnPressed: function(event) {
-                            if (win.deleted) return
+                            if (win.locked) return
                             event.accepted = true
                             if (blocks.count) blockRepeater.itemAt(0).focusEditor()
                             else win.add("paragraph")
@@ -1083,7 +1228,10 @@ ApplicationWindow {
                     Repeater {
                         id: blockRepeater; model: blocks
                         delegate: BlockRow {
-                            Layout.fillWidth: true; total: blocks.count; editable: !win.deleted
+                            // Diseño de página: the room that takes this block to the next sheet.
+                            readonly property real breakGap: win.paged && index < win.pageBreaks.length ? win.pageBreaks[index] : 0
+                            Layout.topMargin: breakGap
+                            Layout.fillWidth: true; total: blocks.count; editable: !win.locked
                             onEditing: function(field,i) { win.remember(field,i) }
                             onAskAi: win.openWriting()
                             onComposeRequested: win.openComposer(index)
@@ -1123,20 +1271,23 @@ ApplicationWindow {
                             onChangeKind: function(value) { win.setKind(index,value) }
                             onLookRequested: function(role, value) { win.setBlockLook(index,role,value) }
                             onPhotoAction: function(name) { win.photoAction(index,name) }
+                            onDuplicateRequested: win.duplicateBlock(index)
                             pageFont: win.pageFont; smallText: win.pageSmall
                         }
                     }
                     UiButton { visible: win.deleted; primary: true; text: "Restaurar página"; onClicked: if (win.action("restore_page")) { win.trashMode = false; win.refreshNavigation() } }
-                    Item { Layout.preferredHeight: 28 }
+                    Item { Layout.preferredHeight: win.paged ? 0 : 28 }
                 }
                 CommentRail {
                     id: rail; objectName: "commentRail"
                     floating: !pageScroll.railFits
                     width: 300
-                    x: floating ? pageScroll.availableWidth-width-16 : pageColumn.x+pageColumn.width+32
+                    // Next to the text, or in Diseño de página next to the sheet (as Word's comment margin).
+                    x: floating ? pageScroll.availableWidth-width-16 : win.paged ? sheets.x+sheets.width+24 : pageColumn.x+pageColumn.width+32
                     y: pageColumn.y; height: pageColumn.height; z: 5
-                    threads: win.pageComments
-                    draft: win.commentDraft
+                    // Modo lectura shows the text alone, as Word's reading view.
+                    threads: win.reading ? [] : win.pageComments
+                    draft: win.reading ? null : win.commentDraft
                     activeId: win.activeComment
                     me: backend.author
                     anchorFor: function(index, start) {
@@ -1157,7 +1308,7 @@ ApplicationWindow {
                 }
             }
             Flow {
-                visible: !win.settingsShown && !!win.currentId && !win.deleted; Layout.fillWidth: true; Layout.preferredHeight: childrenRect.height
+                visible: !win.settingsShown && !!win.currentId && !win.locked; Layout.fillWidth: true; Layout.preferredHeight: childrenRect.height
                 Layout.leftMargin: Math.max(22,pageColumn.x)
                 Layout.rightMargin: 16; Layout.bottomMargin: 20; spacing: 6
                 Repeater {
@@ -1165,6 +1316,15 @@ ApplicationWindow {
                     delegate: UiButton { required property var modelData; text: modelData.t; symbol: modelData.s; hint: "Añadir " + modelData.t.toLowerCase(); onClicked: modelData.k === "image" ? win.choosePhoto() : win.add(modelData.k) }
                 }
                 UiButton { objectName: "composeButton"; symbol: "sparkles"; text: "Crear con IA"; hint: "Crear con IA (Ctrl+J)"; onClicked: win.openComposer(-2) }
+            }
+            // Modo lectura: in place of the tools, how to get back to writing.
+            RowLayout {
+                objectName: "readingBar"
+                visible: !win.settingsShown && !!win.currentId && win.reading && !win.deleted
+                Layout.alignment: Qt.AlignHCenter; Layout.bottomMargin: 16; spacing: 10
+                Glyph { name: "book"; font.pixelSize: 13; color: Theme.muted }
+                Label { text: "Modo lectura: la página no se puede cambiar."; color: Theme.muted; font.pixelSize: 13 }
+                UiButton { objectName: "leaveReading"; symbol: "edit"; text: "Editar"; hint: "Volver a Edición (Ctrl+Shift+E)"; onClicked: win.setViewMode("edit") }
             }
         }
     }
@@ -1179,7 +1339,7 @@ ApplicationWindow {
         onCommentRequested: win.startCommentDraft()
     }
     Shortcut { sequence: "Escape"; enabled: bubble.shown && (!bubble.menuOpen || bubble.paletteOpen); onActivated: bubble.paletteOpen ? bubble.closePalette() : bubble.dismiss() }
-    Shortcut { sequence: "Ctrl+J"; enabled: !win.settingsShown && !!win.currentId && !win.deleted; onActivated: win.openComposer(-2) }
+    Shortcut { sequence: "Ctrl+J"; enabled: !win.settingsShown && !!win.currentId && !win.locked; onActivated: win.openComposer(-2) }
     Shortcut {
         sequence: "Escape"; enabled: composer.visible && !bubble.shown
         onActivated: composer.busy ? win.assistant.cancel() : composer.close()
@@ -1224,7 +1384,7 @@ ApplicationWindow {
     DropArea {
         objectName: "photoDrop"
         anchors.fill: parent; z: 40
-        enabled: !win.settingsShown && !!win.currentId && !win.deleted
+        enabled: !win.settingsShown && !!win.currentId && !win.locked
         onEntered: function(drag) {
             if (!win.photoFiles(drag.urls).length) { drag.accepted = false; return }
             drag.accept(Qt.CopyAction)
@@ -1275,7 +1435,7 @@ ApplicationWindow {
             spacing: 12
             Label { text: "Selecciona texto dentro de un bloque para abrir el menú de formato. Desde ahí puedes convertir el bloque, aplicar estilos, añadir un enlace o un comentario y editar con IA."; Layout.fillWidth: true; wrapMode: Text.Wrap }
             Label { text: "Ctrl+B    Negrita\nCtrl+I    Cursiva\nCtrl+U    Subrayado\nCtrl+Shift+X    Tachado\nCtrl+E    Código en línea\nCtrl+Shift+H    Resaltar\nCtrl+K    Enlace (con texto seleccionado)"; lineHeight: 1.35 }
-            Label { text: "Ctrl+N    Nueva página\nCtrl+K    Buscar páginas\nCtrl+S    Guardar\nCtrl+Shift+S    Guardar como…\nCtrl+Shift+I    Editar selección con IA\nF1    Ayuda"; lineHeight: 1.35 }
+            Label { text: "Ctrl+N    Nueva página\nCtrl+K    Buscar páginas\nCtrl+S    Guardar\nCtrl+Shift+S    Guardar como…\nCtrl+Shift+I    Editar selección con IA\nCtrl+Shift+E · R · D    Edición, Modo lectura, Diseño de página\nF1    Ayuda"; lineHeight: 1.35 }
         }
     }
     Dialog {
@@ -1307,11 +1467,6 @@ ApplicationWindow {
         onAccepted: { win.showPage(win.currentId); win.info("") }
     }
     Dialog {
-        id: trashDialog; title: "¿Enviar la página y sus subpáginas a la papelera?"; anchors.centerIn: parent; modal: true
-        standardButtons: Dialog.Yes | Dialog.Cancel
-        onAccepted: if (win.action("trash_page")) win.showPage(win.navigationRows.length ? win.navigationRows[0].page.id : "")
-    }
-    Dialog {
         id: historyDialog; title: "Historial de revisiones"; modal: true; anchors.centerIn: parent
         width: Math.min(500,win.width-60); height: Math.min(430,win.height-60); standardButtons: Dialog.Close
         contentItem: ListView {
@@ -1328,12 +1483,23 @@ ApplicationWindow {
     Dialog {
         id: moveDialog; title: "Mover a…"; modal: true; anchors.centerIn: parent; standardButtons: Dialog.Close
         width: 350; height: Math.min(400,win.height-60)
+        property string pageId: ""
+        // The page itself and the pages inside it cannot hold it.
+        readonly property var targets: {
+            const own = moveDialog.pageId || win.currentId, inside = {}
+            inside[own] = true
+            let grew = true
+            while (grew) { grew = false; for (const p of win.pages) if (!inside[p.id] && inside[p.parent_id]) { inside[p.id] = true; grew = true } }
+            return [{id: null, title: "Raíz de la biblioteca"}].concat(win.pages.filter(p => !inside[p.id]))
+        }
+        onClosed: pageId = ""
         contentItem: ListView {
-            model: [{id:null,title:"Raíz de la biblioteca"}].concat(win.pages.filter(p=>p.id!==win.currentId))
+            model: moveDialog.targets
             clip: true; spacing: 3
             delegate: UiButton {
-                required property var modelData; width: ListView.view.width; text: modelData.title
-                onClicked: if (win.action("update_page",{parent_id:modelData.id})) moveDialog.close()
+                required property var modelData; width: ListView.view.width; text: modelData.title; alignLeft: true; quiet: true
+                symbol: modelData.id ? "page" : "home"
+                onClicked: if (win.movePage(moveDialog.pageId || win.currentId,modelData.id)) moveDialog.close()
             }
         }
     }
@@ -1342,6 +1508,47 @@ ApplicationWindow {
         nameFilters: ["Fotos (*.jpg *.jpeg *.png)"]; onAccepted: win.action("cover_photo",{url: selectedFile.toString()})
     }
     EmojiPicker { id: emojiPicker; objectName: "emojiPicker" }
+    // The outline sits at the right edge of the page area and stays put while the page scrolls.
+    PageOutline {
+        objectName: "pageOutline"
+        // The page area's corner in window coordinates (its column fills the window's row, right of the sidebar).
+        readonly property real areaX: pageScroll.parent.x+pageScroll.x
+        readonly property real areaY: pageScroll.parent.y+pageScroll.y
+        // With comment cards on the right, it moves to the left edge so it never covers them.
+        x: pageScroll.withRail ? areaX+14 : areaX+pageScroll.width-width-14; y: areaY+18; z: 25
+        visible: !win.settingsShown && !!win.currentId && pageScroll.visible && win.headings.length >= 2
+        headings: win.headings
+        onChosen: function(index) { win.goToBlock(index) }
+    }
+    Dialog {
+        id: renameDialog; objectName: "renameDialog"; title: "Cambiar nombre"; modal: true; anchors.centerIn: parent; width: 380
+        property string pageId: ""
+        standardButtons: Dialog.Save | Dialog.Cancel
+        onAccepted: win.renamePage(pageId,renameField.text)
+        onOpened: { renameField.forceActiveFocus(); renameField.selectAll() }
+        contentItem: TextField { id: renameField; maximumLength: 240; selectByMouse: true; onAccepted: renameDialog.accept() }
+    }
+    Rectangle {
+        id: toastBox; objectName: "toast"
+        property string message: ""
+        property string label: ""
+        property var run: null
+        anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 76
+        width: toastRow.implicitWidth+28; height: 44; radius: Theme.radiusPanel; z: 60
+        color: Theme.surface; border.color: Theme.line
+        visible: opacity > 0; opacity: message ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 140 } }
+        Rectangle { z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 3; anchors.bottomMargin: -7; radius: Theme.radiusPanel+2; color: Theme.shadow }
+        RowLayout {
+            id: toastRow; anchors.centerIn: parent; spacing: 12
+            Label { text: toastBox.message; color: Theme.text; font.pixelSize: 14 }
+            UiButton {
+                objectName: "toastAction"; visible: !!toastBox.label; text: toastBox.label; quiet: true
+                onClicked: { const run = toastBox.run; toastBox.message = ""; if (run) run() }
+            }
+        }
+        Timer { id: toastTimer; interval: 7000; onTriggered: toastBox.message = "" }
+    }
     Native.FileDialog {
         id: photoDialog; title: "Insertar fotos"; fileMode: Native.FileDialog.OpenFiles
         nameFilters: ["Fotos (*.jpg *.jpeg *.png)"]; onAccepted: win.insertPhotoFiles(selectedFiles,win.photoTarget)
@@ -1389,7 +1596,8 @@ ApplicationWindow {
         defaultSuffix: win.fileAction === "backup" ? "sqlite3" : (["md","pdf","html","txt"][selectedNameFilter.index] || "md")
         nameFilters: win.fileAction === "backup" ? ["Biblioteca SQLite (*.sqlite3)"] : ["Markdown (*.md)","Documento PDF (*.pdf)","Página HTML (*.html)","Texto plano (*.txt)"]
         onAccepted: {
-            const a = {id:win.currentId,url:selectedFile.toString()}
+            // A PDF comes out on the paper and with the margins of Diseño de página.
+            const a = {id:win.currentId,url:selectedFile.toString(),paper:win.paper,margins:win.margins}
             if (win.fileAction === "draft") { a.title = titleInput.text; a.blocks = win.draft() }
             if (win.call(win.fileAction,a)) {
                 if (!win.dirty) win.info("Archivo guardado.")

@@ -249,6 +249,18 @@ class Contract(unittest.TestCase):
         # Pages written before typography existed read as the default look.
         self.assertEqual(c.call("get_page", id=c.call("create_page", title="Normal")["id"])["font"], "sans")
 
+    def test_blocks_round_trip(self):
+        # What get_page returns can be sent back unchanged: no block carries "spans": null.
+        c = self.client
+        page = c.call("create_page", title="Ida y vuelta", blocks=[{"type": "paragraph", "text": "Sin formato"},
+                      {"type": "heading", "text": "Título", "level": 2}])
+        got = c.call("get_page", id=page["id"])
+        self.assertTrue(all("spans" not in b or b["spans"] is not None for b in got["blocks"]))
+        c.call("create_page", title="Copia", blocks=[{k: v for k, v in b.items() if k != "id"} for b in got["blocks"]])
+        same = {k: v for k, v in got["blocks"][0].items() if k != "id"}
+        c.call("apply_block_changes", id=page["id"], expected_revision=got["revision"],
+               changes=[{"op": "update", "block_id": got["blocks"][0]["id"], "block": same}])
+
     def test_search_without_accents(self):
         c = self.client
         c.call("create_page", title="Bitácora", blocks=[{"type": "paragraph", "text": "Árbol del patio"}])
