@@ -6,20 +6,28 @@ set(CMAKE_AUTOMOC ON)
 if(MSVC)
   add_compile_options(/utf-8 /W4)
 endif()
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Sql Gui Qml Quick QuickControls2)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Sql Gui Qml Quick QuickControls2 Svg)
 add_library(notes_core STATIC src/core/contract.cpp src/core/store.cpp src/core/inlines.cpp)
 target_include_directories(notes_core PUBLIC src/core)
 target_link_libraries(notes_core PUBLIC Qt6::Core Qt6::Sql)
 add_executable(notas-mcp src/mcp/main.cpp)
 target_link_libraries(notas-mcp PRIVATE notes_core)
-set(EDITOR_SOURCES src/desktop/editor.cpp src/desktop/mcplink.cpp src/desktop/connectors.cpp src/desktop/writingassistant.cpp src/desktop/pagefile.cpp src/desktop/inlineeditor.cpp src/desktop/usagelog.cpp src/desktop/planlimits.cpp)
+set(EDITOR_SOURCES src/desktop/editor.cpp src/desktop/mcplink.cpp src/desktop/connectors.cpp src/desktop/writingassistant.cpp src/desktop/pagefile.cpp src/desktop/inlineeditor.cpp src/desktop/usagelog.cpp src/desktop/planlimits.cpp src/desktop/svgglyph.cpp)
+# Lunqio's symbols (design/identidad/iconografia), drawn by SvgGlyph.
+file(GLOB GLYPH_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS assets/glyphs/*.svg)
 qt_add_executable(lunqio WIN32 src/desktop/main.cpp ${EDITOR_SOURCES})
-target_link_libraries(lunqio PRIVATE notes_core Qt6::Quick Qt6::QuickControls2)
-qt_add_resources(lunqio views PREFIX "/" FILES qml/Main.qml qml/UiButton.qml qml/BlockRow.qml
+target_link_libraries(lunqio PRIVATE notes_core Qt6::Quick Qt6::QuickControls2 Qt6::Svg)
+qt_add_resources(lunqio glyphs PREFIX "/glyphs" BASE assets/glyphs FILES ${GLYPH_FILES})
+qt_add_resources(lunqio views PREFIX "/" FILES qml/Main.qml qml/qmldir qml/Theme.qml qml/UiButton.qml qml/BlockRow.qml
     qml/Glyph.qml qml/WorkspaceMenus.qml qml/WritingDialog.qml qml/PhotoBlock.qml qml/ConnectorsPage.qml qml/SelectionBubble.qml
     qml/AiComposer.qml qml/EngineSwitch.qml qml/AiProblem.qml qml/CommentCard.qml qml/CommentRail.qml qml/UsagePage.qml
     qml/PlanLimitsView.qml qml/UsageButton.qml qml/SlashMenu.qml
-    qml/EmojiPicker.qml qml/PageIcon.qml qml/PageHeader.qml qml/PageCover.qml)
+    qml/EmojiPicker.qml qml/PageIcon.qml qml/PageHeader.qml qml/PageCover.qml qml/PageMenu.qml
+    qml/SidebarSection.qml qml/RecentCards.qml qml/EngineMark.qml
+    assets/lunqio-64.png assets/lunqio-256.png)
+if(WIN32)
+  target_sources(lunqio PRIVATE assets/lunqio.rc)
+endif()
 include(CTest)
 if(BUILD_TESTING)
   find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
@@ -27,7 +35,8 @@ if(BUILD_TESTING)
   add_test(NAME contrato_mcp COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tests/integration.py $<TARGET_FILE:notas-mcp>)
   add_executable(editor_test tests/editor_test.cpp ${EDITOR_SOURCES})
   target_include_directories(editor_test PRIVATE src/desktop)
-  target_link_libraries(editor_test PRIVATE notes_core Qt6::Test Qt6::Quick Qt6::QuickControls2)
+  target_link_libraries(editor_test PRIVATE notes_core Qt6::Test Qt6::Quick Qt6::QuickControls2 Qt6::Svg)
+  qt_add_resources(editor_test test_glyphs PREFIX "/glyphs" BASE assets/glyphs FILES ${GLYPH_FILES})
   target_compile_definitions(editor_test PRIVATE UI_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
   add_test(NAME editor_y_recuperacion COMMAND editor_test -platform offscreen)
   set_tests_properties(contrato_mcp editor_y_recuperacion PROPERTIES TIMEOUT 60)

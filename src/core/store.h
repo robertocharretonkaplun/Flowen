@@ -17,6 +17,10 @@ public:
     QJsonArray navigation();
     QJsonArray history(const QString &id);
     QJsonArray backlinks(const QString &id);
+    QJsonArray favorites();
+    QJsonArray recent(int limit);
+    void setFavorite(const QString &id, bool on, int index = -1);
+    void visit(const QString &id);
     qint64 generation();
     QJsonObject saveDraft(const QString &id, int expected, const QString &title, QJsonArray blocks);
     QJsonObject restoreRevision(const QString &id, int expected, int target);

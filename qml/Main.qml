@@ -7,11 +7,11 @@ ApplicationWindow {
     id: win
     width: 1240; height: 800; minimumWidth: 780; minimumHeight: 520
     visible: true; title: "Lunqio"
-    color: "#191919"; font.family: "Segoe UI"; font.pixelSize: 14
-    palette.window: "#242425"; palette.windowText: "#efedef"; palette.text: "#efedef"
-    palette.base: "#1e1e20"; palette.button: "#272729"; palette.buttonText: "#e7e6e8"
-    palette.light: "#38383b"; palette.midlight: "#404044"; palette.mid: "#414144"; palette.dark: "#333336"
-    palette.highlight: "#355478"; palette.highlightedText: "#ffffff"; palette.placeholderText: "#a5a2a9"
+    color: Theme.canvas; font.family: Theme.family; font.pixelSize: 14
+    palette.window: Theme.surface; palette.windowText: Theme.text; palette.text: Theme.text
+    palette.base: Theme.base; palette.button: Theme.surface; palette.buttonText: Theme.text
+    palette.light: Theme.pressed; palette.midlight: Theme.line; palette.mid: Theme.line; palette.dark: Theme.hover
+    palette.highlight: Theme.accentLine; palette.highlightedText: Theme.text; palette.placeholderText: Theme.muted
     property bool sidebarShown: true
     property int sidebarPreferredWidth: 0
     property bool pagesExpanded: true
@@ -24,6 +24,8 @@ ApplicationWindow {
     readonly property bool canEditSelection: !settingsShown && !!currentId && !deleted && !conflict && !!textTarget && editIndex >= 0 && !!textTarget.selectedText
     readonly property bool canFormat: canEditSelection && !!textTarget.formatter
     menuBar: WorkspaceMenus { workspace: win }
+    // The saved theme (View → Tema) drives every colour in Theme.
+    Binding { target: Theme; property: "mode"; value: backend.theme }
     function format(style) { if (canFormat) textTarget.formatter.toggle(style) }
     function editLink() { if (canFormat) bubble.openLink() }
     // value is a block type, or "heading1".."heading3" for a heading of that size.
@@ -85,7 +87,30 @@ ApplicationWindow {
         textTarget = input; editIndex = index
     }
     function textCommand(name) {
-        if (textTarget) { textTarget.forceActiveFocus(); textTarget[name]() }
+        if (!textTarget) return
+        textTarget.forceActiveFocus()
+        if (name === "paste" && editIndex >= 0 && pastePhoto(editIndex)) return
+        textTarget[name]()
+    }
+    // A photo on the clipboard (a screenshot, "Copiar imagen", image files) becomes photo blocks
+    // below the block being edited, as in Notion. An empty paragraph is replaced by them.
+    function pastePhoto(index) {
+        if (!currentId || deleted || !backend.clipboardPhoto) return false
+        const r = call("clipboard_photo")
+        if (!r) return true                       // The notice says why (too large, unreadable).
+        if (!r.photos.length) return false
+        const current = index >= 0 && index < blocks.count ? blocks.get(index) : null
+        let at = index+1
+        if (current && current.kind === "paragraph" && !current.body) { blocks.remove(index); at = index }
+        editIndex = -1
+        for (const p of r.photos)
+            blocks.insert(at++,{key:"",kind:"image",body:p.caption,spans:"[]",done:false,asset:p.asset,photoPercent:100,
+                                level:1,indent:0,icon:"",collapsed:false})
+        markDirty(); commentTick++
+        // Keep writing right after the photo.
+        if (at >= blocks.count || blocks.get(at).kind === "image" || blocks.get(at).kind === "divider") insertBlock(at,"paragraph","","[]",0)
+        else Qt.callLater(function() { const row = blockRepeater.itemAt(at); if (row) row.focusAt(0) })
+        return true
     }
     function focusSearch() { enterEditor(); sidebarShown = true; pagesExpanded = true; search.forceActiveFocus(); search.selectAll() }
     function openHelp() { helpDialog.open() }
@@ -217,24 +242,84 @@ ApplicationWindow {
     function addBlockBelow(index) {
         insertBlock(index+1,"paragraph","","[]",0,function(row) { row.editor.insert(0,"/"); win.openSlash(index+1,0) })
     }
-    function openSlash(index, start) { slashMenu.query = ""; slash = {index: index, start: start} }
+    // The same inline menu serves "/" (blocks) and "@" or "[[" (page mentions).
+    function openSlash(index, start) { slashMenu.query = ""; slash = {index: index, start: start, mode: "blocks", marker: "/"} }
+    function openMention(index, start, length) {
+        mentionMenu.query = ""
+        slash = {index: index, start: start, mode: "pages", marker: length === 2 ? "[[" : "@"}
+    }
     function closeSlash() { slash = null }
     function updateSlash() {
         if (!slash) return
         const row = blockRepeater.itemAt(slash.index)
         if (!row || !row.editor.activeFocus) { slash = null; return }
-        const editor = row.editor, position = editor.cursorPosition
-        if (position <= slash.start || editor.getText(slash.start,slash.start+1) !== "/") { slash = null; return }
-        const query = editor.getText(slash.start+1,position)
-        if (query.length > 30 || /\n|\s\s/.test(query)) { slash = null; return }
+        const editor = row.editor, position = editor.cursorPosition, mark = slash.marker
+        if (position < slash.start+mark.length || editor.getText(slash.start,slash.start+mark.length) !== mark) { slash = null; return }
+        const query = editor.getText(slash.start+mark.length,position)
+        if (query.length > 40 || /\n|\s\s/.test(query)) { slash = null; return }
+        if (slash.mode === "pages") { mentionMenu.query = query; return }
+        if (position === slash.start) { slash = null; return }
         slashMenu.query = query
         if (!slashMenu.matches.length && /\s$/.test(query)) slash = null
     }
     function slashKey(key) {
-        if (key === Qt.Key_Up) slashMenu.move(-1)
-        else if (key === Qt.Key_Down) slashMenu.move(1)
+        const menu = slash && slash.mode === "pages" ? mentionMenu : slashMenu
+        if (key === Qt.Key_Up) menu.move(-1)
+        else if (key === Qt.Key_Down) menu.move(1)
         else if (key === Qt.Key_Escape) closeSlash()
+        else if (menu === mentionMenu) runMention(mentionMenu.current())
         else runSlash(slashMenu.current())
+    }
+    // The typed "@query" becomes a mention; "Nueva página" first creates it as a subpage of this one.
+    function runMention(entry) {
+        const open = slash
+        slash = null
+        if (!open || !entry) return
+        const row = blockRepeater.itemAt(open.index)
+        if (!row) return
+        let id = entry.id
+        if (entry.create) {
+            const made = call("create_page",{title: entry.title, parent_id: currentId || null, blocks: [{type: "paragraph", text: ""}]})
+            if (!made) return
+            id = made.id
+            refreshNavigation()
+        }
+        const caret = row.formatter.insertMention(open.start,Math.max(open.start+open.marker.length,row.editor.cursorPosition),entry.title,id)
+        if (caret >= 0) row.focusAt(caret)
+    }
+    // Pages that mention this one, shown under the title.
+    property var backlinks: []
+    property bool backlinksOpen: false
+    function refreshBacklinks() {
+        const found = currentId ? call("backlinks",{id: currentId}) : null
+        backlinks = found ? found.pages : []
+    }
+    // Favorites (in the user's order) and recently visited pages. Neither creates a page revision.
+    property var favoriteIds: []
+    property var recentVisits: []
+    property double clock: Date.now()
+    Timer { interval: 60000; repeat: true; running: true; onTriggered: win.clock = Date.now() }
+    readonly property bool isFavorite: !!currentId && favoriteIds.indexOf(currentId) >= 0
+    readonly property var favoriteRows: favoriteIds.map(id => pages.find(p => p.id === id)).filter(p => !!p)
+    readonly property var recentRows: recentVisits.map(v => {
+        const p = pages.find(x => x.id === v.id)
+        return p ? Object.assign({}, p, {at: v.at, detail: ago(v.at, true)}) : null
+    }).filter(p => !!p)
+    function setFavorite(id, on, index) {
+        const r = call("favorite", index === undefined ? {id: id, on: on} : {id: id, on: on, index: index})
+        if (r) favoriteIds = r.favorites
+    }
+    // "hace 5 min" (or "5 min" in the sidebar), "ayer", "12 nov".
+    function ago(at, brief) {
+        const then = new Date(at), minutes = Math.floor((clock-then.getTime())/60000)
+        if (isNaN(minutes)) return ""
+        if (minutes < 1) return "ahora"
+        if (minutes < 60) return (brief ? "" : "hace ") + minutes + " min"
+        if (minutes < 24*60) return (brief ? "" : "hace ") + Math.floor(minutes/60) + " h"
+        const days = Math.round((new Date(clock).setHours(0,0,0,0)-new Date(then).setHours(0,0,0,0))/86400000)
+        if (days <= 1) return "ayer"
+        if (days < 7) return (brief ? "" : "hace ") + days + (brief ? " d" : " días")
+        return then.toLocaleDateString(Qt.locale(),"d MMM")
     }
     function runSlash(command) {
         const open = slash
@@ -374,12 +459,17 @@ ApplicationWindow {
         const parent = p && pages.find(x => x.id === p.parent_id)
         location = deleted ? "Papelera" : parent ? parent.title : "Biblioteca"
         if (pageScroll.contentItem) pageScroll.contentItem.contentY = 0
+        backlinksOpen = false; refreshBacklinks()
+        if (id && !deleted) {
+            const seen = call("visit",{id: id})
+            if (seen) recentVisits = seen.recent
+        }
     }
     function selectPage(id) { if (flush()) { enterEditor(); info(""); showPage(id) } }
     function refreshNavigation() {
         const nav = call("navigation")
         if (!nav) return
-        pages = nav.pages
+        pages = nav.pages; favoriteIds = nav.favorites; recentVisits = nav.recent
         const rows = []
         if (trashMode || search.text.trim()) {
             const name = trashMode ? "list_pages" : "search_notes"
@@ -412,7 +502,7 @@ ApplicationWindow {
     function poll() {
         const g = call("generation")
         if (!g || g.value === generation) return
-        generation = g.value; refreshNavigation()
+        generation = g.value; refreshNavigation(); refreshBacklinks()
         if (currentId) {
             const p = call("page",{id:currentId})
             if (p && p.revision !== revision) {
@@ -475,7 +565,7 @@ ApplicationWindow {
             visible: win.sidebarShown
             Layout.preferredWidth: Math.max(200,Math.min(win.width-525,win.sidebarPreferredWidth || Math.min(320,Math.round(win.width*0.225))))
             Layout.fillHeight: true
-            color: "#202020"
+            color: Theme.sidebar
             ColumnLayout {
                 anchors.fill: parent; spacing: 0
                 RowLayout {
@@ -491,34 +581,67 @@ ApplicationWindow {
                     leftPadding: 32; rightPadding: 48; selectByMouse: true
                     onActiveFocusChanged: if (activeFocus) win.remember(search,-1)
                     background: Rectangle {
-                        radius: 6; border.color: search.activeFocus ? "#789cc8" : "#414143"; color: "#242424"
+                        radius: Theme.radiusButton; border.color: search.activeFocus ? Theme.accent : Theme.line; color: Theme.surface
                         Glyph { name: "search"; anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 14 }
-                        Rectangle { width: 39; height: 19; radius: 4; color: "#343434"; anchors.right: parent.right; anchors.rightMargin: 7; anchors.verticalCenter: parent.verticalCenter; visible: !search.text
-                            Label { anchors.centerIn: parent; text: "Ctrl+K"; font.pixelSize: 10; color: "#c1bfc3" } }
+                        Rectangle { width: 39; height: 19; radius: 4; color: Theme.hover; anchors.right: parent.right; anchors.rightMargin: 7; anchors.verticalCenter: parent.verticalCenter; visible: !search.text
+                            Label { anchors.centerIn: parent; text: "Ctrl+K"; font.pixelSize: 10; color: Theme.secondary } }
                     }
                     onTextChanged: if (win.initialized) { if (text) { win.trashMode = false; win.pagesExpanded = true } win.refreshNavigation() }
                 }
                 UiButton { Layout.topMargin: 12; Layout.leftMargin: 9
                     alignLeft: true; quiet: win.settingsShown || !!win.currentId || win.trashMode; symbol: "home"; text: "Inicio"
                     onClicked: win.browseTrash(false) }
-                RowLayout {
-                    Layout.fillWidth: true; Layout.leftMargin: 8; Layout.rightMargin: 9; Layout.topMargin: 12; Layout.bottomMargin: 2
-                    UiButton { text: win.trashMode ? "Papelera" : search.text.trim() ? "Resultados" : "Privado"
-                        quiet: true; alignLeft: true; symbol: win.pagesExpanded ? "down" : "right"; hint: "Mostrar u ocultar las páginas"
-                        onClicked: win.pagesExpanded = !win.pagesExpanded }
-                    Item { Layout.fillWidth: true }
-                    UiButton { symbol: "add"; quiet: true; hint: "Crear página en la raíz"; onClicked: win.newPage(null) }
-                }
                 ListView {
-                    id: navList; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 8; Layout.rightMargin: 8
+                    id: navList; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 8; Layout.rightMargin: 8; Layout.topMargin: 4
                     clip: true; spacing: 2; model: win.pagesExpanded ? win.navigationRows : []
                     ScrollBar.vertical: ScrollBar {}
+                    // Favoritos and Recientes scroll with the page tree; searching or the trash hides them.
+                    readonly property bool shortcuts: !win.trashMode && !search.text.trim()
+                    header: ColumnLayout {
+                        width: navList.width; spacing: 0
+                        SidebarSection {
+                            objectName: "favorites"; Layout.fillWidth: true
+                            visible: navList.shortcuts && win.favoriteRows.length > 0
+                            title: "Favoritos"; favorites: true; rows: win.favoriteRows
+                            currentId: win.settingsShown ? "" : win.currentId
+                            onChosen: function(id) { win.selectPage(id) }
+                            onUnfavorite: function(id) { win.setFavorite(id,false) }
+                            onMoved: function(id, index) { win.setFavorite(id,true,index) }
+                            onMenuRequested: function(id) { pageRowMenu.show(id) }
+                        }
+                        SidebarSection {
+                            objectName: "recent"; Layout.fillWidth: true
+                            visible: navList.shortcuts && win.recentRows.length > 0
+                            title: "Recientes"; rows: win.recentRows.slice(0,5)
+                            currentId: win.settingsShown ? "" : win.currentId
+                            onChosen: function(id) { win.selectPage(id) }
+                            onMenuRequested: function(id) { pageRowMenu.show(id) }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true; Layout.topMargin: 8; Layout.bottomMargin: 2
+                            UiButton { text: win.trashMode ? "Papelera" : search.text.trim() ? "Resultados" : "Privado"
+                                quiet: true; alignLeft: true; symbol: win.pagesExpanded ? "down" : "right"; hint: "Mostrar u ocultar las páginas"
+                                onClicked: win.pagesExpanded = !win.pagesExpanded }
+                            Item { Layout.fillWidth: true }
+                            UiButton { symbol: "add"; quiet: true; hint: "Crear página en la raíz"; onClicked: win.newPage(null) }
+                        }
+                    }
+                    Menu {
+                        id: pageRowMenu
+                        property string pageId: ""
+                        readonly property bool favorite: win.favoriteIds.indexOf(pageId) >= 0
+                        function show(id) { pageId = id; popup() }
+                        MenuItem { text: pageRowMenu.favorite ? "Quitar de favoritos" : "Añadir a favoritos"
+                            onTriggered: win.setFavorite(pageRowMenu.pageId,!pageRowMenu.favorite) }
+                        MenuItem { text: "Nueva subpágina"; onTriggered: win.newPage(pageRowMenu.pageId) }
+                    }
                     delegate: Rectangle {
                         id: navRow
                         required property var modelData
                         HoverHandler { id: rowHover }
+                        TapHandler { acceptedButtons: Qt.RightButton; enabled: !win.trashMode; onTapped: pageRowMenu.show(navRow.modelData.page.id) }
                         width: navList.width; height: 34; radius: 5
-                        color: !win.settingsShown && modelData.page.id === win.currentId ? "#303030" : rowHover.hovered ? "#292929" : "transparent"
+                        color: !win.settingsShown && modelData.page.id === win.currentId ? Theme.hover : rowHover.hovered ? Theme.raised : "transparent"
                         RowLayout {
                             anchors.fill: parent; anchors.leftMargin: 8 + Math.min(6,navRow.modelData.depth)*12; anchors.rightMargin: 6; spacing: 3
                             UiButton {
@@ -528,11 +651,11 @@ ApplicationWindow {
                             }
                             Button {
                                 id: navButton; flat: true; Layout.fillWidth: true; Layout.fillHeight: true; padding: 3
-                                background: Rectangle { color: "transparent"; radius: 4; border.width: navButton.visualFocus ? 1 : 0; border.color: "#91b5ea" }
+                                background: Rectangle { color: "transparent"; radius: 4; border.width: navButton.visualFocus ? 1 : 0; border.color: Theme.focus }
                                 contentItem: RowLayout {
                                     spacing: 9
                                     PageIcon { icon: navRow.modelData.page.icon || ""; size: 15 }
-                                    Label { text: navRow.modelData.page.title; color: navRow.modelData.page.id === win.currentId ? "#f4f3f4" : "#c4c2c6"; Layout.fillWidth: true; elide: Text.ElideRight }
+                                    Label { text: navRow.modelData.page.title; color: navRow.modelData.page.id === win.currentId ? Theme.text : Theme.secondary; Layout.fillWidth: true; elide: Text.ElideRight }
                                 }
                                 Accessible.name: navRow.modelData.page.title; onClicked: win.selectPage(navRow.modelData.page.id)
                                 ToolTip.visible: hovered && !!navRow.modelData.page.snippet
@@ -543,24 +666,24 @@ ApplicationWindow {
                                 onClicked: win.newPage(navRow.modelData.page.id) }
                         }
                     }
-                    Label { visible: win.pagesExpanded && !navList.count; anchors.left: parent.left; anchors.leftMargin: 12; text: win.trashMode ? "Papelera vacía" : search.text ? "Sin coincidencias" : "Aún no hay páginas"; color: "#a5a3a6"; font.pixelSize: 13 }
+                    Label { visible: win.pagesExpanded && !navList.count; anchors.left: parent.left; anchors.leftMargin: 12; text: win.trashMode ? "Papelera vacía" : search.text ? "Sin coincidencias" : "Aún no hay páginas"; color: Theme.muted; font.pixelSize: 13 }
                 }
                 UiButton { Layout.fillWidth: true; Layout.margins: 9; quiet: !win.trashMode; alignLeft: true; text: "Papelera"; symbol: "trash"; onClicked: win.browseTrash(!win.trashMode) }
-                Rectangle { Layout.fillWidth: true; height: 1; color: "#343435" }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.hover }
                 RowLayout {
                     Layout.fillWidth: true; Layout.margins: 10; spacing: 3
-                    Rectangle { width: 29; height: 29; radius: 7; color: "#dcd8e0"
-                        Label { anchors.centerIn: parent; text: "L"; font.pixelSize: 18; font.weight: Font.Bold; color: "#29252e" } }
+                    Image { objectName: "appLogo"; source: "../assets/lunqio-64.png"; sourceSize: Qt.size(64,64)
+                        Layout.preferredWidth: 29; Layout.preferredHeight: 29; smooth: true; mipmap: true; Accessible.ignored: true }
                     Button {
                         id: mcpBadge; flat: true; Layout.fillWidth: true; implicitHeight: 39
                         Accessible.name: mcpText.text + ". Ajustes de conexión"; onClicked: win.openConnection()
-                        background: Rectangle { radius: 5; color: mcpBadge.hovered ? "#313133" : "transparent"; border.width: mcpBadge.visualFocus ? 1 : 0; border.color: "#91b5ea" }
+                        background: Rectangle { radius: 5; color: mcpBadge.hovered ? Theme.hover : "transparent"; border.width: mcpBadge.visualFocus ? 1 : 0; border.color: Theme.focus }
                         contentItem: ColumnLayout {
                             spacing: 1
                             Label { text: "Lunqio"; font.weight: Font.DemiBold; font.pixelSize: 14 }
                             RowLayout { spacing: 5
-                                Rectangle { width: 6; height: 6; radius: 3; color: win.assistant.link.state === "connected" ? "#7abb99" : win.assistant.link.state === "connecting" ? "#d6af77" : "#a3a0a7" }
-                                Label { id: mcpText; font.pixelSize: 11; color: "#b2afb6"; text: win.assistant.link.state === "connected" ? "MCP conectado" : win.assistant.link.state === "connecting" ? "Conectando MCP…" : "MCP desconectado" }
+                                Rectangle { width: 6; height: 6; radius: 3; color: win.assistant.link.state === "connected" ? Theme.success : win.assistant.link.state === "connecting" ? Theme.warning : Theme.muted }
+                                Label { id: mcpText; font.pixelSize: 11; color: Theme.secondary; text: win.assistant.link.state === "connected" ? "MCP conectado" : win.assistant.link.state === "connecting" ? "Conectando MCP…" : "MCP desconectado" }
                             }
                         }
                     }
@@ -571,7 +694,7 @@ ApplicationWindow {
         }
         Rectangle {
             visible: win.sidebarShown; Layout.preferredWidth: 1; Layout.fillHeight: true; z: 5
-            color: splitter.containsMouse ? "#789cc8" : "#303031"
+            color: splitter.containsMouse ? Theme.accent : Theme.hover
             MouseArea {
                 id: splitter; anchors.fill: parent; anchors.leftMargin: -3; anchors.rightMargin: -3
                 hoverEnabled: true; cursorShape: Qt.SplitHCursor; preventStealing: true
@@ -586,12 +709,12 @@ ApplicationWindow {
             TabBar {
                 id: workspaceTabs; objectName: "workspaceTabs"; Layout.fillWidth: true
                 implicitHeight: 36; leftPadding: 12; spacing: 3
-                background: Rectangle { color: "#1d1d1e"; Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#343435" } }
+                background: Rectangle { color: Theme.base; Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.hover } }
                 component WorkspaceTab: TabButton {
                     id: tab; width: implicitWidth; horizontalPadding: 16; implicitHeight: 36
-                    contentItem: Text { text: tab.text; color: tab.checked ? "#f1eff1" : "#aaa8af"; font.weight: tab.checked ? Font.DemiBold : Font.Normal; verticalAlignment: Text.AlignVCenter }
-                    background: Rectangle { color: tab.hovered || tab.visualFocus ? "#303031" : "transparent"
-                        Rectangle { anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; width: parent.width-18; height: 2; color: "#a4bfe5"; visible: tab.checked } }
+                    contentItem: Text { text: tab.text; color: tab.checked ? Theme.text : Theme.muted; font.weight: tab.checked ? Font.DemiBold : Font.Normal; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { color: tab.hovered || tab.visualFocus ? Theme.hover : "transparent"
+                        Rectangle { anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; width: parent.width-18; height: 2; color: Theme.accent; visible: tab.checked } }
                 }
                 WorkspaceTab { text: "Editor"; objectName: "editorTab" }
                 WorkspaceTab { text: "Conectores"; objectName: "connectorsTab"; Accessible.name: "Conectores MCP" }
@@ -612,14 +735,21 @@ ApplicationWindow {
                 PageIcon { icon: win.currentId ? win.pageIcon : ""; glyph: win.currentId ? "page" : "home"; size: 15 }
                 Label { text: win.currentId ? titleInput.text : win.trashMode ? "Papelera" : "Inicio"; elide: Text.ElideRight; Layout.maximumWidth: 290; font.pixelSize: 14 }
                 Glyph { name: "lock"; font.pixelSize: 11; visible: !!win.currentId }
-                Label { visible: !!win.currentId; text: win.deleted ? "Papelera" : "Privada"; color: "#a6a3a9"; font.pixelSize: 12 }
+                Label { visible: !!win.currentId; text: win.deleted ? "Papelera" : "Privada"; color: Theme.muted; font.pixelSize: 12 }
                 Item { Layout.fillWidth: true }
-                Label { visible: !!win.currentId; text: win.conflict ? "Conflicto de edición" : win.dirty ? "Cambios pendientes" : "Guardado · v" + win.revision; color: win.dirty ? "#ddba84" : "#a7a4ab"; font.pixelSize: 12 }
+                Label { visible: !!win.currentId; text: win.conflict ? "Conflicto de edición" : win.dirty ? "Cambios pendientes" : "Guardado · v" + win.revision; color: win.dirty ? Theme.warning : Theme.muted; font.pixelSize: 12 }
                 UiButton { visible: !win.sidebarShown; symbol: "link"; text: mcpText.text; quiet: true; hint: "Conectores"; onClicked: win.openConnection() }
+                UiButton {
+                    objectName: "favoriteButton"; visible: !!win.currentId && !win.deleted; quiet: true
+                    symbol: win.isFavorite ? "starFilled" : "star"; symbolColor: win.isFavorite ? Theme.favorite : Theme.secondary
+                    hint: win.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"
+                    onClicked: win.setFavorite(win.currentId,!win.isFavorite)
+                }
                 UiButton {
                     symbol: "more"; hint: "Opciones de página"; quiet: true; visible: !!win.currentId && !win.deleted
                     onClicked: pageMenu.popup()
                     Menu { id: pageMenu
+                        MenuItem { text: win.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"; onTriggered: win.setFavorite(win.currentId,!win.isFavorite) }
                         MenuItem { text: "Nueva subpágina"; onTriggered: win.newPage(win.currentId) }
                         MenuItem { text: "Mover página…"; onTriggered: if (win.flush()) moveDialog.open() }
                         MenuItem { text: "Historial de revisiones…"; onTriggered: win.openHistory() }
@@ -632,7 +762,7 @@ ApplicationWindow {
             }
             RowLayout {
                 visible: !win.settingsShown && !!win.notice; Layout.fillWidth: true; Layout.margins: 12
-                Label { text: win.notice; wrapMode: Text.Wrap; Layout.fillWidth: true; color: win.noticeError ? "#efb69c" : "#a9c9b7" }
+                Label { text: win.notice; wrapMode: Text.Wrap; Layout.fillWidth: true; color: win.noticeError ? Theme.danger : Theme.success }
                 UiButton { visible: win.dirty; text: "Exportar borrador"; onClicked: win.requestFile("draft") }
                 UiButton { visible: win.dirty; text: "Descartar…"; onClicked: reloadDialog.open() }
                 UiButton { visible: !win.conflict && win.dirty; text: "Reintentar"; onClicked: win.flush() }
@@ -646,6 +776,12 @@ ApplicationWindow {
                     Glyph { name: win.trashMode ? "trash" : "pages"; font.pixelSize: 32 }
                     Label { text: win.trashMode ? "Papelera" : "Tu biblioteca"; font.pixelSize: 43; font.bold: true }
                     UiButton { primary: true; symbol: "add"; text: "Nueva página"; onClicked: win.newPage(null) }
+                    RecentCards {
+                        objectName: "recentCards"; Layout.fillWidth: true; Layout.topMargin: 6
+                        visible: !win.trashMode && win.recentRows.length > 0
+                        rows: win.recentRows; covers: win.covers; describe: function(at) { return win.ago(at,false) }
+                        onChosen: function(id) { win.selectPage(id) }
+                    }
                     ListView {
                         Layout.fillWidth: true; Layout.preferredHeight: Math.min(260,contentHeight); clip: true
                         model: win.navigationRows; spacing: 3
@@ -676,12 +812,12 @@ ApplicationWindow {
                     onWidthChanged: rail.schedule()
                     Item { Layout.preferredHeight: win.pageCover ? (win.pageIcon ? 0 : 20) : Math.min(94,win.height*0.1) }
                     PageHeader { id: pageHeader; Layout.fillWidth: true; page: win; picker: emojiPicker; titleHovered: titleArea.hovered || titleInput.activeFocus }
-                    Label { visible: win.location !== "Biblioteca" && !win.deleted; text: win.location; color: "#a6a3a9"; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
+                    Label { visible: win.location !== "Biblioteca" && !win.deleted; text: win.location; color: Theme.muted; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
                     TextArea {
                         id: titleInput; objectName: "titleInput"; Layout.fillWidth: true
-                        wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText; font.pixelSize: win.width >= 1150 ? 44 : 37; font.weight: Font.Bold
-                        color: "#f2f1f2"; padding: 0; bottomPadding: 12; background: Item {}
-                        placeholderText: "Sin título"; Accessible.name: "Título de la página"; placeholderTextColor: "#757477"
+                        wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText; font.pixelSize: win.width >= 1150 ? 38 : 32; font.weight: Font.DemiBold
+                        color: Theme.text; padding: 0; bottomPadding: 12; background: Item {}
+                        placeholderText: "Sin título"; Accessible.name: "Título de la página"; placeholderTextColor: Theme.faint
                         selectByMouse: true; readOnly: win.deleted; persistentSelection: true
                         onTextChanged: if (activeFocus && !win.loadingPage) win.markDirty()
                         onActiveFocusChanged: if (activeFocus) win.remember(titleInput,-1)
@@ -691,6 +827,38 @@ ApplicationWindow {
                             event.accepted = true
                             if (blocks.count) blockRepeater.itemAt(0).focusEditor()
                             else win.add("paragraph")
+                        }
+                    }
+                    // Backlinks: pages that mention this one (as in Notion, under the title).
+                    ColumnLayout {
+                        objectName: "backlinks"
+                        visible: win.backlinks.length > 0
+                        Layout.fillWidth: true; Layout.bottomMargin: 6; spacing: 2
+                        UiButton {
+                            objectName: "backlinksToggle"; quiet: true; alignLeft: true
+                            text: "↩  " + win.backlinks.length + (win.backlinks.length === 1 ? " página enlaza aquí" : " páginas enlazan aquí")
+                            onClicked: win.backlinksOpen = !win.backlinksOpen
+                        }
+                        Repeater {
+                            model: win.backlinksOpen ? win.backlinks : []
+                            delegate: AbstractButton {
+                                id: backlink
+                                required property var modelData
+                                Layout.fillWidth: true; implicitHeight: 46; leftPadding: 12; rightPadding: 12
+                                hoverEnabled: true
+                                Accessible.name: "Abrir " + modelData.title
+                                onClicked: win.selectPage(modelData.id)
+                                background: Rectangle { radius: Theme.radiusButton; color: backlink.hovered ? Theme.raised : "transparent" }
+                                contentItem: RowLayout {
+                                    spacing: 10
+                                    PageIcon { icon: backlink.modelData.icon || ""; size: 15 }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 1
+                                        Text { text: backlink.modelData.title; color: Theme.text; font.pixelSize: 14; elide: Text.ElideRight; Layout.fillWidth: true }
+                                        Text { text: backlink.modelData.snippet; color: Theme.muted; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
+                                    }
+                                }
+                            }
                         }
                     }
                     Repeater {
@@ -718,6 +886,9 @@ ApplicationWindow {
                             onMergeRequested: win.mergeBlock(index)
                             onNavigate: function(direction) { win.navigateBlock(index,direction) }
                             onSlashTyped: function(start) { win.openSlash(index,start) }
+                            onMentionTyped: function(start, marker) { win.openMention(index,start,marker) }
+                            onOpenPage: function(id) { win.selectPage(id) }
+                            pastePhoto: function() { return win.pastePhoto(index) }
                             onSlashKey: function(key) { win.slashKey(key) }
                             onAddBelow: win.addBlockBelow(index)
                             onDragStarted: { win.dragFrom = index; win.dropAt = -1 }
@@ -768,7 +939,7 @@ ApplicationWindow {
                     model: [{k:"paragraph",s:"text",t:"Párrafo"},{k:"heading",s:"heading",t:"Encabezado"},{k:"list",s:"list",t:"Lista"},{k:"task",s:"task",t:"Tarea"},{k:"image",s:"photo",t:"Foto"}]
                     delegate: UiButton { required property var modelData; text: modelData.t; symbol: modelData.s; hint: "Añadir " + modelData.t.toLowerCase(); onClicked: modelData.k === "image" ? win.choosePhoto() : win.add(modelData.k) }
                 }
-                UiButton { objectName: "composeButton"; text: "✦  Crear con IA"; hint: "Crear con IA (Ctrl+J)"; onClicked: win.openComposer(-2) }
+                UiButton { objectName: "composeButton"; symbol: "sparkles"; text: "Crear con IA"; hint: "Crear con IA (Ctrl+J)"; onClicked: win.openComposer(-2) }
             }
         }
     }
@@ -788,20 +959,29 @@ ApplicationWindow {
         sequence: "Escape"; enabled: composer.visible && !bubble.shown
         onActivated: composer.busy ? win.assistant.cancel() : composer.close()
     }
+    // Where the "/" or "@" was typed, in window coordinates.
+    readonly property var slashSpot: {
+        win.width; win.height; pageScroll.contentItem ? pageScroll.contentItem.contentY : 0
+        if (!win.slash) return Qt.point(0,0)
+        const row = blockRepeater.itemAt(win.slash.index)
+        if (!row) return Qt.point(0,0)
+        const r = row.editor.positionToRectangle(win.slash.start)
+        return row.editor.mapToItem(win.contentItem,r.x,r.y+r.height+6)
+    }
     SlashMenu {
         id: slashMenu; objectName: "slashMenu"
-        visible: !!win.slash && !win.settingsShown
-        readonly property var spot: {
-            win.width; win.height; pageScroll.contentItem ? pageScroll.contentItem.contentY : 0
-            if (!win.slash) return Qt.point(0,0)
-            const row = blockRepeater.itemAt(win.slash.index)
-            if (!row) return Qt.point(0,0)
-            const r = row.editor.positionToRectangle(win.slash.start)
-            return row.editor.mapToItem(win.contentItem,r.x,r.y+r.height+6)
-        }
-        x: Math.max(8,Math.min(spot.x-8,win.contentItem.width-width-8))
-        y: spot.y+height+12 > win.contentItem.height ? Math.max(8,spot.y-height-40) : spot.y
+        visible: !!win.slash && win.slash.mode === "blocks" && !win.settingsShown
+        x: Math.max(8,Math.min(win.slashSpot.x-8,win.contentItem.width-width-8))
+        y: win.slashSpot.y+height+12 > win.contentItem.height ? Math.max(8,win.slashSpot.y-height-40) : win.slashSpot.y
         onChosen: function(command) { win.runSlash(command) }
+    }
+    PageMenu {
+        id: mentionMenu; objectName: "pageMenu"
+        visible: !!win.slash && win.slash.mode === "pages" && !win.settingsShown
+        pages: win.pages; currentId: win.currentId
+        x: Math.max(8,Math.min(win.slashSpot.x-8,win.contentItem.width-width-8))
+        y: win.slashSpot.y+height+12 > win.contentItem.height ? Math.max(8,win.slashSpot.y-height-40) : win.slashSpot.y
+        onChosen: function(entry) { win.runMention(entry) }
     }
     Connections {
         target: win.slash ? blockRepeater.itemAt(win.slash.index).editor : null
@@ -813,7 +993,7 @@ ApplicationWindow {
         objectName: "dropLine"
         visible: win.dragFrom >= 0 && win.dropAt >= 0
         x: win.dropX; y: win.dropY
-        width: pageColumn.width; height: 3; radius: 1.5; color: "#3b8beb"; z: 30
+        width: pageColumn.width; height: 3; radius: 1.5; color: Theme.accent; z: 30
     }
     AiComposer {
         id: composer; objectName: "aiComposer"
@@ -859,7 +1039,7 @@ ApplicationWindow {
         onAccepted: if (authorField.text.trim()) backend.author = authorField.text
         contentItem: ColumnLayout {
             spacing: 8
-            Label { text: "Aparece en los comentarios y respuestas nuevos."; color: "#b5b2b9"; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            Label { text: "Aparece en los comentarios y respuestas nuevos."; color: Theme.secondary; wrapMode: Text.Wrap; Layout.fillWidth: true }
             TextField { id: authorField; Layout.fillWidth: true; maximumLength: 80; selectByMouse: true; onAccepted: authorDialog.accept() }
         }
     }
@@ -883,7 +1063,7 @@ ApplicationWindow {
             clip: true; model: win.historyRows; spacing: 4
             delegate: RowLayout {
                 required property var modelData; width: ListView.view.width
-                Label { Layout.fillWidth: true; text: "v"+modelData.revision+" · "+(modelData.actor === "mcp" ? "MCP" : "Manual")+"\n"+new Date(modelData.at).toLocaleString(); color: "#eceaed" }
+                Label { Layout.fillWidth: true; text: "v"+modelData.revision+" · "+(modelData.actor === "mcp" ? "MCP" : "Manual")+"\n"+new Date(modelData.at).toLocaleString(); color: Theme.text }
                 UiButton { text: "Restaurar"; enabled: modelData.revision !== win.revision; onClicked: {
                         if (win.action("restore_revision",{target:modelData.revision})) historyDialog.close()
                     } }

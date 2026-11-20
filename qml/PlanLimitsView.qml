@@ -32,16 +32,16 @@ ColumnLayout {
             Layout.fillWidth: true
             readonly property bool fits: titleText.implicitWidth+resetText.implicitWidth+16 <= view.width
             columns: fits ? 2 : 1; columnSpacing: 8; rowSpacing: 2
-            Label { id: titleText; text: limit.title; color: "#efedf0"; font.pixelSize: 14; Layout.fillWidth: heading.fits }
+            Label { id: titleText; text: limit.title; color: Theme.text; font.pixelSize: 14; Layout.fillWidth: heading.fits }
             Label {
                 id: resetText; Layout.alignment: Qt.AlignRight
                 Layout.fillWidth: !heading.fits; horizontalAlignment: Text.AlignRight
                 text: (limit.window && limit.window.resetsAt ? view.resets(limit.window.resetsAt) + "   " : "") + (limit.window ? limit.window.used + "%" : "")
-                color: "#a9a6ae"; font.pixelSize: 13; font.features: {"tnum": 1}
+                color: Theme.muted; font.pixelSize: 13; font.features: {"tnum": 1}
             }
         }
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 6; radius: 3; color: "#3a3a3d"
+            Layout.fillWidth: true; implicitHeight: 6; radius: 3; color: Theme.pressed
             Rectangle {
                 width: limit.window ? Math.max(limit.window.used > 0 ? 6 : 0,parent.width*Math.min(100,limit.window.used)/100) : 0
                 height: parent.height; radius: 3; color: "#3b8beb"
@@ -54,15 +54,15 @@ ColumnLayout {
     RowLayout {
         visible: !!view.plan.credits
         Layout.fillWidth: true
-        Label { text: "Créditos"; color: "#efedf0"; font.pixelSize: 14; Layout.fillWidth: true }
+        Label { text: "Créditos"; color: Theme.text; font.pixelSize: 14; Layout.fillWidth: true }
         Label {
-            color: "#a9a6ae"; font.pixelSize: 13
+            color: Theme.muted; font.pixelSize: 13
             text: !view.plan.credits ? "" : view.plan.credits.unlimited ? "Ilimitados" : (view.plan.credits.balance || "0") + " créditos"
         }
     }
     Label {
         Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: 12
-        color: view.plan.error && !view.known ? "#efb69c" : "#8e8c92"
+        color: view.plan.error && !view.known ? Theme.danger : Theme.muted
         text: view.checking && !view.known ? "Consultando a " + view.name + "…"
               : view.known ? (view.engine === "claude" ? "Según tu última petición con Claude, " : "Actualizado ")
                              + new Date(view.plan.updatedAt).toLocaleTimeString(Qt.locale(),Locale.ShortFormat)

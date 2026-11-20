@@ -23,7 +23,17 @@ La barra lateral reúne la búsqueda, Inicio, las páginas privadas y la papeler
 | Markdown | Guarda los archivos de imagen en una carpeta `.media` junto al documento. Para compartirlo con fotos, incluye esa carpeta. |
 | Texto plano | Usa el pie de foto para identificar cada imagen. |
 
+### Favoritos y recientes
+
+La estrella junto a **Opciones de página** añade la página abierta a **Favoritos**, arriba en la barra lateral. Pulsa la estrella otra vez para quitarla. También puedes hacerlo con **Opciones de página** o con clic derecho sobre cualquier página de la barra. Arrastra un favorito para cambiar su orden. Al pasar el ratón sobre un favorito, su estrella lo quita.
+
+**Recientes** muestra las cinco últimas páginas que abriste, con el tiempo transcurrido. En **Inicio**, **Visitado recientemente** muestra hasta ocho como tarjetas con su portada e icono. Las páginas en la papelera desaparecen de ambas listas. Si las restauras, vuelven a Favoritos en el mismo lugar.
+
+Favoritos y recientes se guardan en la biblioteca, así que también viajan en las copias de seguridad. Marcar un favorito o abrir una página no crea revisiones, y MCP no ve estas listas. Buscar o abrir la papelera las oculta mientras tanto.
+
 Pulsa **Foto** al pie del editor o **Edit → Insertar foto…** para elegir un PNG o JPEG local de hasta 32 MiB y 40 megapíxeles. Arrastra la esquina inferior derecha o usa **Ancho** para ajustar la foto entre el 10 % y el 100 % de la columna. Puedes editar el pie, reordenar la foto o quitarla desde su menú. La biblioteca guarda la imagen, su pie y el ancho. Seguirá disponible si mueves el original. Las copias de seguridad incluyen las fotos.
+
+También puedes pegar una imagen con **Ctrl+V** (o **Pegar** en el menú contextual). Sirve con una captura de pantalla, con **Copiar imagen** de un navegador o con archivos PNG y JPEG copiados en el Explorador. La foto aparece debajo del bloque donde está el cursor. Si ese bloque es un párrafo vacío, la foto lo sustituye. Los archivos conservan su nombre como pie de foto. Si copias texto de Word, Excel o una página web, se pega como texto aunque el portapapeles incluya una imagen de ese texto. Las imágenes grandes sin transparencia se guardan como JPEG, igual que al elegir un archivo.
 
 ## Escribir como en Notion
 
@@ -35,6 +45,12 @@ Pulsa **Foto** al pie del editor o **Edit → Insertar foto…** para elegir un 
 - **Tab** anida el bloque bajo el anterior (como mucho un nivel más) y **Mayús+Tab** lo saca. Las viñetas cambian con el nivel (•, ◦, ▪) y las listas numeradas cuentan por nivel. Un **desplegable** oculta lo que tiene anidado debajo; pulsa su triángulo para abrirlo o cerrarlo, e **Intro** en un desplegable abierto crea su primer elemento.
 - En un bloque de **código**, **Intro** añade una línea, **Tab** inserta espacios y **Ctrl+Intro** sale del bloque. En una **nota destacada**, pulsa el emoji para cambiarlo.
 - Al pasar el puntero por un bloque aparecen, a su izquierda, **+** (añade una línea debajo con el menú «/» abierto) y **⋮⋮**. Arrastra ⋮⋮ para mover el bloque; una línea azul marca dónde quedará. Un clic en ⋮⋮ abre el menú del bloque (convertir, subir, bajar o eliminar).
+
+## Enlaces entre páginas
+
+Escribe **@** o **[[** para mencionar otra página. Sigue escribiendo para buscarla (sin importar acentos), elige con las flechas e **Intro**, o **Nueva página «…»** para crearla como subpágina de la actual. La mención se ve como una etiqueta con el nombre de la página; un clic la abre.
+
+Bajo el título, **«N páginas enlazan aquí»** muestra qué páginas mencionan la actual, con el fragmento donde lo hacen. Las menciones se guardan como enlaces `lunqio://page/<id>` dentro del formato del texto, así que MCP también las ve. Al exportar, la mención queda como texto.
 
 ## Icono y portada
 
@@ -154,6 +170,28 @@ La ruta habitual es `%LOCALAPPDATA%\Lunqio\notas.sqlite3`. Ambos ejecutables res
 - **Papelera** permite recuperar un subárbol. Las páginas eliminadas por separado conservan su propio estado.
 - **File → Copia de seguridad…** guarda una instantánea de la biblioteca completa en un archivo nuevo mediante `VACUUM INTO`. Incluye historial, papelera y operaciones. Para recuperar una copia, duplica el archivo de respaldo bajo un nombre nuevo y abre la copia de trabajo con `lunqio.exe --db "C:\ruta\recuperada.sqlite3"`. Usa esa misma ruta al registrar MCP. Así puedes validar el contenido y conservar el original. [Copias de SQLite](https://sqlite.org/backup.html)
 
+## Identidad visual
+
+Elige la vista en **View → Tema**. Lunqio recuerda la elección y empieza en **Lunqio oscuro**.
+
+| Tema | Aspecto |
+| --- | --- |
+| **Lunqio oscuro** | La identidad **Pluma y diálogo** de `design/identidad`: superficies marrones cálidas y acento coral. |
+| **Lunqio claro** | La misma identidad sobre crema, con acento rojo óxido. |
+| **Claro** | El tema claro habitual: blanco, grises neutros y acento azul. |
+| **Oscuro** | El tema oscuro habitual: negro, grises neutros y acento azul claro. |
+| **Según Windows** | **Claro** u **Oscuro**, según el modo de color de Windows. |
+
+**Ctrl+Shift+L** pasa a la versión clara u oscura del mismo tema, como en Notion: de Lunqio oscuro a Lunqio claro, o de Claro a Oscuro. En `design/vistas/comparativa.png` se ve la misma página en los cuatro temas.
+
+En Claro y Oscuro los símbolos se dibujan en un solo color. En los temas de Lunqio siguen la identidad:
+
+- **Color.** En Lunqio oscuro, las superficies son marrones cálidos, el texto es marfil y el acento es coral (`#FF7959`) con tinta oscura encima. En Lunqio claro, el fondo es crema (`#FFF9F0`), el texto es tinta (`#2C1312`) y el acento es rojo óxido (`#A82E13`) con texto crema encima. El bermellón (`#F32201`) queda para el ícono. Éxito, aviso y error usan los tonos de cada tema. Claude naranja, Codex violeta, la barra azul de los límites y los degradados de portada conservan sus colores.
+- **Símbolos.** Los íconos son los de `design/identidad/iconografia`, dibujados en dos tintas: el contorno en marfil y el detalle en coral en Lunqio oscuro, y el contorno en tinta y el detalle en bermellón oscuro en Lunqio claro. Cuando un control está apagado o indica un estado, el símbolo usa un solo color.
+- **Forma y texto.** Los botones tienen esquinas de 8 px y los paneles, de 12 px. Los controles usan Segoe UI de 14 px seminegrita y el texto de las páginas, 16 px. El código usa Consolas.
+
+Para cambiar un color o una medida, edita `qml/Theme.qml`. Los nombres siguen `tokens.json`; `onAccent` se llama `accentInk`, porque QML reserva los nombres que empiezan por «on». Los símbolos se toman de `assets/glyphs`, una copia de `design/identidad/iconografia/svg`. Para añadir uno, copia su SVG ahí y úsalo por su nombre en `Glyph`. La variable de entorno `LUNQIO_THEME` (`dark` y `light` para Lunqio, `white` y `black` para Claro y Oscuro, o `system`) impone un tema sin guardarlo, lo que resulta útil para revisar pantallas.
+
 ## Compilar y probar
 
 El entorno de referencia utiliza Windows x64, C++17, Qt 6.8.3 para MSVC 2022 x64 (Base, Declarative y SVG), Qt SQL con QSQLITE, Visual Studio con herramientas C++, CMake 3.22 o posterior y Ninja. Las pruebas requieren Python 3.11 o posterior y Qt Test. El paquete compilado incluye el runtime de Visual C++. El inventario del SDK identifica SQLite 3.49.1. [Licencias de Qt](https://doc.qt.io/qt-6.8/licensing.html)
@@ -169,6 +207,8 @@ ctest --test-dir build --output-on-failure
 ```
 
 Si Visual Studio no ha definido `VCToolsRedistDir`, indica `-CrtDir` con la ruta absoluta de la carpeta redistribuible x64 `Microsoft.VC*.CRT`. El empaquetado produce `dist/Lunqio-x64` y `dist/Lunqio-x64.zip`. Acepta `-OutputDir` para crear otra distribución. [Despliegue de Qt en Windows](https://doc.qt.io/qt-6/windows-deployment.html)
+
+El icono de la aplicación sale de `Lunquio-icon.png`, en la raíz. Si cambias la imagen, regenera `assets/lunqio.ico` y los PNG con `python packaging/icon.py Lunquio-icon.png assets` (requiere Pillow) y vuelve a compilar. El script descarta los restos sueltos alrededor del cuadro.
 
 Para repetir la prueba con el cliente Codex instalado, ejecuta `python tests/codex_smoke.py dist/Lunqio-x64/notas-mcp.exe` desde el repositorio. Esta prueba usa una biblioteca temporal y las llamadas locales del app-server de Codex. Se verificó con `codex-cli 0.169.0-alpha.11.1`.
 

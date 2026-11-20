@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "inlineeditor.h"
+#include "svgglyph.h"
 #include <QClipboard>
 #include <QSettings>
 #include <QStandardPaths>
@@ -13,7 +14,10 @@
 #include <QQuickItem>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QStyleHints>
 #include <QTemporaryDir>
+#include <QTextCursor>
+#include <QTextDocument>
 #include <QImage>
 #include <cstdio>
 #include <QtTest>
@@ -37,6 +41,7 @@ private slots:
         QQuickStyle::setStyle("Basic");
         QLocale::setDefault(QLocale(QLocale::Spanish,QLocale::Mexico));
         InlineEditor::registerType();
+        SvgGlyph::registerType();
         // Never read or write the real client configurations while testing.
         for (const auto &dir : {"claude","codex","desktop"}) QVERIFY(QDir(preferences.path()).mkpath(dir));
         qputenv("CLAUDE_CONFIG_DIR",QFile::encodeName(QDir(preferences.path()).filePath("claude")));
@@ -780,7 +785,12 @@ private slots:
         // The sidebar button: blue ring, diamond in Claude's colour, limits on hover, Uso on click.
         auto *usageButton = visibleItem(window->contentItem(),"usageButton");
         QVERIFY(usageButton && usageButton->isVisible());
-        QCOMPARE(visibleItem(usageButton,"usageDiamond")->property("color").value<QColor>(),QColor("#d4714f"));
+        auto *diamond = visibleItem(usageButton,"usageDiamond");
+        QCOMPARE(diamond->property("color").value<QColor>(),QColor("#d4714f"));
+        // The rhombus sits in the exact middle of the ring, on a whole pixel.
+        const QPointF diamondCenter = diamond->mapToScene(QPointF(diamond->width()/2,diamond->height()/2));
+        QCOMPARE(diamondCenter,usageButton->mapToScene(QPointF(usageButton->width()/2,usageButton->height()/2)));
+        QCOMPARE(diamondCenter,QPointF(std::round(diamondCenter.x()),std::round(diamondCenter.y())));
         const QPoint ringCenter = usageButton->mapToScene(QPointF(usageButton->width()/2,usageButton->height()/2)).toPoint();
         QTest::mouseMove(window,ringCenter);
         auto *usageCard = usageButton->findChild<QObject *>("usageCard");
@@ -1031,6 +1041,389 @@ private slots:
         const QString text = QString::fromUtf8(file.readAll());
         for (const char *piece : {"# 🎮 Bloques","### Plan","1. Idea","2. Prototipo","    1. Detalle","3. Pruebas","▸ Notas","> Jugar es aprender","> ⚠️ Guarda copias","```\nx = 1\ny\n```","---"})
             QVERIFY2(text.contains(QString::fromUtf8(piece)),piece);
+        QVERIFY(window->close());
+    }
+    void linksFlow() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("enlaces.sqlite3"));
+        const QString meetings = store.call("create_page",{{"title","Reuniones"},{"icon","📅"},{"blocks",QJsonArray{
+            Obj{{"type","paragraph"},{"text","Acuerdos"}}}}},"manual")["id"].toString();
+        const QString diary = store.call("create_page",{{"title","Diario"},{"blocks",QJsonArray{Obj{{"type","paragraph"},{"text",""}}}}},"manual")["id"].toString();
+        Editor editor(store,QCoreApplication::applicationFilePath());
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto type = [&](const QString &text) { for (QChar c : text) QTest::keyClick(window,c.toLatin1()); };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        js(QString("selectPage('%1')").arg(diary));
+        QTRY_COMPARE(js("currentId").toString(),diary);
+
+        // "@" searches pages without accents; Enter inserts the mention.
+        js("blockRepeater.itemAt(0).focusEditor()");
+        type("Ver @reu");
+        auto *menu = window->findChild<QQuickItem *>("pageMenu");
+        QVERIFY(menu);
+        QTRY_VERIFY(menu->isVisible());
+        QCOMPARE(js("mentionMenu.matches[0].title").toString(),QString("Reuniones"));
+        capture("mencion");
+        QTest::keyClick(window,Qt::Key_Return);
+        QTRY_VERIFY(!menu->isVisible());
+        QTRY_COMPARE(js("blocks.get(0).body").toString(),QString("Ver Reuniones "));
+        const QString mention = "[{\"end\":13,\"link\":\"lunqio:" "//page/" + meetings + "\",\"start\":4,\"style\":0}]";
+        QCOMPARE(js("blocks.get(0).spans").toString(),mention);
+
+        // "[[" with a new name creates the page as a subpage and mentions it.
+        type("y [[Ideas");
+        QTRY_VERIFY(menu->isVisible());
+        QTRY_VERIFY(js("mentionMenu.current().create === true").toBool());
+        QTest::keyClick(window,Qt::Key_Return);
+        QTRY_COMPARE(js("blocks.get(0).body").toString(),QString("Ver Reuniones y Ideas "));
+        QVERIFY(js("flush()").toBool());
+        QString ideas;
+        for (const auto &p : store.navigation()) if (p.toObject()["title"] == "Ideas") ideas = p.toObject()["id"].toString();
+        QVERIFY(!ideas.isEmpty());
+        QCOMPARE(store.page(ideas)["parent_id"].toString(),diary);
+        QCOMPARE(store.backlinks(meetings).first().toObject()["title"].toString(),QString("Diario"));
+
+        // A click on the mention opens the page, which lists where it is mentioned.
+        auto *field = qvariant_cast<QQuickItem *>(js("blockRepeater.itemAt(0).editor"));
+        QRectF chip;
+        QMetaObject::invokeMethod(field,"positionToRectangle",Q_RETURN_ARG(QRectF,chip),Q_ARG(int,7));
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,field->mapToScene(QPointF(chip.x()+2,chip.y()+chip.height()/2)).toPoint());
+        QTRY_COMPARE(js("currentId").toString(),meetings);
+        QTRY_COMPARE(js("backlinks.length").toInt(),1);
+        auto *toggle = window->findChild<QQuickItem *>("backlinksToggle");
+        QVERIFY(toggle && toggle->isVisible());
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,toggle->mapToScene(QPointF(toggle->width()/2,toggle->height()/2)).toPoint());
+        QTRY_VERIFY(js("backlinksOpen").toBool());
+        capture("referencias");
+        QVERIFY(window->close());
+    }
+    void pastePhotoFlow() {
+        // On a real desktop this would replace the user's clipboard.
+        if (QGuiApplication::platformName() != "offscreen") QSKIP("Usa el portapapeles; ejecútala con -platform offscreen.");
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("pegar.sqlite3"));
+        const QString page = store.call("create_page",{{"title","Capturas"},{"blocks",QJsonArray{
+            Obj{{"type","paragraph"},{"text","Antes"}},Obj{{"type","paragraph"},{"text","Despues"}}}}},"manual")["id"].toString();
+        Editor editor(store,QCoreApplication::applicationFilePath());
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        auto kinds = [&] { return js("{ const k = []; for (let i = 0; i < blocks.count; ++i) k.push(blocks.get(i).kind); k.join(',') }").toString(); };
+        auto paste = [&](int index) {
+            js(QString("blockRepeater.itemAt(%1).focusEditor()").arg(index));
+            QTest::qWait(50);
+            QTest::keyClick(window,Qt::Key_V,Qt::ControlModifier);
+        };
+        js(QString("selectPage('%1')").arg(page));
+        QTRY_COMPARE(js("currentId").toString(),page);
+        auto *clip = QGuiApplication::clipboard();
+        QImage shot(320,180,QImage::Format_RGB32);
+        shot.fill(QColor("#F32201"));
+
+        // A screenshot becomes a photo block under the block being edited, not a link.
+        clip->setImage(shot);
+        QTRY_VERIFY(editor.clipboardPhoto());
+        paste(0);
+        QTRY_COMPARE(kinds(),QString("paragraph,image,paragraph"));
+        QCOMPARE(js("blocks.get(0).body").toString(),QString("Antes"));
+        QCOMPARE(js("blocks.get(2).body").toString(),QString("Despues"));
+        QCOMPARE(js("blocks.get(1).asset").toString().size(),64);
+        QVERIFY(js("flush()").toBool());
+        QCOMPARE(store.page(page)["blocks"].toArray()[1].toObject()["type"].toString(),QString("image"));
+
+        // "Copiar imagen" in a browser adds the address and an <img> tag: still a photo.
+        auto *browser = new QMimeData;
+        browser->setImageData(shot);
+        browser->setText("https://example.com/foto.png");
+        browser->setHtml("<img src=\"https://example.com/foto.png\">");
+        clip->setMimeData(browser);
+        QTRY_VERIFY(editor.clipboardPhoto());
+        paste(2);
+        QTRY_COMPARE(kinds(),QString("paragraph,image,paragraph,image,paragraph"));
+        QCOMPARE(js("blocks.get(4).body").toString(),QString());
+        QTRY_COMPARE(js("editIndex").toInt(),4);
+
+        // Word copies the text together with a picture of it: that pastes as text.
+        auto *word = new QMimeData;
+        word->setImageData(shot);
+        word->setText("Texto de Word");
+        word->setHtml("<p>Texto de Word</p>");
+        clip->setMimeData(word);
+        QTRY_VERIFY(!editor.clipboardPhoto());
+        paste(4);
+        QTRY_COMPARE(js("blocks.get(4).body").toString(),QString("Texto de Word"));
+        QCOMPARE(kinds(),QString("paragraph,image,paragraph,image,paragraph"));
+
+        // An image file copied in Explorer keeps its name as the caption; an empty paragraph turns into it.
+        const QString file = temp.filePath("Diagrama.png");
+        QVERIFY(shot.save(file));
+        js("insertBlock(5,'paragraph','','[]',0)");
+        QTRY_COMPARE(js("blocks.count").toInt(),6);
+        auto *files = new QMimeData;
+        files->setUrls({QUrl::fromLocalFile(file)});
+        clip->setMimeData(files);
+        QTRY_VERIFY(editor.clipboardPhoto());
+        paste(5);
+        QTRY_COMPARE(kinds(),QString("paragraph,image,paragraph,image,paragraph,image,paragraph"));
+        QCOMPARE(js("blocks.get(5).body").toString(),QString("Diagrama"));
+        QVERIFY(js("flush()").toBool());
+        QCOMPARE(store.page(page)["blocks"].toArray().size(),7);
+        js("pageScroll.contentItem.contentY = 0");
+        capture("pegar-foto");
+        clip->clear();
+        QVERIFY(window->close());
+    }
+    void themeFlow() {
+        // LUNQIO_THEME forces a theme for previews; this test checks the saved preference instead.
+        const QByteArray forced = qgetenv("LUNQIO_THEME");
+        qunsetenv("LUNQIO_THEME");
+        auto restoreEnv = qScopeGuard([&] { if (!forced.isEmpty()) qputenv("LUNQIO_THEME",forced); });
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("tema.sqlite3"));
+        auto make = [&](const QString &title, const QString &icon, const QJsonArray &blocks) {
+            return store.call("create_page",{{"title",title},{"icon",icon},{"blocks",blocks}},"manual")["id"].toString();
+        };
+        const QString meetings = make("Reuniones","📅",{Obj{{"type","paragraph"},{"text","Acuerdos"}}});
+        make("Ideas","💡",{Obj{{"type","paragraph"},{"text","Por ordenar"}}});
+        // A page that shows every kind of block, for the previews of each look.
+        const QString intro = QString::fromUtf8("Las páginas reúnen las ideas del equipo. Consulta la guía de identidad y las notas de Reuniones.");
+        auto span = [&](const QString &piece, Obj extra) {
+            const int at = int(intro.indexOf(QString::fromUtf8(piece.toUtf8())));
+            extra["start"] = at; extra["end"] = at+int(piece.size());
+            if (!extra.contains("style")) extra["style"] = 0;
+            return extra;
+        };
+        const int linkAt = int(intro.indexOf(QString::fromUtf8("guía")))+2;
+        const QString page = make(QString::fromUtf8("Notas de diseño"),"📓",{
+            Obj{{"type","paragraph"},{"text",intro},{"spans",QJsonArray{span("ideas del equipo",{{"style",1}}),
+                span(QString::fromUtf8("guía de identidad"),{{"link","https://ejemplo.com/guia"}}),
+                span("Reuniones",{{"link","lunqio:" "//page/"+meetings}})}}},
+            Obj{{"type","heading"},{"text",QString::fromUtf8("Plan de la sesión")},{"level",2}},
+            Obj{{"type","list"},{"text","Revisar la paleta en cada vista"}},
+            Obj{{"type","list"},{"text",QString::fromUtf8("Probar los íconos a 16, 20 y 24 px")}},
+            Obj{{"type","task"},{"text","Preparar la demo"},{"checked",false}},
+            Obj{{"type","task"},{"text","Enviar las notas"},{"checked",true}},
+            Obj{{"type","quote"},{"text",QString::fromUtf8("Escribir, comentar y revisar en un solo lugar.")}},
+            Obj{{"type","callout"},{"text",QString::fromUtf8("Cambia la vista en View → Tema o con Ctrl+Shift+L.")},{"icon","💡"}},
+            Obj{{"type","code"},{"text","tema = \"lunqio\""}}});
+        store.setFavorite(page,true);
+        Editor editor(store,QCoreApplication::applicationFilePath());
+        editor.setTheme("dark");
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1400,900);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        // The link's colour in the first block, as the editor draws it.
+        auto linkInk = [&] {
+            auto *field = qvariant_cast<QQuickItem *>(js("blockRepeater.itemAt(0).editor"));
+            auto *document = qvariant_cast<QQuickTextDocument *>(field->property("textDocument"));
+            QTextCursor cursor(document->textDocument());
+            cursor.setPosition(linkAt);
+            return cursor.charFormat().foreground().color();
+        };
+        auto saved = [] { return QSettings(QSettings::defaultFormat(),QSettings::UserScope,"Lunqio","Editor").value("theme").toString(); };
+        js(QString("selectPage('%1')").arg(page));
+        QTRY_COMPARE(js("currentId").toString(),page);
+
+        // Lunqio oscuro, the identity, by default.
+        QCOMPARE(window->color(),QColor("#231B19"));
+        QCOMPARE(linkInk(),QColor("#FF7959"));
+        QCOMPARE(js("Theme.glyphAccent").value<QColor>(),QColor("#FF7959"));
+        capture("editor-lunqio-oscuro");
+        // Lunqio claro, from View → Tema, saved for the next start. Switching does not edit the page.
+        editor.setTheme("light");
+        QTRY_COMPARE(window->color(),QColor("#FFF9F0"));
+        QCOMPARE(saved(),QString("light"));
+        QCOMPARE(linkInk(),QColor("#A82E13"));
+        QCOMPARE(js("Theme.glyph").value<QColor>(),QColor("#2C1312"));
+        capture("editor-lunqio-claro");
+        // The usual Claro and Oscuro: neutral white and black, a blue accent, one-colour symbols.
+        editor.setTheme("white");
+        QTRY_COMPARE(window->color(),QColor("#FFFFFF"));
+        QCOMPARE(linkInk(),QColor("#1F6FD1"));
+        QCOMPARE(js("Theme.glyphAccent").value<QColor>(),js("Theme.glyph").value<QColor>());
+        capture("editor-claro");
+        editor.setTheme("black");
+        QTRY_COMPARE(window->color(),QColor("#191919"));
+        QCOMPARE(linkInk(),QColor("#9DBDF0"));
+        capture("editor-oscuro");
+        QVERIFY(!js("dirty").toBool());
+
+        // Ctrl+Shift+L flips between the light and dark version of the same look, as in Notion.
+        QTest::keyClick(window,Qt::Key_L,Qt::ControlModifier|Qt::ShiftModifier);
+        QTRY_COMPARE(editor.theme(),QString("white"));
+        QTRY_COMPARE(window->color(),QColor("#FFFFFF"));
+        editor.setTheme("light");
+        QTRY_COMPARE(js("Theme.scheme").toString(),QString("light"));
+        QTest::keyClick(window,Qt::Key_L,Qt::ControlModifier|Qt::ShiftModifier);
+        QTRY_COMPARE(editor.theme(),QString("dark"));
+        QTRY_COMPARE(window->color(),QColor("#231B19"));
+        QCOMPARE(linkInk(),QColor("#FF7959"));
+        // "Según Windows" uses the usual Claro or Oscuro, as Windows is.
+        editor.setTheme("system");
+        const bool systemDark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+        QTRY_COMPARE(js("Theme.scheme").toString(),QString(systemDark ? "black" : "white"));
+        editor.setTheme("dark");
+        QVERIFY(!js("dirty").toBool());
+        QVERIFY(window->close());
+    }
+    void favoritesFlow() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("favoritos.sqlite3"));
+        auto make = [&](const QString &title, const QString &icon) {
+            Obj args{{"title",title},{"blocks",QJsonArray{Obj{{"type","paragraph"},{"text",title+" en curso"}}}}};
+            if (!icon.isEmpty()) args["icon"] = icon;
+            return store.call("create_page",args,"manual")["id"].toString();
+        };
+        const QString plan = make("Plan","🗺️"), drafts = make("Notas",""), ideas = make("Ideas","💡");
+        store.call("update_page",{{"id",plan},{"expected_revision",1},{"cover","gradient:aurora"}},"manual");
+
+        // Favorites keep the chosen order and wait in the trash; visits never create revisions.
+        store.setFavorite(drafts,true);
+        store.setFavorite(plan,true,0);
+        QCOMPARE(store.favorites(),(QJsonArray{plan,drafts}));
+        const qint64 before = store.generation();
+        store.visit(ideas);
+        QCOMPARE(store.generation(),before);
+        QCOMPARE(store.recent(8).first().toObject()["id"].toString(),ideas);
+        store.call("trash_page",{{"id",drafts},{"expected_revision",1}},"manual");
+        QCOMPARE(store.favorites(),(QJsonArray{plan}));
+        QVERIFY(store.recent(8).size() == 1);
+        store.setFavorite(ideas,true);
+        store.call("restore_page",{{"id",drafts},{"expected_revision",2}},"manual");
+        QCOMPARE(store.favorites(),(QJsonArray{plan,drafts,ideas}));
+        store.setFavorite(ideas,false);
+        QCOMPARE(store.favorites(),(QJsonArray{plan,drafts}));
+
+        Editor editor(store,QCoreApplication::applicationFilePath());
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1200,760);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        auto item = [&](const QString &name) {
+            QQuickItem *found = nullptr;
+            [&] { QTRY_VERIFY((found = visibleItem(window->contentItem(),name)) && found->isVisible() && found->width() > 0); }();
+            return found;
+        };
+        auto center = [&](QQuickItem *it) { return it->mapToScene(it->boundingRect().center()).toPoint(); };
+        auto titles = [&](const QString &list) { return js(list+".map(p => p.title).join(',')").toString(); };
+
+        QCOMPARE(titles("favoriteRows"),QString("Plan,Notas"));
+        QVERIFY(item("favorites")->isVisible());
+
+        // The star next to the page options adds the open page at the end of Favoritos.
+        js(QString("selectPage('%1')").arg(ideas));
+        QTRY_COMPARE(js("currentId").toString(),ideas);
+        QVERIFY(!js("isFavorite").toBool());
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,center(item("favoriteButton")));
+        QTRY_VERIFY(js("isFavorite").toBool());
+        QCOMPARE(titles("favoriteRows"),QString("Plan,Notas,Ideas"));
+
+        // Dragging Ideas above Plan reorders the list, and the library keeps that order.
+        auto *dragged = item("favorites-2");
+        auto *top = item("favorites-0");
+        QPoint at = center(dragged);
+        const QPoint goal = top->mapToScene(QPointF(top->width()/2,4)).toPoint();
+        QTest::mousePress(window,Qt::LeftButton,Qt::NoModifier,at);
+        for (int i = 1; i <= 12; ++i) QTest::mouseMove(window,at+(goal-at)*i/12,15);
+        QTest::mouseRelease(window,Qt::LeftButton,Qt::NoModifier,goal);
+        QTRY_COMPARE(titles("favoriteRows"),QString("Ideas,Plan,Notas"));
+        QCOMPARE(store.favorites().first().toString(),ideas);
+
+        // Recientes lists visited pages, newest first; a click opens one.
+        js(QString("selectPage('%1')").arg(plan));
+        QTRY_COMPARE(js("recentRows[0].id").toString(),plan);
+        QCOMPARE(js("recentRows[1].id").toString(),ideas);
+        QCOMPARE(js("recentRows[0].detail").toString(),QString("ahora"));
+        capture("favoritos");
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,center(item("recent-1")));
+        QTRY_COMPARE(js("currentId").toString(),ideas);
+        QCOMPARE(js("ago(new Date(clock-3*3600000).toISOString(),false)").toString(),QString("hace 3 h"));
+
+        // Removing the star takes the page out of Favoritos.
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,center(item("favoriteButton")));
+        QTRY_COMPARE(titles("favoriteRows"),QString("Plan,Notas"));
+
+        // Inicio shows the recent pages as cards.
+        js("browseTrash(false)");
+        QTRY_COMPARE(js("currentId").toString(),QString());
+        item("recentCards");
+        capture("inicio-recientes");
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,center(item("recentCard-1")));
+        QTRY_COMPARE(js("currentId").toString(),plan);
         QVERIFY(window->close());
     }
 };

@@ -6,8 +6,10 @@
 #include <QImageReader>
 #include <QPageLayout>
 #include <QPdfWriter>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QTextDocument>
+#include <QTextDocumentFragment>
 #include <QUrl>
 
 namespace pagefile {
@@ -23,6 +25,64 @@ QString storePhoto(notes::Store &store,const QString &path) {
     QString mime;
     const QByteArray bytes = readPhoto(path,mime);
     return store.addPhoto(mime,bytes);
+}
+static QStringList photoFiles(const QMimeData *data) {
+    QStringList files;
+    for (const QUrl &url : data->urls()) {
+        const QString suffix = QFileInfo(url.toLocalFile()).suffix().toLower();
+        if (url.isLocalFile() && (suffix == "png" || suffix == "jpg" || suffix == "jpeg")) files << url.toLocalFile();
+    }
+    return files.mid(0,20);
+}
+// Screenshots and "Copiar imagen" in a browser carry only the image (a browser adds its address).
+// Word, Excel or a web page selection also carry a picture of the text: those paste as text.
+static bool imageOnly(const QMimeData *data) {
+    if (!data->hasImage()) return false;
+    if (data->hasHtml()) {
+        QString words = QTextDocumentFragment::fromHtml(data->html()).toPlainText();
+        words.remove(QChar::ObjectReplacementCharacter);
+        if (!words.trimmed().isEmpty()) return false;
+    }
+    const QString text = data->text().trimmed();
+    static const QRegularExpression address(R"(^(https?|file|data):\S+$)",QRegularExpression::CaseInsensitiveOption);
+    return text.isEmpty() || address.match(text).hasMatch();
+}
+bool clipboardHasPhoto(const QMimeData *data) {
+    return data && (!photoFiles(data).isEmpty() || imageOnly(data));
+}
+QJsonArray storeClipboardPhotos(notes::Store &store,const QMimeData *data) {
+    QJsonArray photos;
+    if (!data) return photos;
+    const QStringList files = photoFiles(data);
+    for (const QString &path : files)
+        photos.append(Obj{{"asset",storePhoto(store,path)},{"caption",QFileInfo(path).completeBaseName()}});
+    if (!files.isEmpty() || !imageOnly(data)) return photos;
+    QImage image = qvariant_cast<QImage>(data->imageData());
+    if (image.isNull()) fail("No se pudo leer la imagen del portapapeles.");
+    if (qint64(image.width())*image.height() > 40000000) fail("La imagen supera los 40 megapíxeles.");
+    // PNG keeps screenshots sharp; a large opaque photo is stored as JPEG, as when you choose a file.
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    buffer.open(QIODevice::WriteOnly);
+    if (!image.save(&buffer,"PNG")) fail("No se pudo preparar la foto.");
+    QString mime = "image/png";
+    if (bytes.size() > 4*1024*1024) {
+        const QImage opaque = image.convertToFormat(QImage::Format_ARGB32);
+        bool transparent = false;
+        for (int y = 0; y < opaque.height() && !transparent; ++y) {
+            const auto *line = reinterpret_cast<const QRgb *>(opaque.constScanLine(y));
+            for (int x = 0; x < opaque.width(); ++x) if (qAlpha(line[x]) < 255) { transparent = true; break; }
+        }
+        if (!transparent) {
+            bytes.clear();
+            buffer.seek(0);
+            if (!image.convertToFormat(QImage::Format_RGB32).save(&buffer,"JPEG",94)) fail("No se pudo preparar la foto.");
+            mime = "image/jpeg";
+        }
+    }
+    if (bytes.size() > 32*1024*1024) fail("La imagen del portapapeles supera 32 MiB.");
+    photos.append(Obj{{"asset",store.addPhoto(mime,bytes)},{"caption",""}});
+    return photos;
 }
 static QByteArray readPhoto(const QString &path,QString &mime) {
     QFile file(path);

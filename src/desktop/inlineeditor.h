@@ -17,6 +17,9 @@ class InlineEditor : public QObject {
     Q_PROPERTY(QString activeLink READ activeLink NOTIFY stateChanged)
     Q_PROPERTY(QString activeComment READ activeComment NOTIFY stateChanged)
     Q_PROPERTY(QString activeThread READ activeThread NOTIFY stateChanged)
+    // Which theme draws links, mentions, code and highlights ("dark", "light", "white", "black", as
+    // Theme.scheme); switching recolours the text in place.
+    Q_PROPERTY(QString scheme READ scheme WRITE setScheme NOTIFY schemeChanged)
 public:
     enum Style { Bold=1, Italic=2, Underline=4, Strike=8, Code=16, Highlight=32, Superscript=64 };
     Q_ENUM(Style)
@@ -32,6 +35,8 @@ public:
     QString activeLink() const { return link; }
     QString activeComment() const { return comment; }
     QString activeThread() const { return threadId; }
+    QString scheme() const { return look; }
+    void setScheme(const QString &value);
     Q_INVOKABLE void load(const QString &text, const QString &spans);
     Q_INVOKABLE QString text() const;
     Q_INVOKABLE QString spans() const;
@@ -59,6 +64,7 @@ signals:
     void selectionChanged();
     void stateChanged();
     void contentChanged();
+    void schemeChanged();
 public:
     struct Piece { int start = 0, end = 0, style = 0; QString link, comment, thread; };
 private:
@@ -74,4 +80,5 @@ private:
     int from = 0, to = 0, styles = 0;
     QString link, comment, threadId;
     bool loading = false;
+    QString look = QStringLiteral("dark");
 };

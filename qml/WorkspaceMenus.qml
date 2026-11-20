@@ -10,12 +10,12 @@ MenuBar {
     implicitHeight: 30
     leftPadding: 7
     spacing: 0
-    background: Rectangle { color: "#1d1d1e"; Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#303031" } }
+    background: Rectangle { color: Theme.base; Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.hover } }
     delegate: MenuBarItem {
         id: item
         implicitHeight: 29; leftPadding: 11; rightPadding: 11
-        contentItem: Text { text: item.text.replace("&",""); font.pixelSize: 13; color: "#d3d2d5"; verticalAlignment: Text.AlignVCenter }
-        background: Rectangle { radius: 4; color: item.highlighted ? "#39393b" : "transparent" }
+        contentItem: Text { text: item.text.replace("&",""); font.pixelSize: 13; color: Theme.textSoft; verticalAlignment: Text.AlignVCenter }
+        background: Rectangle { radius: 4; color: item.highlighted ? Theme.pressed : "transparent" }
     }
     Menu {
         title: "&File"
@@ -36,7 +36,7 @@ MenuBar {
         MenuSeparator {}
         MenuItem { text: "Cortar    Ctrl+X"; enabled: !!bar.target && !!bar.target.selectedText && !bar.target.readOnly; onTriggered: bar.workspace.textCommand("cut") }
         MenuItem { text: "Copiar    Ctrl+C"; enabled: !!bar.target && !!bar.target.selectedText; onTriggered: bar.workspace.textCommand("copy") }
-        MenuItem { text: "Pegar    Ctrl+V"; enabled: !!bar.target && bar.target.canPaste && !bar.target.readOnly; onTriggered: bar.workspace.textCommand("paste") }
+        MenuItem { text: "Pegar    Ctrl+V"; enabled: !!bar.target && (bar.target.canPaste || (backend.clipboardPhoto && bar.workspace.editIndex >= 0)) && !bar.target.readOnly; onTriggered: bar.workspace.textCommand("paste") }
         MenuItem { text: "Seleccionar todo    Ctrl+A"; enabled: !!bar.target; onTriggered: bar.workspace.textCommand("selectAll") }
         MenuSeparator {}
         // Labels only: the block editor handles these keys so they stay tied to the selection.
@@ -67,6 +67,24 @@ MenuBar {
         MenuItem { action: Action { text: "Buscar páginas"; shortcut: "Ctrl+K"; onTriggered: bar.workspace.focusSearch() } }
         MenuItem { text: "Historial de revisiones…"; enabled: bar.live; onTriggered: bar.workspace.openHistory() }
         MenuItem { text: "Papelera"; onTriggered: bar.workspace.browseTrash(true) }
+        MenuSeparator {}
+        // Lunqio's identity in its two versions, the usual Claro and Oscuro, or those as Windows is.
+        // Ctrl+Shift+L flips between the light and dark version of the current look, as in Notion.
+        Menu {
+            title: "Tema"
+            ActionGroup { id: themes; exclusive: true }
+            MenuItem { action: Action { text: "Lunqio oscuro"; checkable: true; checked: backend.theme === "dark"; ActionGroup.group: themes; onTriggered: backend.theme = "dark" } }
+            MenuItem { action: Action { text: "Lunqio claro"; checkable: true; checked: backend.theme === "light"; ActionGroup.group: themes; onTriggered: backend.theme = "light" } }
+            MenuSeparator {}
+            MenuItem { action: Action { text: "Claro"; checkable: true; checked: backend.theme === "white"; ActionGroup.group: themes; onTriggered: backend.theme = "white" } }
+            MenuItem { action: Action { text: "Oscuro"; checkable: true; checked: backend.theme === "black"; ActionGroup.group: themes; onTriggered: backend.theme = "black" } }
+            MenuItem { action: Action { text: "Según Windows"; checkable: true; checked: backend.theme === "system"; ActionGroup.group: themes; onTriggered: backend.theme = "system" } }
+        }
+        MenuItem { action: Action {
+                readonly property var flip: ({dark: "light", light: "dark", white: "black", black: "white"})
+                readonly property var names: ({dark: "Lunqio oscuro", light: "Lunqio claro", white: "Claro", black: "Oscuro"})
+                text: "Cambiar a " + names[flip[Theme.scheme]]; shortcut: "Ctrl+Shift+L"
+                onTriggered: backend.theme = flip[Theme.scheme] } }
         MenuSeparator {}
         MenuItem { text: "Conectores"; onTriggered: bar.workspace.openConnection() }
     }

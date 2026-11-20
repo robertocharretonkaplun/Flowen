@@ -1,7 +1,9 @@
 #include "editor.h"
 #include "inlineeditor.h"
+#include "svgglyph.h"
 #include <QCommandLineParser>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QLocale>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -13,6 +15,7 @@
 int main(int argc, char **argv) {
     QGuiApplication app(argc,argv);
     app.setApplicationName("Lunqio");
+    app.setWindowIcon(QIcon(":/assets/lunqio-256.png"));
     // The interface is in Spanish: dates and times follow it ("mié", "4:40 p.m."), keeping a Spanish system region.
     const QLocale system = QLocale::system();
     QLocale::setDefault(system.language() == QLocale::Spanish ? system : QLocale(QLocale::Spanish,QLocale::Mexico));
@@ -25,6 +28,7 @@ int main(int argc, char **argv) {
         Editor editor(store);
         QQuickStyle::setStyle("Basic");
         InlineEditor::registerType();
+        SvgGlyph::registerType();
         QQmlApplicationEngine engine;
         engine.rootContext()->setContextProperty("backend",&editor);
         engine.load(QUrl("qrc:/qml/Main.qml"));

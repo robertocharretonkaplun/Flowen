@@ -25,39 +25,53 @@ const int ThreadProperty = QTextFormat::UserProperty + 3;
 QJsonObject threadOf(const QString &json) { return QJsonDocument::fromJson(json.toUtf8()).object(); }
 QString compact(const QJsonObject &o) { return QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)); }
 
-// The library stores only the style flags, link and comment. These are the
-// colours the dark editor uses to draw them; exports use their own palette.
-QTextCharFormat visual(const InlineEditor::Piece &p) {
+// The library stores only the style flags, link and comment. These are the colours the editor uses
+// to draw them in each look (qml/Theme.qml: Lunqio oscuro/claro, the usual Claro/Oscuro); exports use
+// their own palette.
+struct Inks { QColor code, codeBack, comment, highlight, mention, mentionBack, link; };
+const Inks &inks(const QString &scheme) {
+    static const Inks lunqioDark{QColor("#FF9C82"),QColor("#3D2F2B"),QColor("#4A3A1F"),QColor("#5E4720"),
+                                 QColor("#FBF1E0"),QColor("#46362F"),QColor("#FF7959")};
+    static const Inks lunqioLight{QColor("#A82E13"),QColor("#F4E7D6"),QColor("#F6E3B8"),QColor("#F5D987"),
+                                  QColor("#2C1312"),QColor("#EFDFCC"),QColor("#A82E13")};
+    static const Inks white{QColor("#C0362C"),QColor("#F2F2F0"),QColor("#FBEFC5"),QColor("#FCE49A"),
+                            QColor("#1F1F1F"),QColor("#EBEBE9"),QColor("#1F6FD1")};
+    static const Inks black{QColor("#E3A096"),QColor("#363539"),QColor("#453B22"),QColor("#5E4C22"),
+                            QColor("#DCE6F3"),QColor("#2C313A"),QColor("#9DBDF0")};
+    return scheme == "light" ? lunqioLight : scheme == "white" ? white : scheme == "black" ? black : lunqioDark;
+}
+QTextCharFormat visual(const InlineEditor::Piece &p, const QString &scheme) {
+    const Inks &ink = inks(scheme);
     QTextCharFormat f;
     if (p.style) f.setProperty(StyleProperty,p.style);
-    if (p.style & notes::Bold) f.setFontWeight(QFont::Bold);
+    if (p.style & notes::Bold) f.setFontWeight(QFont::DemiBold);
     if (p.style & notes::Italic) f.setFontItalic(true);
     if (p.style & notes::Strike) f.setFontStrikeOut(true);
     if (p.style & notes::Superscript) f.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
     const bool code = p.style & notes::Code;
     if (code) {
-        f.setFontFamilies(QStringList{"Cascadia Mono","Consolas"});
+        f.setFontFamilies(QStringList{"Consolas","Cascadia Mono"});
         f.setFontFixedPitch(true);
-        f.setForeground(QColor(0xe3,0xa0,0x96));
-        f.setBackground(QColor(0x36,0x35,0x39));
+        f.setForeground(ink.code);
+        f.setBackground(ink.codeBack);
     }
     if (!p.comment.isEmpty()) {
         f.setProperty(CommentProperty,p.comment);
         if (!p.thread.isEmpty()) f.setProperty(ThreadProperty,p.thread);
         // Resolved comments stay in the page but stop being highlighted.
-        if (!code && !threadOf(p.thread)["resolved"].toBool()) f.setBackground(QColor(0x45,0x3b,0x22));
+        if (!code && !threadOf(p.thread)["resolved"].toBool()) f.setBackground(ink.comment);
     }
-    if (p.style & notes::Highlight) f.setBackground(QColor(0x5e,0x4c,0x22));
+    if (p.style & notes::Highlight) f.setBackground(ink.highlight);
     bool underline = p.style & notes::Underline;
     if (!p.link.isEmpty()) {
         f.setAnchor(true);
         f.setAnchorHref(p.link);
         if (notes::pageLink(p.link)) {
             // A page mention reads as a chip rather than a web link.
-            if (!code) { f.setForeground(QColor(0xdc,0xe6,0xf3)); f.setBackground(QColor(0x2c,0x31,0x3a)); }
+            if (!code) { f.setForeground(ink.mention); f.setBackground(ink.mentionBack); }
         } else {
             underline = true;
-            if (!code) f.setForeground(QColor(0xa4,0xbf,0xe5));
+            if (!code) f.setForeground(ink.link);
         }
     }
     if (underline) f.setFontUnderline(true);
@@ -83,6 +97,26 @@ void InlineEditor::setDocument(QQuickTextDocument *document) {
         });
     emit documentChanged();
     refresh();
+}
+void InlineEditor::setScheme(const QString &value) {
+    if (look == value) return;
+    look = value;
+    // Only the colours change, so the page is not marked as edited (undo restarts from here).
+    if (auto *d = doc()) {
+        loading = true;
+        const bool undo = d->isUndoRedoEnabled();
+        d->setUndoRedoEnabled(false);
+        QTextCursor cursor(d);
+        for (const auto &p : pieces(0,d->characterCount()-1)) {
+            if (!p.style && p.link.isEmpty() && p.comment.isEmpty()) continue;
+            cursor.setPosition(p.start);
+            cursor.setPosition(p.end,QTextCursor::KeepAnchor);
+            cursor.setCharFormat(visual(p,look));
+        }
+        d->setUndoRedoEnabled(undo);
+        loading = false;
+    }
+    emit schemeChanged();
 }
 void InlineEditor::setSelectionStart(int value) {
     if (from == value) return;
@@ -151,7 +185,7 @@ void InlineEditor::load(const QString &text, const QString &spans) {
         }
         cursor.setPosition(p.start);
         cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-        cursor.setCharFormat(visual(p));
+        cursor.setCharFormat(visual(p,look));
     }
     d->setUndoRedoEnabled(true);
     loading = false;
@@ -225,7 +259,7 @@ int InlineEditor::append(const QString &text, const QString &tail) {
         if (p.start >= p.end) continue;
         cursor.setPosition(p.start);
         cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-        cursor.setCharFormat(visual(p));
+        cursor.setCharFormat(visual(p,look));
     }
     cursor.endEditBlock();
     return at;
@@ -263,7 +297,7 @@ int InlineEditor::markdownAt(int position) {
             p.style |= rule.style;
             cursor.setPosition(p.start);
             cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-            cursor.setCharFormat(visual(p));
+            cursor.setCharFormat(visual(p,look));
         }
         cursor.endEditBlock();
         refresh();
@@ -274,14 +308,14 @@ int InlineEditor::markdownAt(int position) {
 // "@" or "[[" picked a page: the typed query becomes a mention of it, followed by a plain space.
 int InlineEditor::insertMention(int start, int end, const QString &title, const QString &pageId) {
     auto *d = doc();
-    const QString link = "lunqio://page/"+pageId, name = title.simplified().left(240);
-    if (!d || name.isEmpty() || !notes::pageLink(link) || start < 0 || end < start || end >= d->characterCount()) return -1;
+    const QString target = "lunqio://page/"+pageId, name = title.simplified().left(240);
+    if (!d || name.isEmpty() || !notes::pageLink(target) || start < 0 || end < start || end >= d->characterCount()) return -1;
     QTextCursor cursor(d);
     cursor.beginEditBlock();
     cursor.setPosition(start);
     cursor.setPosition(end,QTextCursor::KeepAnchor);
     cursor.removeSelectedText();
-    cursor.insertText(name,visual({start,start+int(name.size()),0,link,{},{}}));
+    cursor.insertText(name,visual({start,start+int(name.size()),0,target,{},{}},look));
     cursor.insertText(" ",QTextCharFormat());
     cursor.endEditBlock();
     refresh();
@@ -298,7 +332,7 @@ void InlineEditor::rewriteRange(int start, int end, const std::function<void(Pie
         edit(p);
         cursor.setPosition(p.start);
         cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-        cursor.setCharFormat(visual(p));
+        cursor.setCharFormat(visual(p,look));
     }
     cursor.endEditBlock();
     refresh();
@@ -377,7 +411,7 @@ bool InlineEditor::updateThread(const QString &id, const std::function<void(Piec
         edit(p);
         cursor.setPosition(p.start);
         cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-        cursor.setCharFormat(visual(p));
+        cursor.setCharFormat(visual(p,look));
     }
     cursor.endEditBlock();
     refresh();

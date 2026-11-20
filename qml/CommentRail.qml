@@ -69,7 +69,7 @@ Item {
         id: header
         visible: !rail.floating && rail.resolvedCount > 0
         width: parent.width; spacing: 6
-        Label { text: rail.resolvedCount + (rail.resolvedCount === 1 ? " comentario resuelto" : " comentarios resueltos"); color: "#8e8c92"; font.pixelSize: 12; Layout.fillWidth: true }
+        Label { text: rail.resolvedCount + (rail.resolvedCount === 1 ? " comentario resuelto" : " comentarios resueltos"); color: Theme.muted; font.pixelSize: 12; Layout.fillWidth: true }
         UiButton { text: rail.showResolved ? "Ocultar" : "Mostrar"; quiet: true; focusPolicy: Qt.NoFocus; onClicked: rail.showResolved = !rail.showResolved }
     }
     Repeater {

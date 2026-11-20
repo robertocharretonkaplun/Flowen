@@ -15,12 +15,13 @@ Dialog {
     width: Math.min(560,parent.width-40)
     height: Math.min(560,parent.height-42)
     padding: 18
-    background: Rectangle { color: "#252526"; radius: 9; border.color: "#454447" }
+    background: Rectangle { color: Theme.surface; radius: Theme.radiusPanel; border.color: Theme.line }
     header: RowLayout {
         spacing: 10
+        Glyph { name: "sparkles"; font.pixelSize: 17; Layout.leftMargin: 18; Layout.topMargin: 18 }
         Label {
-            text: "✦  Editar con IA"; Layout.leftMargin: 18; Layout.topMargin: 18
-            font.pixelSize: 19; font.weight: Font.DemiBold; color: "#f4f2f5"; Layout.fillWidth: true
+            text: "Editar con IA"; Layout.topMargin: 18
+            font.pixelSize: 19; font.weight: Font.DemiBold; color: Theme.text; Layout.fillWidth: true
         }
         EngineSwitch { assistant: dialog.assistant; Layout.rightMargin: 18; Layout.topMargin: 18 }
     }
@@ -35,13 +36,13 @@ Dialog {
     onClosed: if (!suspended) assistant.cancel()
     contentItem: ColumnLayout {
         spacing: 9
-        Label { text: "Texto seleccionado"; color: "#aaa8ad"; font.pixelSize: 12 }
+        Label { text: "Texto seleccionado"; color: Theme.muted; font.pixelSize: 12 }
         ScrollView {
             Layout.fillWidth: true; Layout.preferredHeight: 74; clip: true; contentWidth: availableWidth
             TextArea {
                 readOnly: true; selectByMouse: true; textFormat: TextEdit.PlainText; wrapMode: TextEdit.Wrap
-                text: dialog.selection.original || ""; color: "#d8d7db"; font.pixelSize: 15
-                background: Rectangle { color: "#1c1c1e"; radius: 5 }
+                text: dialog.selection.original || ""; color: Theme.textSoft; font.pixelSize: 15
+                background: Rectangle { color: Theme.base; radius: 5 }
             }
         }
         Label { text: "Instrucción para " + dialog.assistant.engineName; font.pixelSize: 13 }
@@ -56,7 +57,7 @@ Dialog {
             UiButton { text: "Acortar"; enabled: !dialog.busy; onClicked: instruction.text = "Acorta el texto conservando las ideas principales." }
         }
         Label {
-            Layout.fillWidth: true; wrapMode: Text.Wrap; color: "#b5b2b9"; font.pixelSize: 13
+            Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.secondary; font.pixelSize: 13
             text: dialog.assistant.phase === "generating" ? dialog.assistant.engineName + " está preparando una propuesta…"
                   : dialog.proposal ? "Propuesta" + (dialog.assistant.usage.last.total
                       ? " · " + (dialog.assistant.usage.last.total >= 1000 ? (dialog.assistant.usage.last.total/1000).toLocaleString(Qt.locale(),'f',1) + " k" : dialog.assistant.usage.last.total) + " tokens" : "")
@@ -75,7 +76,7 @@ Dialog {
             visible: dialog.assistant.phase !== "error" && (!dialog.ready || (dialog.assistant.engine === "claude" && dialog.assistant.claudeAccount === "out"))
             Layout.fillWidth: true; spacing: 10
             Label {
-                Layout.fillWidth: true; wrapMode: Text.Wrap; color: "#ddba84"; font.pixelSize: 13
+                Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.warning; font.pixelSize: 13
                 text: dialog.assistant.link.state !== "connected" ? "Activa la conexión del editor en Conectores."
                       : !dialog.assistant.engineReady ? "No se encontró " + dialog.assistant.engineName + " en este equipo."
                       : "Claude Code necesita que inicies sesión una vez para escribir aquí."

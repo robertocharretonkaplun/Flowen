@@ -21,16 +21,16 @@ Rectangle {
     readonly property string kind: target ? target.blockKind : "paragraph"
     readonly property int level: target && target.blockLevel ? target.blockLevel : 1
     readonly property var kindInfo: ({
-        paragraph: {text: "Texto", mark: "T", glyph: ""},
-        heading: {text: "Encabezado " + level, mark: "H" + level, glyph: ""},
+        paragraph: {text: "Texto", mark: "T", glyph: "text"},
+        heading: {text: "Encabezado " + level, mark: "H" + level, glyph: "heading"},
         list: {text: "Lista con viñetas", mark: "", glyph: "list"},
-        numbered: {text: "Lista numerada", mark: "1.", glyph: ""},
+        numbered: {text: "Lista numerada", mark: "1.", glyph: "numbered"},
         task: {text: "Tarea", mark: "", glyph: "task"},
-        toggle: {text: "Desplegable", mark: "", glyph: "right"},
-        quote: {text: "Cita", mark: "❝", glyph: ""},
-        callout: {text: "Nota destacada", mark: "!", glyph: ""},
-        code: {text: "Código", mark: "</>", glyph: ""}
-    })[kind] || {text: "Texto", mark: "T", glyph: ""}
+        toggle: {text: "Desplegable", mark: "", glyph: "toggle"},
+        quote: {text: "Cita", mark: "❝", glyph: "quote"},
+        callout: {text: "Nota destacada", mark: "!", glyph: "callout"},
+        code: {text: "Código", mark: "</>", glyph: "code"}
+    })[kind] || {text: "Texto", mark: "T", glyph: "text"}
     property string mode: "menu"      // menu | link
     property string linkError: ""
     property bool dismissed: false
@@ -106,7 +106,7 @@ Rectangle {
 
     x: placement.x; y: placement.y; z: 20
     width: 240; height: content.implicitHeight + 12
-    radius: 9; color: "#252526"; border.color: "#3e3d41"
+    radius: Theme.radiusPanel; color: Theme.surface; border.color: Theme.line
     visible: opacity > 0; enabled: shown
     opacity: shown ? 1 : 0
     scale: shown ? 1 : 0.97
@@ -115,12 +115,12 @@ Rectangle {
     Behavior on scale { enabled: bubble.shown; NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
 
     // Soft drop shadow drawn with two translucent layers behind the panel.
-    Rectangle { z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 2; anchors.bottomMargin: -5; radius: 11; color: "#38000000" }
-    Rectangle { z: -2; anchors.fill: parent; anchors.margins: -5; anchors.bottomMargin: -14; radius: 15; color: "#1c000000" }
+    Rectangle { z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 2; anchors.bottomMargin: -5; radius: Theme.radiusPanel+1; color: Theme.shadow }
+    Rectangle { z: -2; anchors.fill: parent; anchors.margins: -5; anchors.bottomMargin: -14; radius: Theme.radiusPanel+4; color: Theme.shadowSoft }
     // Keeps clicks on the panel from reaching the text underneath.
     MouseArea { anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.AllButtons; onWheel: function(wheel) { wheel.accepted = false } }
 
-    component Divider: Rectangle { Layout.fillWidth: true; Layout.topMargin: 5; Layout.bottomMargin: 5; implicitHeight: 1; color: "#37363a" }
+    component Divider: Rectangle { Layout.fillWidth: true; Layout.topMargin: 5; Layout.bottomMargin: 5; implicitHeight: 1; color: Theme.hover }
     component MenuRow: AbstractButton {
         id: menuRow
         property string glyph: ""
@@ -132,17 +132,17 @@ Rectangle {
         implicitHeight: 30; leftPadding: 8; rightPadding: 8
         focusPolicy: Qt.NoFocus; hoverEnabled: true
         Accessible.name: text
-        background: Rectangle { radius: 6; color: menuRow.down ? "#3d3d40" : menuRow.hovered || menuRow.active ? "#2f2f32" : "transparent" }
+        background: Rectangle { radius: Theme.radiusButton; color: menuRow.down ? Theme.pressed : menuRow.hovered || menuRow.active ? Theme.raised : "transparent" }
         contentItem: RowLayout {
             spacing: 10
             Item {
                 visible: !!menuRow.glyph || !!menuRow.mark; implicitWidth: 18; implicitHeight: 18
-                Glyph { anchors.centerIn: parent; visible: !!menuRow.glyph; name: menuRow.glyph; color: "#c9c8cc" }
-                Text { anchors.centerIn: parent; visible: !menuRow.glyph; text: menuRow.mark; color: "#c9c8cc"; font.pixelSize: 15; font.weight: Font.DemiBold }
+                Glyph { anchors.centerIn: parent; visible: !!menuRow.glyph; name: menuRow.glyph }
+                Text { anchors.centerIn: parent; visible: !menuRow.glyph; text: menuRow.mark; color: Theme.secondary; font.pixelSize: 15; font.weight: Font.DemiBold }
             }
-            Text { text: menuRow.text; color: "#ebeaed"; font.pixelSize: 14; elide: Text.ElideRight; Layout.fillWidth: true }
-            Text { visible: !!menuRow.trailing; text: menuRow.trailing; color: "#8e8c92"; font.pixelSize: 12 }
-            Glyph { visible: menuRow.chevron; name: "right"; font.pixelSize: 10; color: "#8e8c92" }
+            Text { text: menuRow.text; color: Theme.text; font.pixelSize: 14; elide: Text.ElideRight; Layout.fillWidth: true }
+            Text { visible: !!menuRow.trailing; text: menuRow.trailing; color: Theme.muted; font.pixelSize: 12 }
+            Glyph { visible: menuRow.chevron; name: "right"; font.pixelSize: 10; color: Theme.muted }
         }
     }
     component FormatButton: AbstractButton {
@@ -156,7 +156,7 @@ Rectangle {
         property bool struck: false
         property bool swatch: false
         property bool mono: false
-        readonly property color tint: active ? "#a4bfe5" : "#dcdbde"
+        readonly property color tint: active ? Theme.accent : Theme.textSoft
         implicitWidth: 44; implicitHeight: 32
         focusPolicy: Qt.NoFocus; hoverEnabled: true
         Accessible.name: hint
@@ -164,17 +164,17 @@ Rectangle {
         Accessible.checked: active
         ToolTip.visible: hovered; ToolTip.text: hint; ToolTip.delay: 450
         background: Rectangle {
-            radius: 6
-            color: formatButton.down ? "#3d3d40" : formatButton.hovered ? "#333336" : formatButton.active ? "#2b3139" : "transparent"
+            radius: Theme.radiusButton
+            color: formatButton.down ? Theme.pressed : formatButton.hovered ? Theme.hover : formatButton.active ? Theme.hover : "transparent"
         }
         contentItem: Item {
-            Glyph { anchors.centerIn: parent; visible: !!formatButton.glyph; name: formatButton.glyph; color: formatButton.tint; font.pixelSize: 15 }
+            Glyph { anchors.centerIn: parent; visible: !!formatButton.glyph; name: formatButton.glyph; color: formatButton.active ? Theme.accent : Theme.glyph; font.pixelSize: 15 }
             Text {
                 id: letter
                 anchors.centerIn: parent; anchors.verticalCenterOffset: formatButton.swatch ? -2 : 0
                 visible: !formatButton.glyph; text: formatButton.text; textFormat: Text.RichText
                 color: formatButton.tint; font.pixelSize: formatButton.mono ? 13 : 16
-                font.family: formatButton.mono ? "Cascadia Mono" : "Segoe UI"
+                font.family: formatButton.mono ? Theme.mono : Theme.family
                 font.weight: formatButton.heavy ? Font.Bold : Font.Medium
                 font.italic: formatButton.slanted; font.underline: formatButton.lined; font.strikeout: formatButton.struck
             }
@@ -203,21 +203,21 @@ Rectangle {
             GridLayout {
                 columns: 5; rowSpacing: 2; columnSpacing: 2
                 Layout.alignment: Qt.AlignHCenter
-                FormatButton { objectName: "formatHighlight"; text: "A"; swatch: true; hint: "Resaltar (Ctrl+Shift+H)"
+                FormatButton { objectName: "formatHighlight"; glyph: "highlight"; hint: "Resaltar (Ctrl+Shift+H)"
                     active: bubble.styles & InlineEditor.Highlight; onClicked: bubble.toggle(InlineEditor.Highlight) }
-                FormatButton { objectName: "formatBold"; text: "B"; heavy: true; hint: "Negrita (Ctrl+B)"
+                FormatButton { objectName: "formatBold"; glyph: "bold"; hint: "Negrita (Ctrl+B)"
                     active: bubble.styles & InlineEditor.Bold; onClicked: bubble.toggle(InlineEditor.Bold) }
-                FormatButton { objectName: "formatItalic"; text: "I"; slanted: true; hint: "Cursiva (Ctrl+I)"
+                FormatButton { objectName: "formatItalic"; glyph: "italic"; hint: "Cursiva (Ctrl+I)"
                     active: bubble.styles & InlineEditor.Italic; onClicked: bubble.toggle(InlineEditor.Italic) }
-                FormatButton { objectName: "formatUnderline"; text: "U"; lined: true; hint: "Subrayado (Ctrl+U)"
+                FormatButton { objectName: "formatUnderline"; glyph: "underline"; hint: "Subrayado (Ctrl+U)"
                     active: bubble.styles & InlineEditor.Underline; onClicked: bubble.toggle(InlineEditor.Underline) }
                 FormatButton { objectName: "formatClear"; text: "T<sub>x</sub>"; hint: "Quitar formato"
                     onClicked: if (bubble.formatter) bubble.formatter.clearStyles() }
                 FormatButton { objectName: "formatLink"; glyph: "link"; hint: "Enlace (Ctrl+K)"
                     active: !!bubble.formatter && !!bubble.formatter.activeLink; onClicked: bubble.openLink() }
-                FormatButton { objectName: "formatStrike"; text: "S"; struck: true; hint: "Tachado (Ctrl+Shift+X)"
+                FormatButton { objectName: "formatStrike"; glyph: "strike"; hint: "Tachado (Ctrl+Shift+X)"
                     active: bubble.styles & InlineEditor.Strike; onClicked: bubble.toggle(InlineEditor.Strike) }
-                FormatButton { objectName: "formatCode"; text: "&lt;/&gt;"; mono: true; hint: "Código en línea (Ctrl+E)"
+                FormatButton { objectName: "formatCode"; glyph: "code"; hint: "Código en línea (Ctrl+E)"
                     active: bubble.styles & InlineEditor.Code; onClicked: bubble.toggle(InlineEditor.Code) }
                 FormatButton { objectName: "formatSuperscript"; text: "x²"; hint: "Superíndice"
                     active: bubble.styles & InlineEditor.Superscript; onClicked: bubble.toggle(InlineEditor.Superscript) }
@@ -231,17 +231,17 @@ Rectangle {
                 onClicked: bubble.openComment()
             }
             Divider {}
-            Text { text: "Acciones de IA"; color: "#8e8c92"; font.pixelSize: 12; Layout.leftMargin: 8; Layout.topMargin: 1; Layout.bottomMargin: 3 }
-            MenuRow { text: "Mejorar redacción"; onClicked: bubble.aiRequested("Mejora la redacción conservando el significado.") }
-            MenuRow { text: "Corregir ortografía"; onClicked: bubble.aiRequested("Corrige la ortografía y la gramática.") }
-            MenuRow { text: "Acortar"; onClicked: bubble.aiRequested("Acorta el texto conservando las ideas principales.") }
+            Text { text: "Acciones de IA"; color: Theme.muted; font.pixelSize: 12; Layout.leftMargin: 8; Layout.topMargin: 1; Layout.bottomMargin: 3 }
+            MenuRow { glyph: "improve"; text: "Mejorar redacción"; onClicked: bubble.aiRequested("Mejora la redacción conservando el significado.") }
+            MenuRow { glyph: "proofread"; text: "Corregir ortografía"; onClicked: bubble.aiRequested("Corrige la ortografía y la gramática.") }
+            MenuRow { glyph: "shrink"; text: "Acortar"; onClicked: bubble.aiRequested("Acorta el texto conservando las ideas principales.") }
             Divider {}
-            MenuRow { objectName: "bubbleWriting"; mark: "✦"; text: "Editar con IA"; trailing: "Ctrl+Shift+I"; onClicked: bubble.aiRequested("") }
+            MenuRow { objectName: "bubbleWriting"; glyph: "sparkles"; text: "Editar con IA"; trailing: "Ctrl+Shift+I"; onClicked: bubble.aiRequested("") }
         }
         ColumnLayout {
             visible: bubble.mode === "link"
             Layout.fillWidth: true; Layout.margins: 6; spacing: 8
-            Text { text: "Enlace"; color: "#ebeaed"; font.pixelSize: 13; font.weight: Font.DemiBold }
+            Text { text: "Enlace"; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
             TextField {
                 id: linkField; objectName: "bubbleLinkField"
                 Layout.fillWidth: true; maximumLength: 2048; selectByMouse: true
@@ -249,7 +249,7 @@ Rectangle {
                 onAccepted: bubble.applyLink()
                 onTextChanged: bubble.linkError = ""
             }
-            Text { visible: !!bubble.linkError; text: bubble.linkError; color: "#efb69c"; font.pixelSize: 12; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            Text { visible: !!bubble.linkError; text: bubble.linkError; color: Theme.danger; font.pixelSize: 12; wrapMode: Text.Wrap; Layout.fillWidth: true }
             RowLayout {
                 Layout.fillWidth: true
                 UiButton { visible: !!bubble.formatter && !!bubble.formatter.activeLink; quiet: true; text: "Quitar"; focusPolicy: Qt.NoFocus

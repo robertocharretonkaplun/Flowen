@@ -95,9 +95,9 @@ Rectangle {
     width: Math.max(420,Math.min(740,(anchorItem ? anchorItem.width : 700) + 12))
     height: body.implicitHeight + 16
     visible: active
-    radius: 10; color: "#252526"; border.color: busy ? "#4c5a6e" : "#3e3d41"
-    Rectangle { z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 2; anchors.bottomMargin: -5; radius: 12; color: "#38000000" }
-    Rectangle { z: -2; anchors.fill: parent; anchors.margins: -5; anchors.bottomMargin: -14; radius: 16; color: "#1c000000" }
+    radius: Theme.radiusPanel; color: Theme.surface; border.color: busy ? Theme.accentLine : Theme.pressed
+    Rectangle { z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 2; anchors.bottomMargin: -5; radius: Theme.radiusPanel+1; color: Theme.shadow }
+    Rectangle { z: -2; anchors.fill: parent; anchors.margins: -5; anchors.bottomMargin: -14; radius: Theme.radiusPanel+4; color: Theme.shadowSoft }
     MouseArea { anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.AllButtons; onWheel: function(wheel) { wheel.accepted = false } }
 
     component BlockPreview: RowLayout {
@@ -107,11 +107,11 @@ Rectangle {
         Label {
             visible: line.modelData.type === "list" || line.modelData.type === "task"
             text: line.modelData.type === "task" ? "☐" : "•"
-            font.pixelSize: line.modelData.type === "task" ? 15 : 17; color: "#c9c7cc"
+            font.pixelSize: line.modelData.type === "task" ? 15 : 17; color: Theme.secondary
             Layout.alignment: Qt.AlignTop; Layout.topMargin: line.modelData.type === "task" ? 1 : -1
         }
         Label {
-            Layout.fillWidth: true; wrapMode: Text.Wrap; text: line.modelData.text; color: "#e9e8ea"
+            Layout.fillWidth: true; wrapMode: Text.Wrap; text: line.modelData.text; color: Theme.text
             font.pixelSize: line.modelData.type === "heading" ? 19 : 15
             font.weight: line.modelData.type === "heading" ? Font.DemiBold : Font.Normal
             Layout.topMargin: line.modelData.type === "heading" ? 6 : 0
@@ -128,7 +128,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Math.min(320,result.implicitHeight+20)
             clip: true; contentWidth: availableWidth
-            background: Rectangle { radius: 7; color: "#1d1d1f"; border.color: "#323235" }
+            background: Rectangle { radius: Theme.radiusButton; color: Theme.base; border.color: Theme.hover }
             ColumnLayout {
                 id: result
                 x: 12; y: 10; width: preview.availableWidth-24
@@ -138,8 +138,8 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true; spacing: 8
-            Text {
-                text: "✦"; font.pixelSize: 17; color: "#a4bfe5"; Layout.leftMargin: 6
+            Glyph {
+                name: "sparkles"; font.pixelSize: 16; Layout.leftMargin: 6
                 // Breathes while the assistant writes; always settles back to full opacity.
                 SequentialAnimation on opacity {
                     running: composer.busy; loops: Animation.Infinite; alwaysRunToEnd: true
@@ -151,8 +151,8 @@ Rectangle {
                 id: prompt; objectName: "aiPrompt"
                 Layout.fillWidth: true; maximumLength: 2000; selectByMouse: true
                 enabled: !composer.busy && !composer.applying
-                font.pixelSize: 15; color: "#efedf0"; leftPadding: 2
-                placeholderTextColor: "#8e8c92"
+                font.pixelSize: 15; color: Theme.text; leftPadding: 2
+                placeholderTextColor: Theme.muted
                 placeholderText: composer.busy ? composer.assistant.engineName + " está escribiendo…"
                                  : composer.applying ? "Insertando…"
                                  : composer.previewing ? "Pide un cambio o pulsa Intro para insertar…"
@@ -185,9 +185,9 @@ Rectangle {
                 onClicked: composer.busy ? composer.assistant.cancel() : composer.submit()
                 background: Rectangle {
                     radius: 15
-                    color: !send.enabled ? "#2e2e31" : send.down ? "#c6d5ea" : "#a4bfe5"
+                    color: !send.enabled ? Theme.raised : send.down ? Theme.accentPressed : Theme.accent
                 }
-                contentItem: Glyph { name: composer.busy ? "stop" : "send"; font.pixelSize: 13; color: send.enabled ? "#17191d" : "#77757b" }
+                contentItem: Glyph { name: composer.busy ? "stop" : "send"; font.pixelSize: 13; color: send.enabled ? Theme.accentInk : Theme.faint }
             }
         }
         AiProblem {
@@ -199,7 +199,7 @@ Rectangle {
         RowLayout {
             visible: composer.needsSignIn
             Layout.fillWidth: true; Layout.leftMargin: 6; spacing: 10
-            Label { text: "Claude Code necesita que inicies sesión una vez para escribir aquí."; color: "#ddba84"; font.pixelSize: 13; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            Label { text: "Claude Code necesita que inicies sesión una vez para escribir aquí."; color: Theme.warning; font.pixelSize: 13; wrapMode: Text.Wrap; Layout.fillWidth: true }
             UiButton { text: "Iniciar sesión"; onClicked: composer.assistant.signInClaude() }
             UiButton { text: "Comprobar"; quiet: true; onClicked: composer.assistant.checkClaude() }
         }
@@ -210,7 +210,7 @@ Rectangle {
             UiButton { text: "Reintentar"; enabled: composer.previewing; onClicked: composer.retry() }
             Item { Layout.fillWidth: true }
             Label {
-                objectName: "aiSpent"; color: "#8e8c92"; font.pixelSize: 12
+                objectName: "aiSpent"; color: Theme.muted; font.pixelSize: 12
                 readonly property var spent: composer.assistant.usage.last
                 text: composer.assistant.blocks.length + (composer.assistant.blocks.length === 1 ? " bloque" : " bloques")
                       + " · " + composer.assistant.engineName
@@ -225,12 +225,12 @@ Rectangle {
         visible: composer.showSuggestions
         y: parent.height + 6; width: 300
         height: options.implicitHeight + 12
-        radius: 9; color: "#252526"; border.color: "#3e3d41"
-        Rectangle { z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 2; anchors.bottomMargin: -5; radius: 11; color: "#38000000" }
+        radius: Theme.radiusPanel; color: Theme.surface; border.color: Theme.line
+        Rectangle { z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 2; anchors.bottomMargin: -5; radius: Theme.radiusPanel+1; color: Theme.shadow }
         ColumnLayout {
             id: options
             x: 6; y: 6; width: parent.width-12; spacing: 0
-            Text { text: "Escribir con IA"; color: "#8e8c92"; font.pixelSize: 12; Layout.leftMargin: 8; Layout.topMargin: 2; Layout.bottomMargin: 4 }
+            Text { text: "Escribir con IA"; color: Theme.muted; font.pixelSize: 12; Layout.leftMargin: 8; Layout.topMargin: 2; Layout.bottomMargin: 4 }
             Repeater {
                 model: composer.suggestions
                 delegate: AbstractButton {
@@ -242,11 +242,11 @@ Rectangle {
                     Accessible.name: modelData.text
                     onHoveredChanged: if (hovered) composer.highlighted = index
                     onClicked: composer.pick(modelData)
-                    background: Rectangle { radius: 6; color: composer.highlighted === suggestion.index ? "#2f2f32" : "transparent" }
+                    background: Rectangle { radius: Theme.radiusButton; color: composer.highlighted === suggestion.index ? Theme.raised : "transparent" }
                     contentItem: RowLayout {
                         spacing: 10
-                        Glyph { name: suggestion.modelData.glyph; color: "#a4bfe5"; Layout.preferredWidth: 18 }
-                        Text { text: suggestion.modelData.text; color: "#ebeaed"; font.pixelSize: 14; Layout.fillWidth: true }
+                        Glyph { name: suggestion.modelData.glyph; color: Theme.accent; Layout.preferredWidth: 18 }
+                        Text { text: suggestion.modelData.text; color: Theme.text; font.pixelSize: 14; Layout.fillWidth: true }
                     }
                 }
             }

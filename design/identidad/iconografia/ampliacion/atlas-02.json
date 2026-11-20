@@ -1,0 +1,1324 @@
+{
+  "version": 1,
+  "imagen": "atlas-02.png",
+  "vector": "atlas-02.svg",
+  "tema": "oscuro",
+  "columnas": 10,
+  "filas": 10,
+  "ancho": 640,
+  "alto": 640,
+  "origen": "superior-izquierda",
+  "unidad": "píxeles físicos del PNG",
+  "rectFormato": [
+    "x",
+    "y",
+    "ancho",
+    "alto"
+  ],
+  "escala": 2,
+  "celda": 64,
+  "celdaLogica": 32,
+  "margenInterior": 8,
+  "iconos": [
+    {
+      "id": "undo",
+      "label": "Deshacer",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 0,
+      "rect": [
+        0,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "redo",
+      "label": "Rehacer",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 1,
+      "rect": [
+        64,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "cut",
+      "label": "Cortar",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 2,
+      "rect": [
+        128,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "paste",
+      "label": "Pegar",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 3,
+      "rect": [
+        192,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "selectAll",
+      "label": "Seleccionar todo",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 4,
+      "rect": [
+        256,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "findReplace",
+      "label": "Buscar y reemplazar",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 5,
+      "rect": [
+        320,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "removeFormatting",
+      "label": "Quitar formato",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 6,
+      "rect": [
+        384,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "superscript",
+      "label": "Superíndice",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 7,
+      "rect": [
+        448,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "subscript",
+      "label": "Subíndice",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 8,
+      "rect": [
+        512,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "formatBrush",
+      "label": "Copiar formato",
+      "familia": "Edición de texto",
+      "fila": 0,
+      "columna": 9,
+      "rect": [
+        576,
+        0,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "alignLeft",
+      "label": "Alinear a la izquierda",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 0,
+      "rect": [
+        0,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "alignCenter",
+      "label": "Centrar texto",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 1,
+      "rect": [
+        64,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "alignRight",
+      "label": "Alinear a la derecha",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 2,
+      "rect": [
+        128,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "justify",
+      "label": "Justificar texto",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 3,
+      "rect": [
+        192,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "columns",
+      "label": "Dos columnas",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 4,
+      "rect": [
+        256,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "mergeBlocks",
+      "label": "Unir bloques",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 5,
+      "rect": [
+        320,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "splitBlock",
+      "label": "Dividir bloque",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 6,
+      "rect": [
+        384,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "lineSpacing",
+      "label": "Interlineado",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 7,
+      "rect": [
+        448,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "paragraphMark",
+      "label": "Marcas de párrafo",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 8,
+      "rect": [
+        512,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "pageBreak",
+      "label": "Salto de página",
+      "familia": "Composición",
+      "fila": 1,
+      "columna": 9,
+      "rect": [
+        576,
+        64,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "attachment",
+      "label": "Adjuntar",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 0,
+      "rect": [
+        0,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "print",
+      "label": "Imprimir",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 1,
+      "rect": [
+        64,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "markdownFile",
+      "label": "Archivo Markdown",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 2,
+      "rect": [
+        128,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "pdfFile",
+      "label": "Archivo PDF",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 3,
+      "rect": [
+        192,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "htmlFile",
+      "label": "Archivo HTML",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 4,
+      "rect": [
+        256,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "plainTextFile",
+      "label": "Archivo de texto",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 5,
+      "rect": [
+        320,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "spreadsheetFile",
+      "label": "Hoja de cálculo",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 6,
+      "rect": [
+        384,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "archiveFile",
+      "label": "Archivo comprimido",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 7,
+      "rect": [
+        448,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "backup",
+      "label": "Copia de seguridad",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 8,
+      "rect": [
+        512,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "restoreBackup",
+      "label": "Recuperar copia",
+      "familia": "Archivos y salida",
+      "fila": 2,
+      "columna": 9,
+      "rect": [
+        576,
+        128,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "snapshot",
+      "label": "Instantánea",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 0,
+      "rect": [
+        0,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "compare",
+      "label": "Comparar versiones",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 1,
+      "rect": [
+        64,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "diff",
+      "label": "Ver diferencias",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 2,
+      "rect": [
+        128,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "restoreRevision",
+      "label": "Restaurar versión",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 3,
+      "rect": [
+        192,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "branch",
+      "label": "Crear rama",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 4,
+      "rect": [
+        256,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "mergeVersions",
+      "label": "Fusionar versiones",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 5,
+      "rect": [
+        320,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "author",
+      "label": "Autoría",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 6,
+      "rect": [
+        384,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "approveEdit",
+      "label": "Aprobar cambio",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 7,
+      "rect": [
+        448,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "rejectEdit",
+      "label": "Rechazar cambio",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 8,
+      "rect": [
+        512,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "readingMode",
+      "label": "Modo lectura",
+      "familia": "Versiones y revisión",
+      "fila": 3,
+      "columna": 9,
+      "rect": [
+        576,
+        192,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "dueDate",
+      "label": "Fecha límite",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 0,
+      "rect": [
+        0,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "reminder",
+      "label": "Recordatorio",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 1,
+      "rect": [
+        64,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "repeatTask",
+      "label": "Tarea recurrente",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 2,
+      "rect": [
+        128,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "priority",
+      "label": "Prioridad",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 3,
+      "rect": [
+        192,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "milestone",
+      "label": "Hito",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 4,
+      "rect": [
+        256,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "subtask",
+      "label": "Subtarea",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 5,
+      "rect": [
+        320,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "dependency",
+      "label": "Dependencia",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 6,
+      "rect": [
+        384,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "timer",
+      "label": "Temporizador",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 7,
+      "rect": [
+        448,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "pause",
+      "label": "Pausar",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 8,
+      "rect": [
+        512,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "progress",
+      "label": "En progreso",
+      "familia": "Tareas y tiempo",
+      "fila": 4,
+      "columna": 9,
+      "rect": [
+        576,
+        256,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "share",
+      "label": "Compartir",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 0,
+      "rect": [
+        0,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "invite",
+      "label": "Invitar persona",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 1,
+      "rect": [
+        64,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "roles",
+      "label": "Roles",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 2,
+      "rect": [
+        128,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "publicLink",
+      "label": "Enlace público",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 3,
+      "rect": [
+        192,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "unlink",
+      "label": "Quitar enlace",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 4,
+      "rect": [
+        256,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "readOnly",
+      "label": "Solo lectura",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 5,
+      "rect": [
+        320,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "editAccess",
+      "label": "Permiso de edición",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 6,
+      "rect": [
+        384,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "notificationsOff",
+      "label": "Silenciar avisos",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 7,
+      "rect": [
+        448,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "inbox",
+      "label": "Bandeja de entrada",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 8,
+      "rect": [
+        512,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "handRaise",
+      "label": "Pedir la palabra",
+      "familia": "Colaboración",
+      "fila": 5,
+      "columna": 9,
+      "rect": [
+        576,
+        320,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "summarize",
+      "label": "Resumir",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 0,
+      "rect": [
+        0,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "expandText",
+      "label": "Ampliar texto",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 1,
+      "rect": [
+        64,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "translate",
+      "label": "Traducir",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 2,
+      "rect": [
+        128,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "tone",
+      "label": "Ajustar tono",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 3,
+      "rect": [
+        192,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "rephrase",
+      "label": "Reformular",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 4,
+      "rect": [
+        256,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "explain",
+      "label": "Explicar",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 5,
+      "rect": [
+        320,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "askSelection",
+      "label": "Preguntar sobre la selección",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 6,
+      "rect": [
+        384,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "insertProposal",
+      "label": "Insertar propuesta",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 7,
+      "rect": [
+        448,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "modelSwitch",
+      "label": "Cambiar de modelo",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 8,
+      "rect": [
+        512,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "tokenUsage",
+      "label": "Uso de tokens",
+      "familia": "Asistencia de escritura",
+      "fila": 6,
+      "columna": 9,
+      "rect": [
+        576,
+        384,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "server",
+      "label": "Servidor",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 0,
+      "rect": [
+        0,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "apiKey",
+      "label": "Clave de API",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 1,
+      "rect": [
+        64,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "webhook",
+      "label": "Webhook",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 2,
+      "rect": [
+        128,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "configJson",
+      "label": "Configuración JSON",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 3,
+      "rect": [
+        192,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "latency",
+      "label": "Latencia",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 4,
+      "rect": [
+        256,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "quota",
+      "label": "Límite de uso",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 5,
+      "rect": [
+        320,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "localOnly",
+      "label": "Almacenamiento local",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 6,
+      "rect": [
+        384,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "cloud",
+      "label": "Nube",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 7,
+      "rect": [
+        448,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "disconnect",
+      "label": "Desconectar",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 8,
+      "rect": [
+        512,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "handshake",
+      "label": "Negociar conexión",
+      "familia": "Integración y diagnóstico",
+      "fila": 7,
+      "columna": 9,
+      "rect": [
+        576,
+        448,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "lightTheme",
+      "label": "Tema claro",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 0,
+      "rect": [
+        0,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "darkTheme",
+      "label": "Tema oscuro",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 1,
+      "rect": [
+        64,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "contrast",
+      "label": "Alto contraste",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 2,
+      "rect": [
+        128,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "fontSize",
+      "label": "Tamaño de letra",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 3,
+      "rect": [
+        192,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "keyboard",
+      "label": "Teclado",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 4,
+      "rect": [
+        256,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "shortcuts",
+      "label": "Atajos de teclado",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 5,
+      "rect": [
+        320,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "zoomIn",
+      "label": "Acercar",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 6,
+      "rect": [
+        384,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "zoomOut",
+      "label": "Alejar",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 7,
+      "rect": [
+        448,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "focusMode",
+      "label": "Modo concentración",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 8,
+      "rect": [
+        512,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "screenReader",
+      "label": "Lector de pantalla",
+      "familia": "Apariencia y accesibilidad",
+      "fila": 8,
+      "columna": 9,
+      "rect": [
+        576,
+        512,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "crop",
+      "label": "Recortar imagen",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 0,
+      "rect": [
+        0,
+        576,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "rotate",
+      "label": "Girar imagen",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 1,
+      "rect": [
+        64,
+        576,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "resizeImage",
+      "label": "Redimensionar imagen",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 2,
+      "rect": [
+        128,
+        576,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "flip",
+      "label": "Reflejar",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 3,
+      "rect": [
+        192,
+        576,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "brush",
+      "label": "Pincel",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 4,
+      "rect": [
+        256,
+        576,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "eraser",
+      "label": "Borrador",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 5,
+      "rect": [
+        320,
+        576,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "mic",
+      "label": "Micrófono",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 6,
+      "rect": [
+        384,
+        576,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "play",
+      "label": "Reproducir",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 7,
+      "rect": [
+        448,
+        576,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "headphones",
+      "label": "Auriculares",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 8,
+      "rect": [
+        512,
+        576,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "camera",
+      "label": "Cámara",
+      "familia": "Imagen y reproducción",
+      "fila": 9,
+      "columna": 9,
+      "rect": [
+        576,
+        576,
+        64,
+        64
+      ]
+    }
+  ]
+}

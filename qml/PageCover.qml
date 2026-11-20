@@ -9,7 +9,7 @@ Item {
     signal uploadRequested()
     readonly property string value: page.pageCover
     readonly property bool photo: value.indexOf("photo:") === 0
-    readonly property var colors: page.covers[value.slice(9)] || ["#3a3a3d","#2a2a2c"]
+    readonly property var colors: page.covers[value.slice(9)] || [Theme.hover,Theme.raised]
     visible: !!value
     clip: true
     Rectangle {
@@ -38,10 +38,10 @@ Item {
         id: choices
         parent: change; x: change.width-width; y: change.height+6
         width: 360; padding: 12
-        background: Rectangle { radius: 10; color: "#252526"; border.color: "#3e3d41" }
+        background: Rectangle { radius: Theme.radiusPanel; color: Theme.surface; border.color: Theme.line }
         contentItem: ColumnLayout {
             spacing: 10
-            Label { text: "Degradados"; color: "#a9a6ae"; font.pixelSize: 12 }
+            Label { text: "Degradados"; color: Theme.muted; font.pixelSize: 12 }
             Grid {
                 columns: 4; spacing: 8
                 Repeater {
@@ -53,7 +53,7 @@ Item {
                         Accessible.name: "Portada " + modelData
                         onClicked: { choices.close(); cover.page.setPageCover("gradient:" + modelData) }
                         background: Rectangle {
-                            radius: 6; border.width: cover.value === "gradient:" + swatch.modelData ? 2 : 0; border.color: "#a4bfe5"
+                            radius: Theme.radiusButton; border.width: cover.value === "gradient:" + swatch.modelData ? 2 : 0; border.color: Theme.accent
                             gradient: Gradient {
                                 orientation: Gradient.Horizontal
                                 GradientStop { position: 0; color: cover.page.covers[swatch.modelData][0] }

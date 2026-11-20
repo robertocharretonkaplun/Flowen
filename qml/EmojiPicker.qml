@@ -20,12 +20,12 @@ Popup {
         open()
     }
     width: 336; padding: 10
-    background: Rectangle { radius: 10; color: "#252526"; border.color: "#3e3d41" }
+    background: Rectangle { radius: Theme.radiusPanel; color: Theme.surface; border.color: Theme.line }
     contentItem: ColumnLayout {
         spacing: 8
         RowLayout {
             Layout.fillWidth: true
-            Label { text: "Elige un icono"; color: "#a9a6ae"; font.pixelSize: 12; Layout.fillWidth: true }
+            Label { text: "Elige un icono"; color: Theme.muted; font.pixelSize: 12; Layout.fillWidth: true }
             UiButton {
                 visible: picker.removable; text: "Quitar"; quiet: true
                 onClicked: { const callback = picker.done; picker.close(); if (callback) callback("") }
@@ -40,7 +40,7 @@ Popup {
                     width: 38; height: 38; hoverEnabled: true; focusPolicy: Qt.NoFocus
                     Accessible.name: modelData
                     onClicked: { const callback = picker.done; picker.close(); if (callback) callback(modelData) }
-                    background: Rectangle { radius: 6; color: parent.hovered ? "#333336" : "transparent" }
+                    background: Rectangle { radius: Theme.radiusButton; color: parent.hovered ? Theme.hover : "transparent" }
                     contentItem: Text {
                         text: parent.modelData; font.family: "Segoe UI Emoji"; font.pixelSize: 22
                         renderType: Text.NativeRendering; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter

@@ -17,7 +17,7 @@ ColumnLayout {
         implicitWidth: 80; implicitHeight: 80; hoverEnabled: true; focusPolicy: Qt.NoFocus; enabled: header.editable
         Accessible.name: "Cambiar el icono de la página"
         onClicked: header.picker.pick(bigIcon,function(emoji) { header.page.setPageIcon(emoji) },true)
-        background: Rectangle { radius: 8; color: bigIcon.hovered ? "#2a2a2c" : "transparent" }
+        background: Rectangle { radius: 8; color: bigIcon.hovered ? Theme.raised : "transparent" }
         contentItem: Text {
             text: header.page.pageIcon; font.family: "Segoe UI Emoji"; font.pixelSize: 62
             renderType: Text.NativeRendering; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter

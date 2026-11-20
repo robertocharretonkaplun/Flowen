@@ -1,0 +1,1333 @@
+{
+  "version": 1,
+  "origen": "superior-izquierda",
+  "unidad": "píxeles a 1x",
+  "columnas": 10,
+  "filas": 10,
+  "celda": 32,
+  "espacioInterior": 4,
+  "viewBox": [
+    0,
+    0,
+    24,
+    24
+  ],
+  "escalas": {
+    "1x": 1,
+    "2x": 2
+  },
+  "temas": {
+    "claro": {
+      "1x": "atlas-claro.png",
+      "2x": "atlas-claro@2x.png",
+      "vector": "atlas-claro.svg"
+    },
+    "oscuro": {
+      "1x": "atlas-oscuro.png",
+      "2x": "atlas-oscuro@2x.png",
+      "vector": "atlas-oscuro.svg"
+    }
+  },
+  "iconos": [
+    {
+      "id": "home",
+      "label": "Inicio",
+      "familia": "Navegación",
+      "columna": 0,
+      "fila": 0,
+      "rect": [
+        0,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "panel",
+      "label": "Barra lateral",
+      "familia": "Navegación",
+      "columna": 1,
+      "fila": 0,
+      "rect": [
+        32,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "search",
+      "label": "Buscar",
+      "familia": "Navegación",
+      "columna": 2,
+      "fila": 0,
+      "rect": [
+        64,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "pages",
+      "label": "Biblioteca",
+      "familia": "Navegación",
+      "columna": 3,
+      "fila": 0,
+      "rect": [
+        96,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "recent",
+      "label": "Recientes",
+      "familia": "Navegación",
+      "columna": 4,
+      "fila": 0,
+      "rect": [
+        128,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "star",
+      "label": "Favorito",
+      "familia": "Navegación",
+      "columna": 5,
+      "fila": 0,
+      "rect": [
+        160,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "starFilled",
+      "label": "En favoritos",
+      "familia": "Navegación",
+      "columna": 6,
+      "fila": 0,
+      "rect": [
+        192,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "history",
+      "label": "Historial",
+      "familia": "Navegación",
+      "columna": 7,
+      "fila": 0,
+      "rect": [
+        224,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "settings",
+      "label": "Ajustes",
+      "familia": "Navegación",
+      "columna": 8,
+      "fila": 0,
+      "rect": [
+        256,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "help",
+      "label": "Ayuda",
+      "familia": "Navegación",
+      "columna": 9,
+      "fila": 0,
+      "rect": [
+        288,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "page",
+      "label": "Página",
+      "familia": "Páginas y archivos",
+      "columna": 0,
+      "fila": 1,
+      "rect": [
+        0,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "newPage",
+      "label": "Nueva página",
+      "familia": "Páginas y archivos",
+      "columna": 1,
+      "fila": 1,
+      "rect": [
+        32,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "folder",
+      "label": "Carpeta",
+      "familia": "Páginas y archivos",
+      "columna": 2,
+      "fila": 1,
+      "rect": [
+        64,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "copy",
+      "label": "Duplicar",
+      "familia": "Páginas y archivos",
+      "columna": 3,
+      "fila": 1,
+      "rect": [
+        96,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "move",
+      "label": "Mover",
+      "familia": "Páginas y archivos",
+      "columna": 4,
+      "fila": 1,
+      "rect": [
+        128,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "save",
+      "label": "Guardar",
+      "familia": "Páginas y archivos",
+      "columna": 5,
+      "fila": 1,
+      "rect": [
+        160,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "download",
+      "label": "Descargar",
+      "familia": "Páginas y archivos",
+      "columna": 6,
+      "fila": 1,
+      "rect": [
+        192,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "upload",
+      "label": "Importar",
+      "familia": "Páginas y archivos",
+      "columna": 7,
+      "fila": 1,
+      "rect": [
+        224,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "archive",
+      "label": "Archivar",
+      "familia": "Páginas y archivos",
+      "columna": 8,
+      "fila": 1,
+      "rect": [
+        256,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "trash",
+      "label": "Papelera",
+      "familia": "Páginas y archivos",
+      "columna": 9,
+      "fila": 1,
+      "rect": [
+        288,
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "text",
+      "label": "Texto",
+      "familia": "Texto y formato",
+      "columna": 0,
+      "fila": 2,
+      "rect": [
+        0,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "heading",
+      "label": "Encabezado",
+      "familia": "Texto y formato",
+      "columna": 1,
+      "fila": 2,
+      "rect": [
+        32,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "bold",
+      "label": "Negrita",
+      "familia": "Texto y formato",
+      "columna": 2,
+      "fila": 2,
+      "rect": [
+        64,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "italic",
+      "label": "Cursiva",
+      "familia": "Texto y formato",
+      "columna": 3,
+      "fila": 2,
+      "rect": [
+        96,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "underline",
+      "label": "Subrayado",
+      "familia": "Texto y formato",
+      "columna": 4,
+      "fila": 2,
+      "rect": [
+        128,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "strike",
+      "label": "Tachado",
+      "familia": "Texto y formato",
+      "columna": 5,
+      "fila": 2,
+      "rect": [
+        160,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "highlight",
+      "label": "Resaltar",
+      "familia": "Texto y formato",
+      "columna": 6,
+      "fila": 2,
+      "rect": [
+        192,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "link",
+      "label": "Enlace",
+      "familia": "Texto y formato",
+      "columna": 7,
+      "fila": 2,
+      "rect": [
+        224,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "code",
+      "label": "Código",
+      "familia": "Texto y formato",
+      "columna": 8,
+      "fila": 2,
+      "rect": [
+        256,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "edit",
+      "label": "Escribir",
+      "familia": "Texto y formato",
+      "columna": 9,
+      "fila": 2,
+      "rect": [
+        288,
+        64,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "list",
+      "label": "Viñetas",
+      "familia": "Bloques de contenido",
+      "columna": 0,
+      "fila": 3,
+      "rect": [
+        0,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "numbered",
+      "label": "Numeración",
+      "familia": "Bloques de contenido",
+      "columna": 1,
+      "fila": 3,
+      "rect": [
+        32,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "task",
+      "label": "Tarea",
+      "familia": "Bloques de contenido",
+      "columna": 2,
+      "fila": 3,
+      "rect": [
+        64,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "toggle",
+      "label": "Desplegable",
+      "familia": "Bloques de contenido",
+      "columna": 3,
+      "fila": 3,
+      "rect": [
+        96,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "quote",
+      "label": "Cita",
+      "familia": "Bloques de contenido",
+      "columna": 4,
+      "fila": 3,
+      "rect": [
+        128,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "callout",
+      "label": "Nota destacada",
+      "familia": "Bloques de contenido",
+      "columna": 5,
+      "fila": 3,
+      "rect": [
+        160,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "divider",
+      "label": "Separador",
+      "familia": "Bloques de contenido",
+      "columna": 6,
+      "fila": 3,
+      "rect": [
+        192,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "indent",
+      "label": "Aumentar sangría",
+      "familia": "Bloques de contenido",
+      "columna": 7,
+      "fila": 3,
+      "rect": [
+        224,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "outdent",
+      "label": "Reducir sangría",
+      "familia": "Bloques de contenido",
+      "columna": 8,
+      "fila": 3,
+      "rect": [
+        256,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "grip",
+      "label": "Arrastrar",
+      "familia": "Bloques de contenido",
+      "columna": 9,
+      "fila": 3,
+      "rect": [
+        288,
+        96,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "table",
+      "label": "Tabla",
+      "familia": "Vistas y medios",
+      "columna": 0,
+      "fila": 4,
+      "rect": [
+        0,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "board",
+      "label": "Tablero",
+      "familia": "Vistas y medios",
+      "columna": 1,
+      "fila": 4,
+      "rect": [
+        32,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "gallery",
+      "label": "Galería",
+      "familia": "Vistas y medios",
+      "columna": 2,
+      "fila": 4,
+      "rect": [
+        64,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "calendar",
+      "label": "Calendario",
+      "familia": "Vistas y medios",
+      "columna": 3,
+      "fila": 4,
+      "rect": [
+        96,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "timeline",
+      "label": "Cronología",
+      "familia": "Vistas y medios",
+      "columna": 4,
+      "fila": 4,
+      "rect": [
+        128,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "database",
+      "label": "Base de datos",
+      "familia": "Vistas y medios",
+      "columna": 5,
+      "fila": 4,
+      "rect": [
+        160,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "photo",
+      "label": "Foto",
+      "familia": "Vistas y medios",
+      "columna": 6,
+      "fila": 4,
+      "rect": [
+        192,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "cover",
+      "label": "Portada",
+      "familia": "Vistas y medios",
+      "columna": 7,
+      "fila": 4,
+      "rect": [
+        224,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "audio",
+      "label": "Audio",
+      "familia": "Vistas y medios",
+      "columna": 8,
+      "fila": 4,
+      "rect": [
+        256,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "video",
+      "label": "Vídeo",
+      "familia": "Vistas y medios",
+      "columna": 9,
+      "fila": 4,
+      "rect": [
+        288,
+        128,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "comment",
+      "label": "Comentario",
+      "familia": "Comentarios e IA",
+      "columna": 0,
+      "fila": 5,
+      "rect": [
+        0,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "thread",
+      "label": "Conversación",
+      "familia": "Comentarios e IA",
+      "columna": 1,
+      "fila": 5,
+      "rect": [
+        32,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "reply",
+      "label": "Responder",
+      "familia": "Comentarios e IA",
+      "columna": 2,
+      "fila": 5,
+      "rect": [
+        64,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "send",
+      "label": "Enviar",
+      "familia": "Comentarios e IA",
+      "columna": 3,
+      "fila": 5,
+      "rect": [
+        96,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "resolve",
+      "label": "Resolver",
+      "familia": "Comentarios e IA",
+      "columna": 4,
+      "fila": 5,
+      "rect": [
+        128,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "mention",
+      "label": "Mención",
+      "familia": "Comentarios e IA",
+      "columna": 5,
+      "fila": 5,
+      "rect": [
+        160,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "bulb",
+      "label": "Idea",
+      "familia": "Comentarios e IA",
+      "columna": 6,
+      "fila": 5,
+      "rect": [
+        192,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "sparkles",
+      "label": "Asistente IA",
+      "familia": "Comentarios e IA",
+      "columna": 7,
+      "fila": 5,
+      "rect": [
+        224,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "improve",
+      "label": "Mejorar texto",
+      "familia": "Comentarios e IA",
+      "columna": 8,
+      "fila": 5,
+      "rect": [
+        256,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "proofread",
+      "label": "Corregir texto",
+      "familia": "Comentarios e IA",
+      "columna": 9,
+      "fila": 5,
+      "rect": [
+        288,
+        160,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "desktop",
+      "label": "Escritorio",
+      "familia": "Conexiones y estado",
+      "columna": 0,
+      "fila": 6,
+      "rect": [
+        0,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "terminal",
+      "label": "Terminal",
+      "familia": "Conexiones y estado",
+      "columna": 1,
+      "fila": 6,
+      "rect": [
+        32,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "plug",
+      "label": "Conector MCP",
+      "familia": "Conexiones y estado",
+      "columna": 2,
+      "fila": 6,
+      "rect": [
+        64,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "network",
+      "label": "Red",
+      "familia": "Conexiones y estado",
+      "columna": 3,
+      "fila": 6,
+      "rect": [
+        96,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "sync",
+      "label": "Sincronizar",
+      "familia": "Conexiones y estado",
+      "columna": 4,
+      "fila": 6,
+      "rect": [
+        128,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "lock",
+      "label": "Privado",
+      "familia": "Conexiones y estado",
+      "columna": 5,
+      "fila": 6,
+      "rect": [
+        160,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "check",
+      "label": "Confirmar",
+      "familia": "Conexiones y estado",
+      "columna": 6,
+      "fila": 6,
+      "rect": [
+        192,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "stop",
+      "label": "Detener",
+      "familia": "Conexiones y estado",
+      "columna": 7,
+      "fila": 6,
+      "rect": [
+        224,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "warning",
+      "label": "Aviso",
+      "familia": "Conexiones y estado",
+      "columna": 8,
+      "fila": 6,
+      "rect": [
+        256,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "offline",
+      "label": "Sin conexión",
+      "familia": "Conexiones y estado",
+      "columna": 9,
+      "fila": 6,
+      "rect": [
+        288,
+        192,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "add",
+      "label": "Añadir",
+      "familia": "Controles y acciones",
+      "columna": 0,
+      "fila": 7,
+      "rect": [
+        0,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "close",
+      "label": "Cerrar",
+      "familia": "Controles y acciones",
+      "columna": 1,
+      "fila": 7,
+      "rect": [
+        32,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "right",
+      "label": "Siguiente",
+      "familia": "Controles y acciones",
+      "columna": 2,
+      "fila": 7,
+      "rect": [
+        64,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "down",
+      "label": "Desplegar",
+      "familia": "Controles y acciones",
+      "columna": 3,
+      "fila": 7,
+      "rect": [
+        96,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "more",
+      "label": "Más opciones",
+      "familia": "Controles y acciones",
+      "columna": 4,
+      "fila": 7,
+      "rect": [
+        128,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "left",
+      "label": "Anterior",
+      "familia": "Controles y acciones",
+      "columna": 5,
+      "fila": 7,
+      "rect": [
+        160,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "up",
+      "label": "Contraer",
+      "familia": "Controles y acciones",
+      "columna": 6,
+      "fila": 7,
+      "rect": [
+        192,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "expand",
+      "label": "Ampliar",
+      "familia": "Controles y acciones",
+      "columna": 7,
+      "fila": 7,
+      "rect": [
+        224,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "shrink",
+      "label": "Reducir",
+      "familia": "Controles y acciones",
+      "columna": 8,
+      "fila": 7,
+      "rect": [
+        256,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "external",
+      "label": "Abrir fuera",
+      "familia": "Controles y acciones",
+      "columna": 9,
+      "fila": 7,
+      "rect": [
+        288,
+        224,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "tag",
+      "label": "Etiqueta",
+      "familia": "Organización",
+      "columna": 0,
+      "fila": 8,
+      "rect": [
+        0,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "bookmark",
+      "label": "Marcador",
+      "familia": "Organización",
+      "columna": 1,
+      "fila": 8,
+      "rect": [
+        32,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "pin",
+      "label": "Fijar",
+      "familia": "Organización",
+      "columna": 2,
+      "fila": 8,
+      "rect": [
+        64,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "flag",
+      "label": "Bandera",
+      "familia": "Organización",
+      "columna": 3,
+      "fila": 8,
+      "rect": [
+        96,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "target",
+      "label": "Objetivo",
+      "familia": "Organización",
+      "columna": 4,
+      "fila": 8,
+      "rect": [
+        128,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "team",
+      "label": "Equipo",
+      "familia": "Organización",
+      "columna": 5,
+      "fila": 8,
+      "rect": [
+        160,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "briefcase",
+      "label": "Proyecto",
+      "familia": "Organización",
+      "columna": 6,
+      "fila": 8,
+      "rect": [
+        192,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "filter",
+      "label": "Filtrar",
+      "familia": "Organización",
+      "columna": 7,
+      "fila": 8,
+      "rect": [
+        224,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "sort",
+      "label": "Ordenar",
+      "familia": "Organización",
+      "columna": 8,
+      "fila": 8,
+      "rect": [
+        256,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "chart",
+      "label": "Informe",
+      "familia": "Organización",
+      "columna": 9,
+      "fila": 8,
+      "rect": [
+        288,
+        256,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "book",
+      "label": "Libro",
+      "familia": "Recursos de página",
+      "columna": 0,
+      "fila": 9,
+      "rect": [
+        0,
+        288,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "notebook",
+      "label": "Cuaderno",
+      "familia": "Recursos de página",
+      "columna": 1,
+      "fila": 9,
+      "rect": [
+        32,
+        288,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "education",
+      "label": "Curso",
+      "familia": "Recursos de página",
+      "columna": 2,
+      "fila": 9,
+      "rect": [
+        64,
+        288,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "science",
+      "label": "Experimento",
+      "familia": "Recursos de página",
+      "columna": 3,
+      "fila": 9,
+      "rect": [
+        96,
+        288,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "globe",
+      "label": "Mundo",
+      "familia": "Recursos de página",
+      "columna": 4,
+      "fila": 9,
+      "rect": [
+        128,
+        288,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "map",
+      "label": "Mapa",
+      "familia": "Recursos de página",
+      "columna": 5,
+      "fila": 9,
+      "rect": [
+        160,
+        288,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "coffee",
+      "label": "Café",
+      "familia": "Recursos de página",
+      "columna": 6,
+      "fila": 9,
+      "rect": [
+        192,
+        288,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "gamepad",
+      "label": "Videojuego",
+      "familia": "Recursos de página",
+      "columna": 7,
+      "fila": 9,
+      "rect": [
+        224,
+        288,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "palette",
+      "label": "Diseño",
+      "familia": "Recursos de página",
+      "columna": 8,
+      "fila": 9,
+      "rect": [
+        256,
+        288,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "music",
+      "label": "Música",
+      "familia": "Recursos de página",
+      "columna": 9,
+      "fila": 9,
+      "rect": [
+        288,
+        288,
+        32,
+        32
+      ]
+    }
+  ]
+}

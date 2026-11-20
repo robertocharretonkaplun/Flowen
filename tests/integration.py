@@ -208,6 +208,13 @@ class Contract(unittest.TestCase):
         c.call("update_page", id=page["id"], expected_revision=got["revision"], icon=None, cover=None)
         again = c.call("get_page", id=page["id"])
         self.assertEqual((again["icon"], again["cover"], again["title"]), (None, None, "Bloques"))
+        # Page mentions are links to lunqio://page/<id>; other lunqio:// targets are refused.
+        mention = {"start": 4, "end": 11, "style": 0, "link": "lunqio://page/" + page["id"]}
+        note = c.call("create_page", title="Mención", blocks=[{"type": "paragraph", "text": "Ver Bloques", "spans": [mention]}])
+        self.assertEqual(c.call("get_page", id=note["id"])["blocks"][0]["spans"], [mention])
+        for target in ("lunqio://otra", "lunqio://page/" + page["id"].upper(), "lunqio://page/123"):
+            c.call("create_page", title="Mal", error="invalid_argument",
+                   blocks=[{"type": "paragraph", "text": "Ver Bloques", "spans": [dict(mention, link=target)]}])
 
     def test_full_restart_and_schema_guard(self):
         db = Path(self.directory) / "reinicio.sqlite3"

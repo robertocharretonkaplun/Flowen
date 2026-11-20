@@ -30,7 +30,7 @@ Rectangle {
         const colors = ["#5b7fa6","#7a6aa8","#3f8f7a","#a8734f","#a0577a","#6b8f3f","#4f86a8"]
         let h = 0
         for (let i = 0; i < (name || "").length; ++i) h = (h*31 + name.charCodeAt(i)) % 9973
-        return name ? colors[h % colors.length] : "#4a4a4e"
+        return name ? colors[h % colors.length] : Theme.line
     }
     function when(iso) {
         if (!iso) return ""
@@ -60,10 +60,10 @@ Rectangle {
     width: parent ? parent.width : 300
     height: body.implicitHeight + 28
     radius: 12
-    color: active || draft ? "#2c2c2f" : "#252527"
-    border.color: active || draft ? "#4b4e56" : "#343437"
+    color: active || draft ? Theme.raised : Theme.surface
+    border.color: active || draft ? Theme.line : Theme.hover
     Behavior on y { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-    Rectangle { visible: card.active || card.draft; z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 2; anchors.bottomMargin: -5; radius: 14; color: "#34000000" }
+    Rectangle { visible: card.active || card.draft; z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 2; anchors.bottomMargin: -5; radius: 14; color: Theme.shadow }
     TapHandler { onTapped: card.activate() }
 
     component Avatar: Rectangle {
@@ -71,14 +71,14 @@ Rectangle {
         property int size: 32
         implicitWidth: size; implicitHeight: size; radius: size/2
         color: card.tint(name)
-        Label { anchors.centerIn: parent; text: card.initials(parent.name); color: "#ffffff"; font.pixelSize: Math.round(parent.size*0.4); font.weight: Font.DemiBold }
+        Label { anchors.centerIn: parent; text: card.initials(parent.name); color: Theme.text; font.pixelSize: Math.round(parent.size*0.4); font.weight: Font.DemiBold }
     }
     component Pill: TextField {
         id: pill
         Layout.fillWidth: true; selectByMouse: true; maximumLength: 1024
-        font.pixelSize: 13; color: "#efedf0"; placeholderTextColor: "#8e8c92"
+        font.pixelSize: 13; color: Theme.text; placeholderTextColor: Theme.muted
         leftPadding: 14; rightPadding: 14; topPadding: 9; bottomPadding: 9
-        background: Rectangle { radius: 18; color: "#1e1e20"; border.color: pill.activeFocus ? "#7d93b3" : "#4a4a4e" }
+        background: Rectangle { radius: 18; color: Theme.base; border.color: pill.activeFocus ? Theme.focus : Theme.line }
     }
 
     ColumnLayout {
@@ -93,12 +93,12 @@ Rectangle {
                 Label {
                     Layout.fillWidth: true; elide: Text.ElideRight
                     text: card.draft ? card.me : (card.thread.author || "Comentario")
-                    font.pixelSize: 14; font.weight: Font.DemiBold; color: "#efedf0"
+                    font.pixelSize: 14; font.weight: Font.DemiBold; color: Theme.text
                 }
                 Label {
                     visible: !!text; Layout.fillWidth: true
                     text: card.draft ? "" : card.thread.resolved ? "Resuelto · " + card.when(card.thread.at) : card.when(card.thread.at)
-                    font.pixelSize: 12; color: "#9a98a0"
+                    font.pixelSize: 12; color: Theme.muted
                 }
             }
             AbstractButton {
@@ -108,8 +108,8 @@ Rectangle {
                 Accessible.name: "Resolver comentario"
                 ToolTip.visible: hovered; ToolTip.delay: 450; ToolTip.text: "Marcar como resuelto y ocultar"
                 onClicked: card.resolve(true)
-                background: Rectangle { radius: 15; color: parent.down ? "#3a3e46" : parent.hovered ? "#33363c" : "transparent" }
-                contentItem: Glyph { name: "check"; color: "#a4bfe5"; font.pixelSize: 16 }
+                background: Rectangle { radius: 15; color: parent.down ? Theme.pressed : parent.hovered ? Theme.hover : "transparent" }
+                contentItem: Glyph { name: "check"; color: Theme.accent; font.pixelSize: 16 }
             }
             UiButton {
                 visible: !card.draft && !!card.thread.resolved
@@ -133,7 +133,7 @@ Rectangle {
             visible: !card.draft && !card.editing
             Layout.fillWidth: true; wrapMode: Text.Wrap
             text: card.rich(card.thread.text); textFormat: Text.StyledText
-            color: "#e6e5e8"; linkColor: "#a4bfe5"; font.pixelSize: 14; lineHeight: 1.15
+            color: Theme.text; linkColor: Theme.accent; font.pixelSize: 14; lineHeight: 1.15
             onLinkActivated: function(link) { card.open(link) }
             HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
         }
@@ -141,9 +141,9 @@ Rectangle {
             id: field; objectName: card.draft ? "commentDraftField" : "commentEditField"
             visible: card.draft || card.editing
             Layout.fillWidth: true; wrapMode: TextEdit.Wrap; selectByMouse: true
-            placeholderText: "Comentar…"; placeholderTextColor: "#8e8c92"
-            font.pixelSize: 14; color: "#efedf0"; leftPadding: 12; rightPadding: 12; topPadding: 9; bottomPadding: 9
-            background: Rectangle { radius: 10; color: "#1e1e20"; border.color: field.activeFocus ? "#7d93b3" : "#4a4a4e" }
+            placeholderText: "Comentar…"; placeholderTextColor: Theme.muted
+            font.pixelSize: 14; color: Theme.text; leftPadding: 12; rightPadding: 12; topPadding: 9; bottomPadding: 9
+            background: Rectangle { radius: Theme.radiusPanel; color: Theme.base; border.color: field.activeFocus ? Theme.focus : Theme.line }
             Keys.onReturnPressed: function(event) {
                 if (event.modifiers & Qt.ShiftModifier) { event.accepted = false; return }
                 event.accepted = true; card.send()
@@ -173,8 +173,8 @@ Rectangle {
                     Avatar { name: answer.modelData.author; size: 26 }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 0
-                        Label { text: answer.modelData.author || "Respuesta"; font.pixelSize: 13; font.weight: Font.DemiBold; color: "#efedf0"; elide: Text.ElideRight; Layout.fillWidth: true }
-                        Label { text: card.when(answer.modelData.at); font.pixelSize: 11; color: "#9a98a0"; visible: !!text }
+                        Label { text: answer.modelData.author || "Respuesta"; font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.text; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Label { text: card.when(answer.modelData.at); font.pixelSize: 11; color: Theme.muted; visible: !!text }
                     }
                     UiButton {
                         visible: answerHover.hovered; symbol: "trash"; quiet: true; hint: "Eliminar respuesta"; focusPolicy: Qt.NoFocus
@@ -184,7 +184,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.Wrap
                     text: card.rich(answer.modelData.text); textFormat: Text.StyledText
-                    color: "#e6e5e8"; linkColor: "#a4bfe5"; font.pixelSize: 14
+                    color: Theme.text; linkColor: Theme.accent; font.pixelSize: 14
                     onLinkActivated: function(link) { card.open(link) }
                 }
             }

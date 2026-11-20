@@ -31,7 +31,7 @@ ColumnLayout {
         Rectangle {
             visible: photo.editable && picture.status === Image.Ready
             anchors.right: picture.right; anchors.bottom: picture.bottom; anchors.margins: 3
-            width: 24; height: 24; radius: 5; color: dragger.containsMouse ? "#334968" : "#cc252528"; border.color: "#aaa8ae"
+            width: 24; height: 24; radius: 5; color: dragger.containsMouse ? Theme.accentSoft : "#cc302523"; border.color: Theme.muted
             Label { anchors.centerIn: parent; text: "⤡"; color: "white"; font.pixelSize: 15 }
             MouseArea {
                 id: dragger; objectName: "photoResizeGrip"; anchors.fill: parent; hoverEnabled: true; preventStealing: true
@@ -55,13 +55,13 @@ ColumnLayout {
         TextField {
             id: captionField; Layout.fillWidth: true; text: photo.caption
             readOnly: !photo.editable; selectByMouse: true
-            padding: 3; color: "#b9b7be"; font.pixelSize: 13
+            padding: 3; color: Theme.secondary; font.pixelSize: 13
             placeholderText: "Añadir pie de foto…"; maximumLength: 8192
             Accessible.name: "Pie de foto"; background: Item {}
             onTextEdited: photo.captionEdited(text)
             onActiveFocusChanged: if (activeFocus) photo.focused(captionField)
         }
-        Label { visible: photo.editable; text: "Ancho (%)"; color: "#aaa8ae"; font.pixelSize: 12 }
+        Label { visible: photo.editable; text: "Ancho (%)"; color: Theme.muted; font.pixelSize: 12 }
         SpinBox {
             visible: photo.editable; objectName: "photoWidth"
             from: 10; to: 100; stepSize: 5; value: photo.percent; editable: true

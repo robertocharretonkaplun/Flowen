@@ -13,7 +13,7 @@ ColumnLayout {
     readonly property string other: claude ? "Codex" : "Claude"
     visible: assistant.phase === "error" && assistant.mode === mode
     spacing: 8
-    Label { text: notice.assistant.error; color: "#efb69c"; wrapMode: Text.Wrap; font.pixelSize: 13; Layout.fillWidth: true }
+    Label { text: notice.assistant.error; color: Theme.danger; wrapMode: Text.Wrap; font.pixelSize: 13; Layout.fillWidth: true }
     Flow {
         Layout.fillWidth: true; Layout.preferredHeight: childrenRect.height; spacing: 8
         UiButton {

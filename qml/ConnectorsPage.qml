@@ -23,23 +23,23 @@ ScrollView {
     }
 
     component Detail: Label {
-        Layout.fillWidth: true; wrapMode: Text.Wrap; color: "#a9a6ae"; font.pixelSize: 13; lineHeight: 1.15
+        Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.muted; font.pixelSize: 13; lineHeight: 1.15
     }
     component Section: Label {
         Layout.fillWidth: true; Layout.topMargin: 30; Layout.bottomMargin: 10
-        font.pixelSize: 15; font.weight: Font.DemiBold; color: "#efedf0"
+        font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.text
     }
     component Card: Rectangle {
-        Layout.fillWidth: true; radius: 9; color: "#202022"; border.color: "#323235"
+        Layout.fillWidth: true; radius: Theme.radiusPanel; color: Theme.sidebar; border.color: Theme.line
     }
     component Tile: Rectangle {
         property string glyph: ""
         property string letter: ""
         property bool light: false
         implicitWidth: 38; implicitHeight: 38; radius: 9
-        color: light ? "#dcd8e0" : "#2a2a2d"; border.color: light ? "#dcd8e0" : "#3a3a3e"
-        Glyph { anchors.centerIn: parent; visible: !!parent.glyph; name: parent.glyph; font.pixelSize: 17; color: "#d6d4da" }
-        Label { anchors.centerIn: parent; visible: !parent.glyph; text: parent.letter; font.pixelSize: 18; font.weight: Font.Bold; color: parent.light ? "#29252e" : "#d6d4da" }
+        color: light ? Theme.ivory : Theme.raised; border.color: light ? Theme.ivory : Theme.pressed
+        Glyph { anchors.centerIn: parent; visible: !!parent.glyph; name: parent.glyph; font.pixelSize: 17; color: Theme.textSoft }
+        Label { anchors.centerIn: parent; visible: !parent.glyph; text: parent.letter; font.pixelSize: 18; font.weight: Font.Bold; color: parent.light ? Theme.ink : Theme.textSoft }
     }
     component Toggle: Switch {
         id: toggle
@@ -48,13 +48,13 @@ ScrollView {
             x: toggle.leftPadding; y: Math.round((toggle.height-height)/2)
             implicitWidth: 40; implicitHeight: 22; radius: 11
             opacity: toggle.enabled ? 1 : 0.45
-            color: toggle.checked ? "#a4bfe5" : "#38383b"
-            border.color: toggle.visualFocus ? "#8db3ff" : toggle.checked ? "#a4bfe5" : "#4a494e"
+            color: toggle.checked ? Theme.accent : Theme.pressed
+            border.color: toggle.visualFocus ? Theme.focus : toggle.checked ? Theme.accent : Theme.line
             Behavior on color { ColorAnimation { duration: 120 } }
             Rectangle {
                 width: 16; height: 16; radius: 8; y: 3
                 x: toggle.checked ? parent.width-width-3 : 3
-                color: toggle.checked ? "#17191d" : "#c9c7cc"
+                color: toggle.checked ? Theme.accentInk : Theme.secondary
                 Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
             }
         }
@@ -64,10 +64,10 @@ ScrollView {
         property string tone: "idle"
         property alias text: chipLabel.text
         implicitWidth: chipLabel.implicitWidth+16; implicitHeight: 20; radius: 10
-        color: ({on: "#21342a", warn: "#3b3221", error: "#3b2622"})[tone] || "#2c2c2f"
+        color: ({on: Theme.successSoft, warn: Theme.warningSoft, error: Theme.dangerSoft})[tone] || Theme.raised
         Label {
             id: chipLabel; anchors.centerIn: parent; font.pixelSize: 11; font.weight: Font.DemiBold
-            color: ({on: "#9fcfb3", warn: "#ddba84", error: "#efb69c"})[parent.tone] || "#a9a6ae"
+            color: ({on: Theme.success, warn: Theme.warning, error: Theme.danger})[parent.tone] || Theme.muted
         }
     }
     component ClientRow: Item {
@@ -82,7 +82,7 @@ ScrollView {
         })[connector.state] || ["", "idle"]
         Layout.fillWidth: true
         implicitHeight: body.implicitHeight+30
-        Rectangle { visible: client.index > 0; x: 16; width: parent.width-32; height: 1; color: "#2e2e31" }
+        Rectangle { visible: client.index > 0; x: 16; width: parent.width-32; height: 1; color: Theme.raised }
         RowLayout {
             id: body
             x: 16; width: parent.width-32; y: 15
@@ -92,15 +92,15 @@ ScrollView {
                 Layout.fillWidth: true; spacing: 2
                 RowLayout {
                     spacing: 8
-                    Label { text: client.connector.title; font.pixelSize: 15; font.weight: Font.DemiBold; color: "#efedf0" }
+                    Label { text: client.connector.title; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.text }
                     Chip { text: client.labels[0]; tone: client.labels[1]; visible: !!text }
                 }
-                Label { text: client.connector.summary; font.pixelSize: 12; color: "#8e8c92"; Layout.fillWidth: true; elide: Text.ElideRight }
-                Detail { text: client.connector.detail; Layout.topMargin: 6; color: client.connector.state === "error" ? "#efb69c" : "#b5b2ba" }
+                Label { text: client.connector.summary; font.pixelSize: 12; color: Theme.muted; Layout.fillWidth: true; elide: Text.ElideRight }
+                Detail { text: client.connector.detail; Layout.topMargin: 6; color: client.connector.state === "error" ? Theme.danger : Theme.secondary }
                 Label {
                     visible: !!client.connector.location; Layout.fillWidth: true; Layout.topMargin: 2
                     text: client.connector.location; elide: Text.ElideMiddle
-                    font.family: "Consolas"; font.pixelSize: 11; color: "#7f7d84"
+                    font.family: "Consolas"; font.pixelSize: 11; color: Theme.faint
                 }
             }
             Toggle {
@@ -141,7 +141,7 @@ ScrollView {
         x: Math.round((page.availableWidth-width)/2)
         spacing: 0
         Item { Layout.preferredHeight: 30 }
-        Label { text: "Conectores"; font.pixelSize: 30; font.weight: Font.Bold; color: "#f2f1f2" }
+        Label { text: "Conectores"; font.pixelSize: 30; font.weight: Font.Bold; color: Theme.text }
         Detail {
             Layout.topMargin: 6; Layout.maximumWidth: 620; font.pixelSize: 14
             text: "Conecta esta biblioteca con tus asistentes de IA mediante MCP. Activa un cliente para que pueda buscar, leer y editar tus páginas."
@@ -159,12 +159,12 @@ ScrollView {
                     Tile { letter: "L"; light: true }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 3
-                        Label { text: "Conexión del editor"; font.pixelSize: 15; font.weight: Font.DemiBold; color: "#efedf0"; Layout.fillWidth: true }
+                        Label { text: "Conexión del editor"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.text; Layout.fillWidth: true }
                         RowLayout {
                             spacing: 6
-                            Rectangle { width: 7; height: 7; radius: 4; color: page.connected ? "#83c19f" : page.connecting ? "#d3b277" : "#7d7b82" }
+                            Rectangle { width: 7; height: 7; radius: 4; color: page.connected ? Theme.success : page.connecting ? Theme.warning : Theme.faint }
                             Label {
-                                font.pixelSize: 13; color: "#c9c6cd"
+                                font.pixelSize: 13; color: Theme.secondary
                                 text: page.connected ? "Conectada · " + page.link.tools.length + " herramientas"
                                       : page.connecting ? "Conectando…" : "Desconectada"
                             }
@@ -185,14 +185,14 @@ ScrollView {
                           ? "La usa «Editar con IA» dentro de Lunqio. Cada cliente abre su propia conexión, incluso con Lunqio cerrado."
                           : (page.link.detail || "Actívala para usar «Editar con IA». Los clientes conectados siguen funcionando aunque esté apagada.")
                 }
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#2e2e31" }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.raised }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 12
                     CheckBox { checked: page.link.autoConnect; text: "Conectar al abrir Lunqio"; onToggled: page.link.autoConnect = checked }
                     Item { Layout.fillWidth: true }
                     Label {
                         Layout.maximumWidth: 330; text: page.link.databasePath.replace(/\//g,"\\"); elide: Text.ElideMiddle
-                        font.family: "Consolas"; font.pixelSize: 11; color: "#7f7d84"
+                        font.family: "Consolas"; font.pixelSize: 11; color: Theme.faint
                     }
                 }
             }
@@ -210,9 +210,9 @@ ScrollView {
                     Tile { letter: "✦" }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 3
-                        Label { text: "Crear y editar con IA"; font.pixelSize: 15; font.weight: Font.DemiBold; color: "#efedf0"; Layout.fillWidth: true }
+                        Label { text: "Crear y editar con IA"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.text; Layout.fillWidth: true }
                         Label {
-                            Layout.fillWidth: true; font.pixelSize: 13; color: "#c9c6cd"; elide: Text.ElideRight
+                            Layout.fillWidth: true; font.pixelSize: 13; color: Theme.secondary; elide: Text.ElideRight
                             text: page.assistant.engine === "codex"
                                   ? (page.assistant.engineReady ? "Escribe con Codex" : "Codex no está instalado")
                                   : !page.assistant.engineReady ? "Claude Code no está instalado"
@@ -227,7 +227,7 @@ ScrollView {
                 RowLayout {
                     visible: page.assistant.engine === "claude" && page.assistant.engineReady && page.assistant.claudeAccount === "out"
                     Layout.fillWidth: true; spacing: 10
-                    Detail { text: "La copia de Claude Code que usa Lunqio necesita que inicies sesión una vez. Se abrirá una ventana para hacerlo con tu cuenta de Claude."; color: "#ddba84" }
+                    Detail { text: "La copia de Claude Code que usa Lunqio necesita que inicies sesión una vez. Se abrirá una ventana para hacerlo con tu cuenta de Claude."; color: Theme.warning }
                     UiButton { text: "Iniciar sesión"; primary: true; onClicked: page.assistant.signInClaude() }
                     UiButton { text: "Comprobar"; quiet: true; onClicked: page.assistant.checkClaude() }
                 }
@@ -236,7 +236,7 @@ ScrollView {
 
         RowLayout {
             Layout.fillWidth: true; Layout.topMargin: 30; Layout.bottomMargin: 10
-            Label { text: "Clientes"; font.pixelSize: 15; font.weight: Font.DemiBold; color: "#efedf0"; Layout.fillWidth: true }
+            Label { text: "Clientes"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.text; Layout.fillWidth: true }
             UiButton { objectName: "inspectConnectors"; text: "Comprobar"; quiet: true; enabled: !page.checking; onClicked: page.hub.inspectAll() }
         }
         Card {
@@ -258,7 +258,7 @@ ScrollView {
                 x: 16; y: 14; width: parent.width-32; spacing: 14
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 2
-                    Label { text: "Otro cliente MCP"; font.pixelSize: 14; font.weight: Font.DemiBold; color: "#efedf0" }
+                    Label { text: "Otro cliente MCP"; font.pixelSize: 14; font.weight: Font.DemiBold; color: Theme.text }
                     Detail { text: "Copia la configuración para clientes que usan mcpServers, como Cursor, Windsurf o VS Code." }
                 }
                 UiButton {
@@ -293,8 +293,8 @@ ScrollView {
                     delegate: ColumnLayout {
                         required property string modelData
                         Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.topMargin: 8; Layout.bottomMargin: 8; spacing: 2
-                        Label { Layout.fillWidth: true; text: toolList.descriptions[modelData] || modelData; color: "#dad8dd"; font.pixelSize: 13; elide: Text.ElideRight }
-                        Label { text: modelData; font.family: "Consolas"; font.pixelSize: 11; color: "#8fa2b8" }
+                        Label { Layout.fillWidth: true; text: toolList.descriptions[modelData] || modelData; color: Theme.textSoft; font.pixelSize: 13; elide: Text.ElideRight }
+                        Label { text: modelData; font.family: "Consolas"; font.pixelSize: 11; color: Theme.secondary }
                     }
                 }
             }

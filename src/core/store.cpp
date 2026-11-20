@@ -105,6 +105,9 @@ Store::Store(const QString &path, bool ro) : db(QSqlDatabase::addDatabase("QSQLI
         info.finish();
         if (!columns.contains("icon")) sql("ALTER TABLE pages ADD COLUMN icon TEXT");
         if (!columns.contains("cover")) sql("ALTER TABLE pages ADD COLUMN cover TEXT");
+        // Favorites and recent visits: desktop-only, outside page revisions.
+        sql("CREATE TABLE IF NOT EXISTS favorites(page_id TEXT PRIMARY KEY, position INTEGER NOT NULL)");
+        sql("CREATE TABLE IF NOT EXISTS visits(page_id TEXT PRIMARY KEY, at TEXT NOT NULL)");
     }
     tx.commit();
     if (!ro) sql("PRAGMA journal_mode=WAL");
@@ -224,6 +227,49 @@ Arr Store::navigation() {
     auto q = sql("SELECT * FROM pages WHERE deleted_at IS NULL ORDER BY position,id");
     while (q.next()) rows.append(metadata(q));
     return rows;
+}
+// Favorites and visits never create revisions; pages in the trash are left out until restored.
+Arr Store::favorites() {
+    Arr ids;
+    auto q = sql("SELECT f.page_id FROM favorites f JOIN pages p ON p.id=f.page_id WHERE p.deleted_at IS NULL ORDER BY f.position,f.page_id");
+    while (q.next()) ids.append(q.value(0).toString());
+    return ids;
+}
+Arr Store::recent(int limit) {
+    Arr rows;
+    auto q = sql("SELECT v.page_id,v.at FROM visits v JOIN pages p ON p.id=v.page_id WHERE p.deleted_at IS NULL ORDER BY v.at DESC,v.page_id LIMIT ?",{limit});
+    while (q.next()) rows.append(Obj{{"id",q.value(0).toString()},{"at",q.value(1).toString()}});
+    return rows;
+}
+void Store::setFavorite(const QString &id, bool on, int index) {
+    if (readOnly) throw Error("read_only","Biblioteca de solo lectura.");
+    Transaction tx(db,true);
+    const auto p = load(id);
+    if (on && !p["deleted_at"].isNull()) throw Error("invalid_state","La página está en la papelera.");
+    // Rows of trashed pages keep their place, so a restored favorite comes back where it was.
+    QStringList order, active;
+    auto q = sql("SELECT f.page_id,p.deleted_at IS NULL FROM favorites f JOIN pages p ON p.id=f.page_id ORDER BY f.position,f.page_id");
+    while (q.next()) if (q.value(0).toString() != id) {
+        order << q.value(0).toString();
+        if (q.value(1).toBool()) active << q.value(0).toString();
+    }
+    q.finish();
+    if (on) {
+        // The index counts visible favorites only.
+        const int at = index >= 0 && index < active.size() ? int(order.indexOf(active[index])) : int(order.size());
+        order.insert(at,id);
+    }
+    sql("DELETE FROM favorites");
+    for (int i = 0; i < order.size(); ++i) sql("INSERT INTO favorites(page_id,position) VALUES(?,?)",{order[i],i});
+    tx.commit();
+}
+void Store::visit(const QString &id) {
+    if (readOnly) return;
+    Transaction tx(db,true);
+    sql("INSERT INTO visits(page_id,at) SELECT id,? FROM pages WHERE id=? AND deleted_at IS NULL "
+        "ON CONFLICT(page_id) DO UPDATE SET at=excluded.at",{now(),id});
+    sql("DELETE FROM visits WHERE page_id NOT IN (SELECT page_id FROM visits ORDER BY at DESC LIMIT 50)");
+    tx.commit();
 }
 // Active pages whose text mentions this page, with the first block that does.
 Arr Store::backlinks(const QString &id) {

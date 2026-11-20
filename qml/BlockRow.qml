@@ -46,6 +46,8 @@ Item {
     signal mergeRequested()
     signal navigate(int direction)
     signal slashTyped(int start)
+    signal mentionTyped(int start, int marker)
+    signal openPage(string id)
     signal slashKey(int key)
     signal addBelow()
     signal dragStarted()
@@ -54,6 +56,8 @@ Item {
     signal indentRequested(int step)
     signal collapseRequested()
     signal iconRequested(Item anchor)
+    // Set by the page: adds the clipboard's photo below this block; false when it holds no photo.
+    property var pastePhoto: function() { return false }
     implicitHeight: content.implicitHeight+(boxed ? 20 : 0)+(kind === "heading" ? [0,14,8,4][level] : 0)
     opacity: lifted ? 0.4 : 1
     function focusEditor() { if (kind === "image") photoItem.item.focusCaption(); else if (textual) input.forceActiveFocus() }
@@ -128,10 +132,11 @@ Item {
     }
     function updateTip(point) {
         const link = input.linkAt(point.x,point.y)
-        tip = link ? link + "\nCtrl+clic para abrir" : ""
+        tip = link.indexOf("lunqio://page/") === 0 ? "Clic para abrir la página" : link ? link + "\nCtrl+clic para abrir" : ""
     }
     InlineEditor {
         id: fmt
+        scheme: Theme.scheme
         document: input.textDocument
         selectionStart: input.selectionStart
         selectionEnd: input.selectionEnd
@@ -160,18 +165,15 @@ Item {
             Accessible.name: "Añadir un bloque debajo"
             ToolTip.visible: hovered; ToolTip.delay: 500; ToolTip.text: "Añadir debajo (escribe / para elegir)"
             onClicked: row.addBelow()
-            background: Rectangle { radius: 4; color: parent.hovered ? "#333336" : "transparent" }
-            contentItem: Glyph { name: "add"; font.pixelSize: 13; color: "#8e8c92" }
+            background: Rectangle { radius: 4; color: parent.hovered ? Theme.hover : "transparent" }
+            contentItem: Glyph { name: "add"; font.pixelSize: 13; color: Theme.muted }
         }
         Item {
             id: handle; objectName: "blockHandle"
             width: 18; height: 24
             Accessible.name: "Arrastrar o abrir el menú del bloque"
-            Rectangle { anchors.fill: parent; radius: 4; color: handleHover.hovered || handleDrag.active ? "#333336" : "transparent" }
-            Grid {
-                anchors.centerIn: parent; columns: 2; spacing: 3
-                Repeater { model: 6; delegate: Rectangle { width: 3; height: 3; radius: 1.5; color: "#8e8c92" } }
-            }
+            Rectangle { anchors.fill: parent; radius: 4; color: handleHover.hovered || handleDrag.active ? Theme.hover : "transparent" }
+            Glyph { anchors.centerIn: parent; name: "grip"; font.pixelSize: 14; color: Theme.muted }
             HoverHandler { id: handleHover; cursorShape: handleDrag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
             ToolTip.visible: handleHover.hovered && !handleDrag.active; ToolTip.delay: 500
             ToolTip.text: "Arrastra para mover · Clic para abrir el menú"
@@ -214,8 +216,8 @@ Item {
     Rectangle {
         visible: row.boxed
         x: row.indent*26; width: parent.width-x; height: parent.height
-        radius: 6; color: row.kind === "code" ? "#1e1e20" : "#262629"
-        border.color: row.kind === "code" ? "#2f2f32" : "#323235"
+        radius: Theme.radiusButton; color: row.kind === "code" ? Theme.base : Theme.surface
+        border.color: row.kind === "code" ? Theme.raised : Theme.hover
     }
     RowLayout {
         id: content
@@ -229,9 +231,9 @@ Item {
             Layout.alignment: Qt.AlignTop; Layout.preferredWidth: 22; Layout.preferredHeight: 31
             indicator: Rectangle {
                 x: 1; y: Math.round((taskCheck.height-height)/2); width: 17; height: 17; radius: 3
-                border.color: taskCheck.visualFocus ? "#93bbf0" : taskCheck.checked ? "#92b5dc" : "#828085"
-                color: taskCheck.checked ? "#92b5dc" : "transparent"
-                Glyph { anchors.centerIn: parent; visible: taskCheck.checked; name: "check"; color: "#17212e"; font.pixelSize: 12 }
+                border.color: taskCheck.visualFocus ? Theme.focus : taskCheck.checked ? Theme.accent : Theme.faint
+                color: taskCheck.checked ? Theme.accent : "transparent"
+                Glyph { anchors.centerIn: parent; visible: taskCheck.checked; name: "check"; color: Theme.accentInk; font.pixelSize: 12 }
             }
             Accessible.name: "Tarea completada"
             onClicked: row.check(checked)
@@ -239,12 +241,13 @@ Item {
         // Bullets change with depth, like Notion: • ◦ ▪
         Label {
             visible: row.kind === "list"; text: ["•","◦","▪"][row.indent % 3]
-            font.pixelSize: 19; topPadding: 4; Layout.alignment: Qt.AlignTop; Layout.preferredWidth: 16; horizontalAlignment: Text.AlignHCenter
+            font.pixelSize: 17; topPadding: 3; Layout.alignment: Qt.AlignTop; Layout.preferredWidth: 16; horizontalAlignment: Text.AlignHCenter
+            color: Theme.accent
         }
         Label {
             objectName: "blockNumber"
             visible: row.kind === "numbered"; text: Math.max(1,row.number) + "."
-            font.pixelSize: 18; topPadding: 3; Layout.alignment: Qt.AlignTop; Layout.minimumWidth: 22; color: "#e9e8ea"
+            font.pixelSize: 16; topPadding: 3; Layout.alignment: Qt.AlignTop; Layout.minimumWidth: 22; color: Theme.text
             font.features: {"tnum": 1}
         }
         AbstractButton {
@@ -254,12 +257,12 @@ Item {
             hoverEnabled: true; focusPolicy: Qt.NoFocus
             Accessible.name: row.collapsed ? "Desplegar" : "Plegar"
             onClicked: row.collapseRequested()
-            background: Rectangle { radius: 4; color: parent.hovered ? "#333336" : "transparent" }
-            contentItem: Glyph { name: row.collapsed ? "right" : "down"; font.pixelSize: 11; color: row.hasChildren ? "#d6d4da" : "#8e8c92" }
+            background: Rectangle { radius: 4; color: parent.hovered ? Theme.hover : "transparent" }
+            contentItem: Glyph { name: row.collapsed ? "right" : "down"; font.pixelSize: 11; color: row.hasChildren ? Theme.textSoft : Theme.muted }
         }
         Rectangle {
             visible: row.kind === "quote"
-            Layout.fillHeight: true; Layout.preferredWidth: 3; Layout.rightMargin: 10; radius: 1.5; color: "#d6d4da"
+            Layout.fillHeight: true; Layout.preferredWidth: 3; Layout.rightMargin: 10; radius: 1.5; color: Theme.accent
         }
         AbstractButton {
             objectName: "calloutIcon"
@@ -268,7 +271,7 @@ Item {
             hoverEnabled: true; focusPolicy: Qt.NoFocus; enabled: row.editable
             Accessible.name: "Cambiar el icono de la nota"
             onClicked: row.iconRequested(this)
-            background: Rectangle { radius: 6; color: parent.hovered ? "#333336" : "transparent" }
+            background: Rectangle { radius: Theme.radiusButton; color: parent.hovered ? Theme.hover : "transparent" }
             contentItem: Text {
                 text: row.icon || "💡"; font.family: "Segoe UI Emoji"; font.pixelSize: 19
                 renderType: Text.NativeRendering; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
@@ -277,7 +280,7 @@ Item {
         Rectangle {
             objectName: "dividerLine"
             visible: row.kind === "divider"
-            Layout.fillWidth: true; Layout.preferredHeight: 1; Layout.topMargin: 15; Layout.bottomMargin: 15; color: "#3e3e42"
+            Layout.fillWidth: true; Layout.preferredHeight: 1; Layout.topMargin: 15; Layout.bottomMargin: 15; color: Theme.line
         }
         Loader {
             id: photoItem; active: row.kind === "image"; visible: active; Layout.fillWidth: true
@@ -301,13 +304,13 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: Math.max(31,contentHeight+topPadding+bottomPadding)
             leftPadding: 0; rightPadding: 0; topPadding: 3; bottomPadding: 4
-            font.family: row.kind === "code" ? "Cascadia Mono" : "Segoe UI"
-            font.pixelSize: row.kind === "heading" ? [27,30,24,20][row.level] : row.kind === "code" ? 15 : 18
-            font.weight: row.kind === "heading" ? (row.level === 1 ? Font.Bold : Font.DemiBold) : Font.Normal
+            font.family: row.kind === "code" ? Theme.mono : Theme.family
+            font.pixelSize: row.kind === "heading" ? [24,28,22,18][row.level] : row.kind === "code" ? 14 : 16
+            font.weight: row.kind === "heading" ? Font.DemiBold : Font.Normal
             font.strikeout: row.kind === "task" && row.done
-            color: row.done ? "#97959a" : row.kind === "code" ? "#dcd9e0" : "#e9e8ea"
-            selectionColor: "#294d73"; selectedTextColor: "#ffffff"
-            placeholderTextColor: "#858387"
+            color: row.done ? Theme.muted : row.kind === "code" ? Theme.textSoft : Theme.text
+            selectionColor: Theme.selection; selectedTextColor: Theme.text
+            placeholderTextColor: Theme.faint
             placeholderText: row.kind === "paragraph" && activeFocus && row.editable ? "Escribe, pulsa «/» para bloques o Espacio para la IA…"
                              : row.kind === "heading" ? "Encabezado " + row.level
                              : ({"paragraph": "Escribe un párrafo…", "task": "Describe la tarea…", "list": "Elemento de lista…",
@@ -325,14 +328,19 @@ Item {
                     event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) event.accepted = true
             }
             Keys.onPressed: function(event) {
+                if (event.matches(StandardKey.Paste) && row.editable && row.pastePhoto()) { event.accepted = true; return }
                 if (row.blockKey(event) || row.formatKey(event,true)) { event.accepted = true; return }
                 // After the character lands: "/" opens the block menu; "---" makes a divider;
                 // closing marks turn Markdown into styles.
                 const typed = event.text
                 if (!row.editable || row.kind === "code") return
-                if (typed === "/") {
+                if (typed === "/" || typed === "@") {
                     const before = input.cursorPosition === 0 ? "" : input.getText(input.cursorPosition-1,input.cursorPosition)
-                    if (!before || /\s/.test(before)) Qt.callLater(function() { row.slashTyped(input.cursorPosition-1) })
+                    if (!before || /\s/.test(before)) Qt.callLater(function() {
+                        if (typed === "/") row.slashTyped(input.cursorPosition-1); else row.mentionTyped(input.cursorPosition-1,1)
+                    })
+                } else if (typed === "[") {
+                    Qt.callLater(function() { const p = input.cursorPosition; if (p >= 2 && input.getText(p-2,p) === "[[") row.mentionTyped(p-2,2) })
                 } else if (typed === "-" && row.kind === "paragraph") {
                     Qt.callLater(function() { if (input.text === "---") row.changeKind("divider") })
                 } else if (typed === "*" || typed === "_" || typed === "`" || typed === "~") {
@@ -355,7 +363,16 @@ Item {
                 acceptedButtons: Qt.LeftButton; acceptedModifiers: Qt.ControlModifier
                 onTapped: function(eventPoint) {
                     const link = input.linkAt(eventPoint.position.x,eventPoint.position.y)
-                    if (/^https?:\/\//i.test(link)) Qt.openUrlExternally(link)
+                    if (link.indexOf("lunqio://page/") === 0) row.openPage(link.slice(14))
+                    else if (/^https?:\/\//i.test(link)) Qt.openUrlExternally(link)
+                }
+            }
+            // As in Notion, a page mention opens with a single click.
+            TapHandler {
+                acceptedButtons: Qt.LeftButton; acceptedModifiers: Qt.NoModifier
+                onTapped: function(eventPoint) {
+                    const link = input.linkAt(eventPoint.position.x,eventPoint.position.y)
+                    if (link.indexOf("lunqio://page/") === 0) row.openPage(link.slice(14))
                 }
             }
             TapHandler {
@@ -373,7 +390,8 @@ Item {
                 MenuSeparator {}
                 MenuItem { text: "Cortar"; enabled: row.editable && !!input.selectedText; onTriggered: { input.forceActiveFocus(); input.cut() } }
                 MenuItem { text: "Copiar"; enabled: !!input.selectedText; onTriggered: input.copy() }
-                MenuItem { text: "Pegar"; enabled: row.editable && input.canPaste; onTriggered: { input.forceActiveFocus(); input.paste() } }
+                MenuItem { text: "Pegar"; enabled: row.editable && (input.canPaste || backend.clipboardPhoto)
+                    onTriggered: { input.forceActiveFocus(); if (!row.pastePhoto()) input.paste() } }
                 MenuItem { text: "Seleccionar todo"; onTriggered: { input.forceActiveFocus(); input.selectAll() } }
             }
         }
