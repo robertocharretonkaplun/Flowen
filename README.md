@@ -41,9 +41,11 @@
 
 ## Empieza en un minuto
 
-1. Descarga **Flowen-x64.zip** de la [última versión](https://github.com/robertocharretonkaplun/Flowen/releases/latest).
-2. Descomprímelo en una carpeta permanente, por ejemplo `Documentos\Flowen`.
-3. Abre **flowen.exe**. No necesita instalación ni permisos de administrador.
+1. Descarga el instalador **Flowen-…-Setup-x64.exe** de la [última versión](https://github.com/robertocharretonkaplun/Flowen/releases/latest).
+2. Ábrelo y sigue el asistente. No pide permisos de administrador: se instala para tu usuario, con un acceso en el menú Inicio.
+3. Abre **Flowen** desde el menú Inicio.
+
+El instalador aún no tiene firma digital, así que Windows puede mostrar «Windows protegió tu PC». Pulsa **Más información → Ejecutar de todas formas**. Si prefieres no instalar nada, en la misma versión está **Flowen-x64.zip**: descomprímelo en una carpeta permanente y abre `flowen.exe`.
 
 **Requisitos:** Windows 10 u 11 de 64 bits. Las funciones de IA son opcionales y usan Claude Code o Codex instalados con tu cuenta.
 
