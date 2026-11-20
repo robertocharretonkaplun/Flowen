@@ -4,8 +4,8 @@ Todo lo que hace Flowen, sección por sección. Para empezar rápido, mira el [R
 
 ## Abrir la aplicación
 
-1. Descomprime **Flowen-x64.zip** en una carpeta permanente.
-2. Abre **flowen.exe**. Pulsa **Nueva página**, escribe el título y edita el primer párrafo. Usa los controles al pie de la página para añadir encabezados, párrafos, elementos de lista o tareas.
+1. Instala Flowen con **Flowen-…-Setup-x64.exe** (se instala para tu usuario, sin permisos de administrador) o descomprime **Flowen-x64.zip** en una carpeta permanente.
+2. Abre **Flowen** desde el menú Inicio (o `flowen.exe`). Pulsa **Nueva página**, escribe el título y edita el primer párrafo. Usa los controles al pie de la página para añadir encabezados, párrafos, elementos de lista o tareas.
 3. El indicador **Guardado** muestra la revisión actual. **Opciones de página** permite crear subpáginas, mover la página, consultar el historial, guardar una copia en distintos formatos o enviar la página y sus descendientes a la papelera. El menú de cada bloque permite reordenarlo o eliminarlo.
 
 ![Ayuda → Guía y atajos (F1): los atajos en tablas por tema](capturas/atajos.png)

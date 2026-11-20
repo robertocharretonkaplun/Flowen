@@ -43,13 +43,23 @@ Para repetir la prueba con el cliente Codex instalado, ejecuta `python tests/cod
 
 ## Publicar una versión
 
-El botón **Descargar** del README lleva a la última versión publicada en GitHub (Releases). Para publicar una, compila y empaqueta (arriba) y sube el zip, por ejemplo con [GitHub CLI](https://cli.github.com):
+El botón **Descargar** del README lleva a la última versión publicada en GitHub (Releases). Cada versión lleva el instalador y el zip portable.
+
+1. Sube la versión en `project(Flowen VERSION …)` de `CMakeLists.txt`. Es la que muestran **Acerca de Flowen**, las propiedades de `flowen.exe` y el instalador.
+2. Compila y empaqueta (arriba) en `dist\Flowen-x64`.
+3. Compila el instalador con [Inno Setup](https://jrsoftware.org/isinfo.php) 7 (o 6.5 o posterior). El script es `FlowenInnoSetup.iss`, en la raíz, y deja `dist\Flowen-<versión>-Setup-x64.exe`:
 
 ```powershell
-gh release create v0.5.0 dist\Flowen-x64.zip --title "Flowen 0.5.0" --notes "Novedades de esta versión."
+.\packaging\instalador.ps1
 ```
 
-Usa la misma versión que `project(Flowen VERSION …)` en `CMakeLists.txt`, que es la que muestra **Acerca de Flowen**.
+4. Publica la versión con [GitHub CLI](https://cli.github.com), con el commit ya subido:
+
+```powershell
+gh release create v0.5.0 dist\Flowen-0.5.0-Setup-x64.exe dist\Flowen-x64.zip --title "Flowen 0.5.0" --notes-file notas.md
+```
+
+El instalador es por usuario: deja Flowen en `%LOCALAPPDATA%\Programs\Flowen`, con un acceso en el menú Inicio y, si se elige, en el escritorio. El asistente ofrece instalarlo para todos los usuarios, sigue el modo claro u oscuro de Windows y está en español e inglés. Sus imágenes salen de `python packaging/instalador.py`. Al actualizar, cierra Flowen y su servidor MCP si están abiertos y conserva la carpeta, así que los conectores siguen valiendo. Desinstalar quita el programa, no la biblioteca de `%LOCALAPPDATA%\Flowen`. El instalador no está firmado: hasta que lo esté, SmartScreen pide confirmar la primera vez.
 
 ## Contrato y persistencia
 

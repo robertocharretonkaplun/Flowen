@@ -29,8 +29,21 @@ qt_add_resources(flowen views PREFIX "/" FILES qml/Main.qml qml/qmldir qml/Theme
     qml/ViewSwitch.qml qml/PaperSheets.qml qml/PaperMenu.qml qml/HelpDialog.qml qml/AboutDialog.qml
     assets/brand/ao-lockup-white.png assets/brand/ao-lockup-ink.png
     assets/flowen-64.png assets/flowen-256.png)
+# Windows file details (product, version, publisher) and the icon of both programs; the installer
+# (FlowenInnoSetup.iss) reads the version from flowen.exe.
+function(flowen_version_info target file description icon)
+  set(RC_FILE "${file}")
+  set(RC_DESCRIPTION "${description}")
+  set(RC_ICON "")
+  if(icon)
+    set(RC_ICON "IDI_ICON1 ICON \"${CMAKE_CURRENT_SOURCE_DIR}/${icon}\"")
+  endif()
+  configure_file(assets/version.rc.in ${CMAKE_CURRENT_BINARY_DIR}/${target}.rc @ONLY)
+  target_sources(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target}.rc)
+endfunction()
 if(WIN32)
-  target_sources(flowen PRIVATE assets/flowen.rc)
+  flowen_version_info(flowen flowen.exe "Flowen" assets/flowen.ico)
+  flowen_version_info(notas-mcp notas-mcp.exe "Servidor MCP de Flowen" "")
 endif()
 include(CTest)
 if(BUILD_TESTING)
