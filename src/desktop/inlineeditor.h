@@ -20,6 +20,10 @@ class InlineEditor : public QObject {
     // Which theme draws links, mentions, code and highlights ("dark", "light", "white", "black", as
     // Theme.scheme); switching recolours the text in place.
     Q_PROPERTY(QString scheme READ scheme WRITE setScheme NOTIFY schemeChanged)
+    // Text and background tone of each palette colour in the current theme: {name: [text, background]}.
+    Q_PROPERTY(QVariantMap tones READ tones WRITE setTones NOTIFY schemeChanged)
+    Q_PROPERTY(QString activeColor READ activeColor NOTIFY stateChanged)
+    Q_PROPERTY(QString activeBackground READ activeBackground NOTIFY stateChanged)
 public:
     enum Style { Bold=1, Italic=2, Underline=4, Strike=8, Code=16, Highlight=32, Superscript=64 };
     Q_ENUM(Style)
@@ -37,11 +41,18 @@ public:
     QString activeThread() const { return threadId; }
     QString scheme() const { return look; }
     void setScheme(const QString &value);
+    QVariantMap tones() const { return palette; }
+    void setTones(const QVariantMap &value);
+    QString activeColor() const { return color; }
+    QString activeBackground() const { return background; }
     Q_INVOKABLE void load(const QString &text, const QString &spans);
     Q_INVOKABLE QString text() const;
     Q_INVOKABLE QString spans() const;
     Q_INVOKABLE void toggle(int style);
     Q_INVOKABLE void clearStyles();
+    // A palette colour for the selected text or behind it; an empty name removes it.
+    Q_INVOKABLE void setColor(const QString &name);
+    Q_INVOKABLE void setBackground(const QString &name);
     Q_INVOKABLE bool setLink(const QString &url);
     Q_INVOKABLE void setComment(const QString &text);
     Q_INVOKABLE QString commentAt(int position) const;
@@ -66,7 +77,7 @@ signals:
     void contentChanged();
     void schemeChanged();
 public:
-    struct Piece { int start = 0, end = 0, style = 0; QString link, comment, thread; };
+    struct Piece { int start = 0, end = 0, style = 0; QString link, comment, thread, color, background; };
 private:
     QTextDocument *doc() const;
     QList<Piece> pieces(int start, int end) const;
@@ -78,7 +89,9 @@ private:
     QPointer<QQuickTextDocument> source;
     QMetaObject::Connection watch;
     int from = 0, to = 0, styles = 0;
-    QString link, comment, threadId;
+    QString link, comment, threadId, color, background;
+    QVariantMap palette;
+    void restyle();
     bool loading = false;
     QString look = QStringLiteral("dark");
 };

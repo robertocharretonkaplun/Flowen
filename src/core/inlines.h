@@ -9,4 +9,5 @@ bool pageLink(const QString &url);
 void validateSpans(const QString &text,const QJsonArray &spans);
 QJsonArray replaceSpans(const QJsonArray &spans,int start,int removed,int added);
 QString inlineHtml(const QJsonObject &block);
+QString paletteTone(const QString &name, bool background);
 }

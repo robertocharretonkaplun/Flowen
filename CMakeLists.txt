@@ -23,7 +23,7 @@ qt_add_resources(lunqio views PREFIX "/" FILES qml/Main.qml qml/qmldir qml/Theme
     qml/AiComposer.qml qml/EngineSwitch.qml qml/AiProblem.qml qml/CommentCard.qml qml/CommentRail.qml qml/UsagePage.qml
     qml/PlanLimitsView.qml qml/UsageButton.qml qml/SlashMenu.qml
     qml/EmojiPicker.qml qml/PageIcon.qml qml/PageHeader.qml qml/PageCover.qml qml/PageMenu.qml
-    qml/SidebarSection.qml qml/RecentCards.qml qml/EngineMark.qml
+    qml/SidebarSection.qml qml/RecentCards.qml qml/EngineMark.qml qml/TemplateStrip.qml qml/AskPage.qml
     assets/lunqio-64.png assets/lunqio-256.png)
 if(WIN32)
   target_sources(lunqio PRIVATE assets/lunqio.rc)

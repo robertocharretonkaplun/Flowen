@@ -1,5 +1,6 @@
 #include "inlines.h"
 #include "contract.h"
+#include <QHash>
 #include <QRegularExpression>
 #include <QUrl>
 
@@ -42,6 +43,15 @@ QJsonArray replaceSpans(const QJsonArray &spans,int start,int removed,int added)
     }
     return result;
 }
+// The palette in the tones of a white page (exports and prints): [text, background].
+QString paletteTone(const QString &name, bool background) {
+    static const QHash<QString,QPair<QString,QString>> tones{
+        {"gray",{"#787774","#efefec"}},{"brown",{"#9f6b53","#f4eae4"}},{"orange",{"#c2610c","#fbeadb"}},
+        {"yellow",{"#a9781b","#fbf1d3"}},{"green",{"#3b7a55","#e6f1e8"}},{"blue",{"#2f6fa3","#e3eff8"}},
+        {"purple",{"#7f55b1","#f0eaf8"}},{"pink",{"#b03d79","#f9e8f0"}},{"red",{"#c4362c","#fce6e4"}}};
+    const auto found = tones.find(name);
+    return found == tones.end() ? QString() : background ? found->second : found->first;
+}
 QString inlineHtml(const QJsonObject &block) {
     const QString text = block["text"].toString();
     auto escaped = [](QString s){ return s.toHtmlEscaped().replace("\n","<br>"); };
@@ -54,6 +64,9 @@ QString inlineHtml(const QJsonObject &block) {
         QString part = escaped(text.mid(a,b-a));
         auto tag = [&](int flag,const QString &name) { if (flags & flag) part="<"+name+">"+part+"</"+name+">"; };
         tag(Bold,"strong"); tag(Italic,"em"); tag(Underline,"u"); tag(Strike,"s"); tag(Code,"code"); tag(Superscript,"sup");
+        const QString ink = paletteTone(s["color"].toString(),false), back = paletteTone(s["background"].toString(),true);
+        if (!ink.isEmpty() || !back.isEmpty())
+            part = "<span style=\""+(ink.isEmpty() ? QString() : "color:"+ink+";")+(back.isEmpty() ? QString() : "background-color:"+back)+"\">"+part+"</span>";
         if (flags & Highlight) part="<span style=\"background-color:#f3df9f;color:#202020\">"+part+"</span>";
         if (webLink(s["link"].toString())) part="<a href=\""+s["link"].toString().toHtmlEscaped()+"\">"+part+"</a>";
         if (s.contains("comment")) {

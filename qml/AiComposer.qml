@@ -100,21 +100,48 @@ Rectangle {
     Rectangle { z: -2; anchors.fill: parent; anchors.margins: -5; anchors.bottomMargin: -14; radius: Theme.radiusPanel+4; color: Theme.shadowSoft }
     MouseArea { anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.AllButtons; onWheel: function(wheel) { wheel.accepted = false } }
 
-    component BlockPreview: RowLayout {
+    // Each proposed block as it will look in the page: markers, quote bar, note and code panels, divider.
+    component BlockPreview: Item {
         id: line
         required property var modelData
-        Layout.fillWidth: true; spacing: 8
-        Label {
-            visible: line.modelData.type === "list" || line.modelData.type === "task"
-            text: line.modelData.type === "task" ? "☐" : "•"
-            font.pixelSize: line.modelData.type === "task" ? 15 : 17; color: Theme.secondary
-            Layout.alignment: Qt.AlignTop; Layout.topMargin: line.modelData.type === "task" ? 1 : -1
+        required property int index
+        property var all: []
+        readonly property string type: modelData.type
+        readonly property bool boxed: type === "callout" || type === "code"
+        readonly property int number: {
+            const all = line.all
+            let n = 0
+            for (let i = index; i >= 0 && all[i] && all[i].type === "numbered"; --i) ++n
+            return n
         }
-        Label {
-            Layout.fillWidth: true; wrapMode: Text.Wrap; text: line.modelData.text; color: Theme.text
-            font.pixelSize: line.modelData.type === "heading" ? 19 : 15
-            font.weight: line.modelData.type === "heading" ? Font.DemiBold : Font.Normal
-            Layout.topMargin: line.modelData.type === "heading" ? 6 : 0
+        readonly property string marker: type === "list" ? "•" : type === "task" ? "☐" : type === "toggle" ? "▸"
+                                         : type === "numbered" ? number + "." : type === "callout" ? (modelData.icon || "💡") : ""
+        Layout.fillWidth: true
+        implicitHeight: type === "divider" ? 17 : content.implicitHeight+(boxed ? 16 : 0)+(type === "heading" ? 6 : 0)
+        Rectangle {
+            visible: line.boxed; anchors.fill: parent
+            radius: Theme.radiusButton; color: line.type === "code" ? Theme.base : Theme.raised; border.color: Theme.hover
+        }
+        Rectangle { visible: line.type === "divider"; anchors.verticalCenter: parent.verticalCenter; width: parent.width; height: 1; color: Theme.line }
+        RowLayout {
+            id: content
+            visible: line.type !== "divider"
+            x: line.boxed ? 10 : 0; y: line.boxed ? 8 : line.type === "heading" ? 6 : 0
+            width: parent.width-(line.boxed ? 20 : 0); spacing: 8
+            Rectangle { visible: line.type === "quote"; Layout.preferredWidth: 3; Layout.fillHeight: true; radius: 1.5; color: Theme.accent }
+            Label {
+                visible: !!line.marker; text: line.marker
+                font.family: line.type === "callout" ? "Segoe UI Emoji" : Theme.family
+                font.pixelSize: line.type === "list" ? 17 : 15; color: line.type === "list" ? Theme.accent : Theme.secondary
+                Layout.alignment: Qt.AlignTop; Layout.topMargin: line.type === "list" ? -1 : 0
+                font.features: {"tnum": 1}
+            }
+            Label {
+                Layout.fillWidth: true; wrapMode: Text.Wrap; text: line.modelData.text; color: Theme.text
+                font.family: line.type === "code" ? Theme.mono : Theme.family
+                font.pixelSize: line.type === "heading" ? [19,21,18,16][line.modelData.level || 2] : line.type === "code" ? 13 : 15
+                font.weight: line.type === "heading" ? Font.DemiBold : Font.Normal
+            }
         }
     }
 
@@ -133,7 +160,7 @@ Rectangle {
                 id: result
                 x: 12; y: 10; width: preview.availableWidth-24
                 spacing: 6
-                Repeater { model: composer.previewing || composer.applying ? composer.assistant.blocks : []; delegate: BlockPreview {} }
+                Repeater { model: composer.previewing || composer.applying ? composer.assistant.blocks : []; delegate: BlockPreview { all: composer.assistant.blocks } }
             }
         }
         RowLayout {

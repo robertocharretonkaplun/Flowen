@@ -12,9 +12,9 @@ Editor de notas para Windows x64 con páginas anidadas, tareas y un servidor MCP
 
 ## Barra lateral, archivos y fotos
 
-La barra lateral reúne la búsqueda, Inicio, las páginas privadas y la papelera. El lápiz de arriba crea una página. Al pasar sobre una página, el botón **+** crea una subpágina. Puedes plegar **Privado**, ocultar la barra o arrastrar su borde derecho para cambiar el ancho. Un doble clic en el borde recupera el ancho automático. El estado de MCP aparece junto al espacio de trabajo, en la parte inferior.
+La barra lateral reúne la búsqueda, Inicio, las páginas privadas y la papelera. La búsqueda no distingue mayúsculas ni acentos («arbol» encuentra «Árbol»). Primero muestra la página que se llama así, luego las que empiezan o contienen el texto en el título, y después las que lo mencionan; dentro de cada grupo, las editadas más recientemente. El lápiz de arriba crea una página. Al pasar sobre una página, el botón **+** crea una subpágina. Puedes plegar **Privado**, ocultar la barra o arrastrar su borde derecho para cambiar el ancho. Un doble clic en el borde recupera el ancho automático. El estado de MCP aparece junto al espacio de trabajo, en la parte inferior.
 
-**File → Guardar como…** (**Ctrl+Shift+S**) guarda una copia de la página en la carpeta que elijas. **Ctrl+S** guarda los cambios en la biblioteca local.
+**Archivo → Guardar como…** (**Ctrl+Shift+S**) guarda una copia de la página en la carpeta que elijas. **Ctrl+S** guarda los cambios en la biblioteca local.
 
 | Formato | Fotos |
 | --- | --- |
@@ -31,7 +31,17 @@ La estrella junto a **Opciones de página** añade la página abierta a **Favori
 
 Favoritos y recientes se guardan en la biblioteca, así que también viajan en las copias de seguridad. Marcar un favorito o abrir una página no crea revisiones, y MCP no ve estas listas. Buscar o abrir la papelera las oculta mientras tanto.
 
-Pulsa **Foto** al pie del editor o **Edit → Insertar foto…** para elegir un PNG o JPEG local de hasta 32 MiB y 40 megapíxeles. Arrastra la esquina inferior derecha o usa **Ancho** para ajustar la foto entre el 10 % y el 100 % de la columna. Puedes editar el pie, reordenar la foto o quitarla desde su menú. La biblioteca guarda la imagen, su pie y el ancho. Seguirá disponible si mueves el original. Las copias de seguridad incluyen las fotos.
+Pulsa **Foto** al pie del editor, escribe **/foto** o usa **Edición → Insertar foto…** para elegir uno o varios PNG o JPEG locales de hasta 32 MiB y 40 megapíxeles. Las fotos aparecen debajo del bloque donde escribes, o lo sustituyen si es un párrafo vacío; sin ningún bloque en uso, van al final. También puedes arrastrar archivos desde el Explorador: una línea marca dónde quedarán. Arrastra la esquina inferior derecha o usa **Ancho** para ajustar la foto entre el 10 % y el 100 % de la columna.
+
+El menú **⋮⋮** de una foto permite:
+
+- **Alinear** la foto a la izquierda (lo predeterminado), al centro o a la derecha.
+- Elegir un **Estilo**: normal, esquinas redondeadas, con borde o con sombra.
+- Fijar el **Ancho** en 25 %, 50 %, 75 % o la columna completa.
+- **Ver a tamaño completo** (también con doble clic), **Reemplazar foto…**, **Guardar foto como…** (PNG o JPEG) y **Copiar imagen**.
+- Subir, bajar o eliminar la foto.
+
+El pie de foto sigue la alineación. Alineación y estilo se guardan con la página y se exportan a HTML y PDF. La biblioteca guarda la imagen, su pie y el ancho. Seguirá disponible si mueves el original. Las copias de seguridad incluyen las fotos.
 
 También puedes pegar una imagen con **Ctrl+V** (o **Pegar** en el menú contextual). Sirve con una captura de pantalla, con **Copiar imagen** de un navegador o con archivos PNG y JPEG copiados en el Explorador. La foto aparece debajo del bloque donde está el cursor. Si ese bloque es un párrafo vacío, la foto lo sustituye. Los archivos conservan su nombre como pie de foto. Si copias texto de Word, Excel o una página web, se pega como texto aunque el portapapeles incluya una imagen de ese texto. Las imágenes grandes sin transparencia se guardan como JPEG, igual que al elegir un archivo.
 
@@ -44,13 +54,31 @@ También puedes pegar una imagen con **Ctrl+V** (o **Pegar** en el menú context
 - Atajos Markdown al inicio de una línea, seguidos de un espacio: `#`, `##` y `###` encabezados, `-`, `*` o `+` lista, `1.` lista numerada, `[]` tarea, `>` desplegable, `"` cita y ```` ``` ```` código. `---` crea un separador. Dentro del texto: `**negrita**`, `*cursiva*` o `_cursiva_`, `~~tachado~~` y `` `código` `` se convierten al escribir el cierre.
 - **Tab** anida el bloque bajo el anterior (como mucho un nivel más) y **Mayús+Tab** lo saca. Las viñetas cambian con el nivel (•, ◦, ▪) y las listas numeradas cuentan por nivel. Un **desplegable** oculta lo que tiene anidado debajo; pulsa su triángulo para abrirlo o cerrarlo, e **Intro** en un desplegable abierto crea su primer elemento.
 - En un bloque de **código**, **Intro** añade una línea, **Tab** inserta espacios y **Ctrl+Intro** sale del bloque. En una **nota destacada**, pulsa el emoji para cambiarlo.
-- Al pasar el puntero por un bloque aparecen, a su izquierda, **+** (añade una línea debajo con el menú «/» abierto) y **⋮⋮**. Arrastra ⋮⋮ para mover el bloque; una línea azul marca dónde quedará. Un clic en ⋮⋮ abre el menú del bloque (convertir, subir, bajar o eliminar).
+- Al pasar el puntero por un bloque aparecen, a su izquierda, **+** (añade una línea debajo con el menú «/» abierto) y **⋮⋮**. Arrastra ⋮⋮ para mover el bloque; una línea marca dónde quedará. Un clic en ⋮⋮ abre el menú del bloque: convertir, **Color del texto**, **Color de fondo**, **Alinear**, sangría, subir, bajar o eliminar.
+- **Ctrl+Z** deshace también lo que cambia los bloques: dividir con Intro, unir con Retroceso, añadir, mover o eliminar, cambiar el tipo, la sangría, el color o la alineación, e insertar fotos. Primero se deshace el texto que escribiste en el bloque; cuando ya no queda nada, Ctrl+Z vuelve al estado anterior de los bloques. **Ctrl+Y** lo rehace.
 
 ## Enlaces entre páginas
 
 Escribe **@** o **[[** para mencionar otra página. Sigue escribiendo para buscarla (sin importar acentos), elige con las flechas e **Intro**, o **Nueva página «…»** para crearla como subpágina de la actual. La mención se ve como una etiqueta con el nombre de la página; un clic la abre.
 
 Bajo el título, **«N páginas enlazan aquí»** muestra qué páginas mencionan la actual, con el fragmento donde lo hacen. Las menciones se guardan como enlaces `lunqio://page/<id>` dentro del formato del texto, así que MCP también las ve. Al exportar, la mención queda como texto.
+
+Si cambias el nombre de una página, las menciones que mostraban el nombre anterior se actualizan en todas las páginas, también cuando el cambio lo hace Claude o Codex. Cada página que cambia guarda una revisión. Si editaste el texto de una mención a mano, se conserva.
+
+## Plantillas
+
+Una página nueva o vacía muestra **Empieza con una plantilla** bajo el título. Lunqio trae seis: **Reunión**, **Diario**, **Proyecto**, **Clase**, **Lista de tareas** y **Documento de diseño**. Las de reunión, diario y clase ponen la fecha de hoy en el título. Al elegir una, la página toma sus bloques, su icono y su aspecto, y su título si aún no tenía nombre. **Ctrl+Z** la deshace.
+
+**⋯ → Guardar como plantilla…** guarda la página abierta como plantilla tuya, con su título, icono, portada, tipografía y bloques (sin comentarios). Aparece junto a las de Lunqio con un borde de color; al pasar el puntero, **×** la elimina. Tus plantillas se guardan en la biblioteca y viajan en las copias de seguridad.
+
+## Preguntar a Lunqio
+
+Pulsa **Preguntar a Lunqio** en la barra lateral, la pestaña **Preguntar** o **Ctrl+Shift+P**, y pregunta sobre lo que tienes escrito, por ejemplo «¿Qué decidimos sobre el presupuesto?».
+
+- Lunqio elige las páginas que comparten más palabras con la pregunta (sin importar acentos) y añade la página abierta. Si preguntas por tareas o pendientes, añade también las tareas sin terminar de toda la biblioteca. Envía hasta unos 16 000 caracteres de texto.
+- Claude o Codex (elígelo arriba a la derecha) responde solo con esas notas y dice cuáles usó. Pulsa una fuente para abrir la página. Si las notas no contienen la respuesta, lo dice.
+- **Copiar** copia la respuesta y **Guardar como página** la convierte en una página con enlaces a sus fuentes.
+- La conversación dura hasta que cierras Lunqio; **Nueva conversación** la vacía. El asistente no tiene herramientas: no puede cambiar tus páginas. Los tokens aparecen en **Uso** como «Preguntar».
 
 ## Icono y portada
 
@@ -61,12 +89,19 @@ Pasa el puntero sobre el título y pulsa **Añadir icono** para elegir un emoji,
 Selecciona texto dentro de un bloque. Al soltar el ratón, o tras seleccionar con el teclado, aparece un menú junto a la selección:
 
 - **Convertir** el bloque en texto, encabezado, lista o tarea.
-- Aplicar **resaltado**, **negrita**, **cursiva**, **subrayado**, **tachado**, **código en línea** o **superíndice**. El botón se marca cuando toda la selección ya tiene ese estilo y al pulsarlo se quita. **Quitar formato** elimina los estilos y conserva enlaces y comentarios.
+- Aplicar **resaltado**, **negrita**, **cursiva**, **subrayado**, **tachado**, **código en línea** o **superíndice**. El botón se marca cuando toda la selección ya tiene ese estilo y al pulsarlo se quita. **Quitar formato** elimina los estilos y los colores, y conserva enlaces y comentarios.
+- **Color**: elegir el color del texto o del fondo entre nueve (gris, marrón, naranja, amarillo, verde, azul, morado, rosa y rojo). Cada tema los dibuja en sus propios tonos para que se lean bien. **Esc** cierra la paleta.
 - Añadir un **enlace** `http` o `https`. Si escribes `ejemplo.com`, Lunqio añade `https://`. Ctrl+clic abre el enlace en el navegador.
 - **Comentar** la selección. Ver **Comentarios** más abajo.
 - Pedir a Claude o Codex que mejore, corrija o acorte la selección, o abrir **Editar con IA**.
 
-**Esc** cierra el menú y conserva la selección. Los estilos se guardan con la página, se pueden deshacer con **Ctrl+Z**, llegan a MCP como `spans` y se exportan a PDF, HTML y Markdown.
+**Esc** cierra el menú y conserva la selección. Los estilos se guardan con la página, se pueden deshacer con **Ctrl+Z**, llegan a MCP como `spans` (con `color` y `background`) y se exportan a PDF, HTML y Markdown.
+
+### Párrafos y página
+
+- El menú **⋮⋮** de un bloque de texto cambia el **Color del texto** o el **Color de fondo** del bloque entero y lo **Alinea** a la izquierda, al centro, a la derecha o justificado.
+- El menú **⋯** de la página elige la **Fuente** (predeterminada, serif o mono), **Texto pequeño** y **Ancho completo**. Se aplican al título y a todos los bloques.
+- Todo se guarda con la página y su historial, se exporta a HTML y PDF y llega a MCP: `align`, `color` y `background` en cada bloque, y `font`, `small_text` y `full_width` en la página.
 
 | Atajo | Estilo |
 | --- | --- |
@@ -93,7 +128,7 @@ Selecciona texto y pulsa **Comentar** en el menú de selección. A la derecha de
 Pulsa **Espacio** en una línea vacía, **Ctrl+J** o **✦ Crear con IA** al pie de la página. Aparece un cuadro para pedir lo que quieras, por ejemplo «Crea una serie de puntos sobre qué es el prototipado en videojuegos».
 
 - Con el cuadro vacío verás sugerencias: continuar escribiendo, resumir lo anterior, lista de puntos, lluvia de ideas, esquema, lista de tareas o explicar. Usa las flechas e **Intro** para elegir.
-- La IA escribe bloques reales (encabezados, párrafos, elementos de lista y tareas) y te los muestra antes de tocar la página. Recibe el título y el texto cercano para continuar con coherencia.
+- La IA escribe bloques reales y te los muestra antes de tocar la página: encabezados de tres tamaños, párrafos, listas con viñetas y numeradas, tareas, citas, notas destacadas, código, desplegables y separadores. Recibe el título y el texto cercano para continuar con coherencia.
 - **Intro** o **Insertar** los añade. Si abriste el cuadro en una línea vacía, la reemplaza; si no, los pone debajo. Escribe otra indicación para ajustar el resultado, o usa **Reintentar** o **Descartar**. **Esc** detiene o cierra.
 
 ## Elegir Claude o Codex
@@ -126,7 +161,7 @@ Estos límites son los de tu plan y cuentan también lo que usas fuera de Lunqio
 
 El indicador **MCP conectado** corresponde a la conexión entre esta ventana y el ejecutable local `notas-mcp` de la biblioteca abierta. Aparece después de negociar el protocolo y verificar las herramientas. Pulsa el indicador o la pestaña **Conectores** para revisarla. La escritura con IA requiere Claude Code o Codex con una sesión iniciada, acceso al servicio y la conexión del editor activa. El editor manual funciona también con MCP desconectado.
 
-**File** reúne las acciones de archivo y copia de seguridad. **Edit** incluye los comandos de texto. **View** controla la barra lateral, la búsqueda, el historial y la papelera. **Help** ofrece los atajos y la información de la aplicación.
+**Archivo** reúne las acciones de archivo y copia de seguridad. **Edición** incluye los comandos de texto. **Ver** controla la barra lateral, la búsqueda, el historial, la papelera y el tema. **Ayuda** ofrece los atajos y la información de la aplicación.
 
 ## Conectores: Claude y Codex
 
@@ -168,11 +203,11 @@ La ruta habitual es `%LOCALAPPDATA%\Lunqio\notas.sqlite3`. Ambos ejecutables res
 
 - **Historial** recupera el título, el contenido y el padre de una revisión y crea una revisión nueva. Un destino antiguo que ya no es válido se sustituye por la raíz.
 - **Papelera** permite recuperar un subárbol. Las páginas eliminadas por separado conservan su propio estado.
-- **File → Copia de seguridad…** guarda una instantánea de la biblioteca completa en un archivo nuevo mediante `VACUUM INTO`. Incluye historial, papelera y operaciones. Para recuperar una copia, duplica el archivo de respaldo bajo un nombre nuevo y abre la copia de trabajo con `lunqio.exe --db "C:\ruta\recuperada.sqlite3"`. Usa esa misma ruta al registrar MCP. Así puedes validar el contenido y conservar el original. [Copias de SQLite](https://sqlite.org/backup.html)
+- **Archivo → Copia de seguridad…** guarda una instantánea de la biblioteca completa en un archivo nuevo mediante `VACUUM INTO`. Incluye historial, papelera y operaciones. Para recuperar una copia, duplica el archivo de respaldo bajo un nombre nuevo y abre la copia de trabajo con `lunqio.exe --db "C:\ruta\recuperada.sqlite3"`. Usa esa misma ruta al registrar MCP. Así puedes validar el contenido y conservar el original. [Copias de SQLite](https://sqlite.org/backup.html)
 
 ## Identidad visual
 
-Elige la vista en **View → Tema**. Lunqio recuerda la elección y empieza en **Lunqio oscuro**.
+Elige la vista en **Ver → Tema**. Lunqio recuerda la elección y empieza en **Lunqio oscuro**.
 
 | Tema | Aspecto |
 | --- | --- |

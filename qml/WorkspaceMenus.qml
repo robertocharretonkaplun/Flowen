@@ -18,7 +18,7 @@ MenuBar {
         background: Rectangle { radius: 4; color: item.highlighted ? Theme.pressed : "transparent" }
     }
     Menu {
-        title: "&File"
+        title: "&Archivo"
         MenuItem { action: Action { text: "Nueva página"; shortcut: StandardKey.New; onTriggered: bar.workspace.newPage(null) } }
         MenuItem { text: "Nueva subpágina"; enabled: bar.live; onTriggered: bar.workspace.newPage(bar.workspace.currentId) }
         MenuItem { action: Action { text: "Guardar"; shortcut: StandardKey.Save; enabled: bar.live; onTriggered: bar.workspace.flush() } }
@@ -30,9 +30,9 @@ MenuBar {
         MenuItem { text: "Salir"; onTriggered: bar.workspace.close() }
     }
     Menu {
-        title: "&Edit"
-        MenuItem { text: "Deshacer    Ctrl+Z"; enabled: !!bar.target && bar.target.canUndo && !bar.target.readOnly; onTriggered: bar.workspace.textCommand("undo") }
-        MenuItem { text: "Rehacer    Ctrl+Y"; enabled: !!bar.target && bar.target.canRedo && !bar.target.readOnly; onTriggered: bar.workspace.textCommand("redo") }
+        title: "&Edición"
+        MenuItem { text: "Deshacer    Ctrl+Z"; enabled: !!bar.target && (bar.target.canUndo || (bar.workspace.editIndex >= 0 && bar.workspace.undoDepth > 0)) && !bar.target.readOnly; onTriggered: bar.workspace.textCommand("undo") }
+        MenuItem { text: "Rehacer    Ctrl+Y"; enabled: !!bar.target && (bar.target.canRedo || (bar.workspace.editIndex >= 0 && bar.workspace.redoDepth > 0)) && !bar.target.readOnly; onTriggered: bar.workspace.textCommand("redo") }
         MenuSeparator {}
         MenuItem { text: "Cortar    Ctrl+X"; enabled: !!bar.target && !!bar.target.selectedText && !bar.target.readOnly; onTriggered: bar.workspace.textCommand("cut") }
         MenuItem { text: "Copiar    Ctrl+C"; enabled: !!bar.target && !!bar.target.selectedText; onTriggered: bar.workspace.textCommand("copy") }
@@ -61,10 +61,11 @@ MenuBar {
         MenuItem { action: Action { text: "Conectores"; shortcut: "Ctrl+,"; onTriggered: bar.workspace.openConnection() } }
     }
     Menu {
-        title: "&View"
+        title: "&Ver"
         MenuItem { action: Action { text: "Barra lateral"; checkable: true; checked: bar.workspace.sidebarShown; shortcut: "Ctrl+\\";
                 onTriggered: bar.workspace.sidebarShown = !bar.workspace.sidebarShown } }
         MenuItem { action: Action { text: "Buscar páginas"; shortcut: "Ctrl+K"; onTriggered: bar.workspace.focusSearch() } }
+        MenuItem { action: Action { text: "Preguntar a Lunqio"; shortcut: "Ctrl+Shift+P"; onTriggered: bar.workspace.openAsk() } }
         MenuItem { text: "Historial de revisiones…"; enabled: bar.live; onTriggered: bar.workspace.openHistory() }
         MenuItem { text: "Papelera"; onTriggered: bar.workspace.browseTrash(true) }
         MenuSeparator {}
@@ -89,7 +90,7 @@ MenuBar {
         MenuItem { text: "Conectores"; onTriggered: bar.workspace.openConnection() }
     }
     Menu {
-        title: "&Help"
+        title: "Ay&uda"
         MenuItem { text: "Guía y atajos…"; onTriggered: bar.workspace.openHelp() }
         MenuItem { text: "Conectores…"; onTriggered: bar.workspace.openConnection() }
         MenuItem { text: "Acerca de Lunqio"; onTriggered: bar.workspace.openAbout() }

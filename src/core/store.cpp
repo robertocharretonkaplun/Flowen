@@ -1,11 +1,14 @@
 #include "store.h"
 #include "inlines.h"
 #include <QCryptographicHash>
+#include <algorithm>
 #include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QHash>
 #include <QLockFile>
+#include <QRegularExpression>
 #include <QSet>
 #include <QSqlError>
 #include <QSqlRecord>
@@ -19,6 +22,12 @@ static QString now() { return QDateTime::currentDateTimeUtc().toString(Qt::ISODa
 static QByteArray json(const Obj &o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); }
 static Obj parse(const QByteArray &bytes) { return QJsonDocument::fromJson(bytes).object(); }
 static void invalid(QString message) { throw Error("invalid_argument",message); }
+// Search and sorting ignore case and accents: "arbol" finds "Árbol" and "Álgebra" sorts with the a's.
+static QString fold(const QString &text) {
+    QString out = text.toCaseFolded().normalized(QString::NormalizationForm_D);
+    out.removeIf([](QChar c) { return c.category() == QChar::Mark_NonSpacing; });
+    return out;
+}
 static void databaseError(const QSqlError &e) {
     bool busy = (e.nativeErrorCode().toInt() & 255) == 5 || (e.nativeErrorCode().toInt() & 255) == 6;
     throw Error(busy ? "database_busy" : "storage_error", busy ? "La biblioteca está ocupada. Vuelve a intentar." :
@@ -105,9 +114,16 @@ Store::Store(const QString &path, bool ro) : db(QSqlDatabase::addDatabase("QSQLI
         info.finish();
         if (!columns.contains("icon")) sql("ALTER TABLE pages ADD COLUMN icon TEXT");
         if (!columns.contains("cover")) sql("ALTER TABLE pages ADD COLUMN cover TEXT");
+        // Page typography (font, smaller text, full width): optional columns as well.
+        if (!columns.contains("font")) sql("ALTER TABLE pages ADD COLUMN font TEXT");
+        if (!columns.contains("small_text")) sql("ALTER TABLE pages ADD COLUMN small_text INTEGER");
+        if (!columns.contains("full_width")) sql("ALTER TABLE pages ADD COLUMN full_width INTEGER");
         // Favorites and recent visits: desktop-only, outside page revisions.
         sql("CREATE TABLE IF NOT EXISTS favorites(page_id TEXT PRIMARY KEY, position INTEGER NOT NULL)");
         sql("CREATE TABLE IF NOT EXISTS visits(page_id TEXT PRIMARY KEY, at TEXT NOT NULL)");
+        // Your page templates: a copy of a page's look and blocks, without comments.
+        sql("CREATE TABLE IF NOT EXISTS templates(id TEXT PRIMARY KEY, name TEXT NOT NULL, icon TEXT, page_json TEXT NOT NULL, created_at TEXT NOT NULL)");
+        refold();
     }
     tx.commit();
     if (!ro) sql("PRAGMA journal_mode=WAL");
@@ -124,6 +140,10 @@ static Obj metadata(const QSqlQuery &q) {
         o[key] = q.isNull(key) ? QJsonValue(QJsonValue::Null) : QJsonValue::fromVariant(q.value(key));
     for (const auto key : {"icon","cover"})
         o[key] = q.record().indexOf(key) < 0 || q.isNull(key) ? QJsonValue(QJsonValue::Null) : QJsonValue::fromVariant(q.value(key));
+    const bool styled = q.record().indexOf("font") >= 0;
+    o["font"] = styled && !q.isNull("font") ? q.value("font").toString() : QStringLiteral("sans");
+    o["small_text"] = styled && q.value("small_text").toInt() != 0;
+    o["full_width"] = styled && q.value("full_width").toInt() != 0;
     return o;
 }
 Obj Store::load(const QString &id) {
@@ -177,6 +197,8 @@ static Obj completeBlock(Obj block, QString id) {
     if (type != "task" && block.contains("checked")) invalid("Solo las tareas admiten una casilla.");
     if (type != "heading" && block.contains("level")) invalid("Solo los encabezados tienen nivel.");
     if (type != "callout" && block.contains("icon")) invalid("Solo las notas destacadas tienen icono.");
+    if (type == "divider" && (block.contains("align") || block.contains("color") || block.contains("background")))
+        invalid("Un separador no tiene alineación ni color.");
     if (type != "toggle" && block.contains("collapsed")) invalid("Solo los desplegables se pliegan.");
     if (type == "divider" && (!block["text"].toString().isEmpty() || !block["spans"].toArray().isEmpty()))
         invalid("Un separador no lleva texto.");
@@ -200,9 +222,16 @@ Obj Store::record(Obj p, const QString &actor, bool rewriteBlocks) {
     // Covers made from a photo must point to one stored in this library.
     const QString cover = p["cover"].toString();
     if (cover.startsWith("photo:") && !sql("SELECT 1 FROM photos WHERE id=?",{cover.mid(6)}).next()) invalid("La foto de portada no existe en esta biblioteca.");
-    sql("UPDATE pages SET parent_id=?,title=?,title_fold=?,position=?,revision=?,updated_at=?,deleted_at=?,icon=?,cover=? WHERE id=?",
-        {p["parent_id"].toVariant(),title,title.toCaseFolded(),p["position"].toInt(),revision,stamp,p["deleted_at"].toVariant(),
-         p["icon"].isString() ? QVariant(p["icon"].toString()) : QVariant(),cover.isEmpty() ? QVariant() : QVariant(cover),id});
+    QString before;
+    {
+        auto old = sql("SELECT title FROM pages WHERE id=?",{id});
+        if (old.next()) before = old.value(0).toString();
+    }
+    const QString font = p["font"].toString();
+    sql("UPDATE pages SET parent_id=?,title=?,title_fold=?,position=?,revision=?,updated_at=?,deleted_at=?,icon=?,cover=?,font=?,small_text=?,full_width=? WHERE id=?",
+        {p["parent_id"].toVariant(),title,fold(title),p["position"].toInt(),revision,stamp,p["deleted_at"].toVariant(),
+         p["icon"].isString() ? QVariant(p["icon"].toString()) : QVariant(),cover.isEmpty() ? QVariant() : QVariant(cover),
+         font.isEmpty() || font == "sans" ? QVariant() : QVariant(font),p["small_text"].toBool() ? 1 : 0,p["full_width"].toBool() ? 1 : 0,id});
     if (rewriteBlocks) {
         sql("DELETE FROM blocks WHERE page_id=?",{id});
         int pos = 0;
@@ -210,12 +239,171 @@ Obj Store::record(Obj p, const QString &actor, bool rewriteBlocks) {
             auto b = value.toObject();
             if (b["type"] == "image" && !sql("SELECT 1 FROM photos WHERE id=?",{b["asset"].toString()}).next())
                 invalid("La foto no existe en esta biblioteca.");
-            sql("INSERT INTO blocks VALUES(?,?,?,?,?)",{b["id"].toString(),id,pos++,QString::fromUtf8(json(b)),b["text"].toString().toCaseFolded()});
+            sql("INSERT INTO blocks VALUES(?,?,?,?,?)",{b["id"].toString(),id,pos++,QString::fromUtf8(json(b)),fold(b["text"].toString())});
         }
     }
     sql("INSERT INTO revisions(page_id,revision,snapshot_json,actor,at) VALUES(?,?,?,?,?)",
         {id,revision,QString::fromUtf8(json(p)),actor,stamp});
+    if (!before.isEmpty() && before != title) renameMentions(id,before,title,actor);
     return {{"id",id},{"revision",revision}};
+}
+// The notes most related to a question, for "Preguntar a Lunqio": the open page first, then the pages
+// whose title and text share most of the question's words (accents and case aside). A question about
+// tasks also gets the unfinished tasks of the whole library. Each text is cut so the whole fits a prompt.
+Arr Store::notesFor(const QString &question, const QString &current, int limit) {
+    static const QSet<QString> filler{"para","como","cual","cuales","que","donde","cuando","sobre","esta","este","estos","estas",
+        "tengo","tiene","tienen","hacer","entre","desde","hasta","porque","pero","todos","todas","algo","cosas","notas","nota",
+        "pagina","paginas","dime","dame","resume","resumen","quiero","puedes","podrias","hay","mis","una","unos","unas","with",
+        "what","which","about","have","from","that","this","there","their","the","and"};
+    QStringList words;
+    for (const QString &word : fold(question).split(QRegularExpression("[^\\p{L}\\p{N}]+"),Qt::SkipEmptyParts))
+        if (word.size() >= 3 && !filler.contains(word) && !words.contains(word)) words << word;
+    struct Candidate { QString id, title; QStringList lines; int score = 0; QDateTime at; };
+    QList<Candidate> pages;
+    QHash<QString,qsizetype> where;
+    QStringList open;
+    auto q = sql("SELECT p.id,p.title,p.title_fold,p.updated_at,b.content_json,b.text_fold FROM pages p LEFT JOIN blocks b ON b.page_id=p.id "
+                 "WHERE p.deleted_at IS NULL ORDER BY p.id,b.position");
+    while (q.next()) {
+        const QString id = q.value(0).toString();
+        if (!where.contains(id)) {
+            Candidate c{id,q.value(1).toString(),{},0,QDateTime::fromString(q.value(3).toString(),Qt::ISODateWithMs)};
+            for (const QString &w : words) if (q.value(2).toString().contains(w)) c.score += 5;
+            where.insert(id,pages.size());
+            pages.append(c);
+        }
+        Candidate &c = pages[where.value(id)];
+        if (q.isNull(4)) continue;
+        const Obj block = parse(q.value(4).toByteArray());
+        const QString type = block["type"].toString(), text = block["text"].toString();
+        if (text.isEmpty()) continue;
+        for (const QString &w : words) c.score += int(q.value(5).toString().count(w));
+        QString line = text;
+        if (type == "task") {
+            line = (block["checked"].toBool() ? "[x] " : "[ ] ")+text;
+            if (!block["checked"].toBool()) open << "- "+text+" ("+c.title+")";
+        } else if (type == "list" || type == "numbered") line = "- "+text;
+        else if (type == "heading") line = "## "+text;
+        else if (type == "quote") line = "> "+text;
+        c.lines << line;
+    }
+    q.finish();
+    std::stable_sort(pages.begin(),pages.end(),[&](const Candidate &a, const Candidate &b) {
+        if ((a.id == current) != (b.id == current)) return a.id == current;
+        return a.score != b.score ? a.score > b.score : a.at > b.at;
+    });
+    Arr notes;
+    int budget = 16000;
+    for (const Candidate &c : pages) {
+        if (notes.size() >= limit || budget <= 0) break;
+        if (c.id != current && (c.score == 0 && !words.isEmpty())) continue;
+        const QString text = c.lines.join('\n').left(qMin(3500,budget));
+        budget -= int(text.size());
+        notes.append(Obj{{"id",c.id},{"title",c.title},{"text",text}});
+    }
+    static const QRegularExpression aboutTasks("tarea|pendiente|por hacer|to-?do|task");
+    if (aboutTasks.match(fold(question)).hasMatch() && !open.isEmpty())
+        notes.append(Obj{{"id","tareas-sin-terminar"},{"title","Tareas sin terminar en la biblioteca"},{"text",open.mid(0,80).join('\n')}});
+    // With nothing found, the most recently edited pages give the assistant something to go on.
+    if (notes.isEmpty()) for (const Candidate &c : pages) {
+        if (notes.size() >= 3) break;
+        notes.append(Obj{{"id",c.id},{"title",c.title},{"text",c.lines.join('\n').left(3000)}});
+    }
+    return notes;
+}
+// Templates: a page saved with its title, look and blocks. Comments stay with the original page.
+Arr Store::templates() {
+    Arr rows;
+    auto q = sql("SELECT id,name,icon,page_json FROM templates ORDER BY created_at,id");
+    while (q.next()) rows.append(Obj{{"id",q.value(0).toString()},{"name",q.value(1).toString()},
+        {"icon",q.isNull(2) ? QJsonValue(QJsonValue::Null) : QJsonValue(q.value(2).toString())},{"page",parse(q.value(3).toByteArray())}});
+    return rows;
+}
+void Store::saveTemplate(const QString &pageId, const QString &name) {
+    if (readOnly) throw Error("read_only","Biblioteca de solo lectura.");
+    const QString label = name.simplified().left(80);
+    if (label.isEmpty()) invalid("Escribe un nombre para la plantilla.");
+    Transaction tx(db,true);
+    const Obj page = load(pageId);
+    Obj copy;
+    for (const auto key : {"title","icon","cover","font","small_text","full_width"}) copy[key] = page[key];
+    Arr blocks;
+    for (const auto &value : page["blocks"].toArray()) {
+        Obj block = value.toObject();
+        block.remove("id");
+        Arr spans;
+        for (const auto &s : block["spans"].toArray()) {
+            Obj span = s.toObject();
+            span.remove("comment"); span.remove("thread");
+            if (span["style"].toInt() || span.contains("link") || span.contains("color") || span.contains("background")) spans.append(span);
+        }
+        if (spans.isEmpty()) block.remove("spans"); else block["spans"] = spans;
+        blocks.append(block);
+    }
+    copy["blocks"] = blocks;
+    sql("INSERT INTO templates(id,name,icon,page_json,created_at) VALUES(?,?,?,?,?)",
+        {newId(),label,page["icon"].isString() ? QVariant(page["icon"].toString()) : QVariant(),QString::fromUtf8(json(copy)),now()});
+    tx.commit();
+}
+void Store::removeTemplate(const QString &id) {
+    if (readOnly) throw Error("read_only","Biblioteca de solo lectura.");
+    sql("DELETE FROM templates WHERE id=?",{id});
+}
+// Libraries written before accents were folded (or by an older notas-mcp) get their search keys updated.
+void Store::refold() {
+    QList<QPair<QString,QString>> titles, texts;
+    auto p = sql("SELECT id,title,title_fold FROM pages");
+    while (p.next()) {
+        const QString f = fold(p.value(1).toString());
+        if (f != p.value(2).toString()) titles.append({p.value(0).toString(),f});
+    }
+    p.finish();
+    for (const auto &[id,f] : titles) sql("UPDATE pages SET title_fold=? WHERE id=?",{f,id});
+    auto b = sql("SELECT id,content_json,text_fold FROM blocks");
+    while (b.next()) {
+        const QString f = fold(parse(b.value(1).toByteArray())["text"].toString());
+        if (f != b.value(2).toString()) texts.append({b.value(0).toString(),f});
+    }
+    b.finish();
+    for (const auto &[id,f] : texts) sql("UPDATE blocks SET text_fold=? WHERE id=?",{f,id});
+}
+// A page's new title reaches the mentions of it that still read the old one, in every other page
+// (each changed page gets a revision). Mentions whose text was edited by hand keep it.
+void Store::renameMentions(const QString &id, const QString &before, const QString &after, const QString &actor) {
+    const QString target = "lunqio://page/"+id;
+    QStringList pages;
+    auto q = sql("SELECT DISTINCT page_id FROM blocks WHERE page_id<>? AND instr(content_json,?)>0",{id,target});
+    while (q.next()) pages << q.value(0).toString();
+    q.finish();
+    for (const QString &pageId : pages) {
+        Obj page = load(pageId);
+        Arr blocks = page["blocks"].toArray();
+        bool changed = false;
+        for (qsizetype i = 0; i < blocks.size(); ++i) {
+            Obj block = blocks[i].toObject();
+            QString text = block["text"].toString();
+            Arr spans;
+            int shift = 0;
+            for (const auto &value : block["spans"].toArray()) {
+                Obj s = value.toObject();
+                int start = s["start"].toInt()+shift, end = s["end"].toInt()+shift;
+                if (s["link"].toString() == target && text.mid(start,end-start) == before) {
+                    text.replace(start,end-start,after);
+                    const int delta = int(after.size())-int(before.size());
+                    end += delta; shift += delta;
+                }
+                s["start"] = start; s["end"] = end;
+                spans.append(s);
+            }
+            if (shift || text != block["text"].toString()) {
+                block["text"] = text; block["spans"] = spans;
+                blocks[i] = block; changed = true;
+            }
+        }
+        if (!changed) continue;
+        page["blocks"] = blocks;
+        record(page,actor,true);
+    }
 }
 qint64 Store::generation() {
     auto q = sql("SELECT coalesce(max(seq),0) FROM revisions");
@@ -307,9 +495,14 @@ Obj Store::read(const QString &name, const Obj &args) {
     } else {
         QSqlQuery q(db);
         if (name == "search_notes") {
-            QString needle = args["query"].toString().trimmed().toCaseFolded();
+            QString needle = fold(args["query"].toString().trimmed());
             if (needle.isEmpty()) invalid("Escribe algo para buscar.");
-            q = sql("SELECT p.*, (SELECT b.content_json FROM blocks b WHERE b.page_id=p.id AND instr(b.text_fold,?)>0 ORDER BY b.position LIMIT 1) AS hit FROM pages p WHERE p.deleted_at IS NULL AND (instr(p.title_fold,?)>0 OR EXISTS(SELECT 1 FROM blocks b WHERE b.page_id=p.id AND instr(b.text_fold,?)>0)) ORDER BY p.title_fold,p.id LIMIT ? OFFSET ?",{needle,needle,needle,limit+1,cursor});
+            // Best first: the title itself, a title that starts with it, one that contains it, then the
+            // text; the most recently edited first within each.
+            q = sql("SELECT p.*, (SELECT b.content_json FROM blocks b WHERE b.page_id=p.id AND instr(b.text_fold,?)>0 ORDER BY b.position LIMIT 1) AS hit "
+                    "FROM pages p WHERE p.deleted_at IS NULL AND (instr(p.title_fold,?)>0 OR EXISTS(SELECT 1 FROM blocks b WHERE b.page_id=p.id AND instr(b.text_fold,?)>0)) "
+                    "ORDER BY p.title_fold=? DESC,instr(p.title_fold,?)=1 DESC,instr(p.title_fold,?)>0 DESC,p.updated_at DESC,p.id LIMIT ? OFFSET ?",
+                    {needle,needle,needle,needle,needle,needle,limit+1,cursor});
         } else if (args["trashed"].toBool() && !args["parent_id"].isString()) {
             q = sql("SELECT p.* FROM pages p LEFT JOIN pages a ON a.id=p.parent_id WHERE p.deleted_at IS NOT NULL AND p.trash_batch IS NOT a.trash_batch ORDER BY p.deleted_at DESC,p.id LIMIT ? OFFSET ?",{limit+1,cursor});
         } else {
@@ -320,7 +513,7 @@ Obj Store::read(const QString &name, const Obj &args) {
             Obj row = metadata(q);
             if (name == "search_notes") {
                 QString text = parse(q.value("hit").toByteArray())["text"].toString(row["title"].toString());
-                qsizetype start = qMax<qsizetype>(0,text.indexOf(args["query"].toString().trimmed(),0,Qt::CaseInsensitive)-36);
+                qsizetype start = qMax<qsizetype>(0,fold(text).indexOf(fold(args["query"].toString().trimmed()))-36);
                 row["snippet"] = text.mid(start,160);
             }
             items.append(row);
@@ -337,7 +530,8 @@ Obj Store::mutate(const QString &name, const Obj &args, const QString &actor) {
         QString id = newId(), stamp = now();
         Obj p{{"id",id},{"title",args["title"]},{"created_at",stamp},{"deleted_at",QJsonValue::Null},
               {"icon",args.value("icon").isString() ? args["icon"] : QJsonValue(QJsonValue::Null)},
-              {"cover",args.value("cover").isString() ? args["cover"] : QJsonValue(QJsonValue::Null)}};
+              {"cover",args.value("cover").isString() ? args["cover"] : QJsonValue(QJsonValue::Null)},
+              {"font",args.value("font").toString("sans")},{"small_text",args["small_text"].toBool()},{"full_width",args["full_width"].toBool()}};
         checkIcon(p["icon"]);
         assignParent(p,args["parent_id"]);
         Arr blocks;
@@ -350,8 +544,10 @@ Obj Store::mutate(const QString &name, const Obj &args, const QString &actor) {
     bool restore = name == "restore_page";
     auto p = checked(id,args["expected_revision"].toInt(),restore);
     if (name == "update_page") {
-        if (!args.contains("title") && !args.contains("parent_id") && !args.contains("icon") && !args.contains("cover"))
-            invalid("Indica un título, un destino, un icono o una portada.");
+        static const QStringList fields{"title","parent_id","icon","cover","font","small_text","full_width"};
+        if (std::none_of(fields.begin(),fields.end(),[&](const QString &f) { return args.contains(f); }))
+            invalid("Indica un título, un destino, un icono, una portada o el aspecto del texto.");
+        for (const auto key : {"font","small_text","full_width"}) if (args.contains(key)) p[key] = args[key];
         if (args.contains("title")) p["title"] = args["title"];
         if (args.contains("icon")) { checkIcon(args["icon"]); p["icon"] = args["icon"]; }
         if (args.contains("cover")) p["cover"] = args["cover"];
@@ -474,6 +670,9 @@ Obj Store::restoreRevision(const QString &id, int expected, int target) {
     p["blocks"] = snapshot["blocks"];
     p["icon"] = snapshot.value("icon").isString() ? snapshot["icon"] : QJsonValue(QJsonValue::Null);
     p["cover"] = snapshot.value("cover").isString() ? snapshot["cover"] : QJsonValue(QJsonValue::Null);
+    p["font"] = snapshot.value("font").toString("sans");
+    p["small_text"] = snapshot["small_text"].toBool();
+    p["full_width"] = snapshot["full_width"].toBool();
     if (p["cover"].toString().startsWith("photo:") && !sql("SELECT 1 FROM photos WHERE id=?",{p["cover"].toString().mid(6)}).next())
         p["cover"] = QJsonValue(QJsonValue::Null);
     auto parent = snapshot["parent_id"];

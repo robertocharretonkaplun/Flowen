@@ -215,6 +215,50 @@ class Contract(unittest.TestCase):
         for target in ("lunqio://otra", "lunqio://page/" + page["id"].upper(), "lunqio://page/123"):
             c.call("create_page", title="Mal", error="invalid_argument",
                    blocks=[{"type": "paragraph", "text": "Ver Bloques", "spans": [dict(mention, link=target)]}])
+        # Renaming a page updates the mentions that still read its old title; the spans after them move too.
+        link = "lunqio://page/" + page["id"]
+        notes = c.call("create_page", title="Notas", blocks=[{"type": "paragraph", "text": "Ver Bloques y Bloques, mis bloques",
+                       "spans": [{"start": 4, "end": 11, "style": 0, "link": link}, {"start": 14, "end": 21, "style": 1},
+                                 {"start": 23, "end": 34, "style": 0, "link": link}]}])
+        current = c.call("get_page", id=page["id"])["revision"]
+        c.call("update_page", id=page["id"], expected_revision=current, title="Piezas")
+        renamed = c.call("get_page", id=notes["id"])
+        self.assertEqual(renamed["revision"], 2)
+        self.assertEqual(renamed["blocks"][0]["text"], "Ver Piezas y Bloques, mis bloques")
+        self.assertEqual([(s["start"], s["end"]) for s in renamed["blocks"][0]["spans"]], [(4, 10), (13, 20), (22, 33)])
+
+    def test_text_look_and_page_typography(self):
+        c = self.client
+        blocks = [{"type": "paragraph", "text": "Hola mundo", "align": "center", "color": "blue", "background": "yellow",
+                   "spans": [{"start": 0, "end": 4, "style": 1, "color": "red", "background": "gray"}]},
+                  {"type": "heading", "text": "Plan", "level": 2, "align": "right"}]
+        page = c.call("create_page", title="Aspecto", font="serif", small_text=True, blocks=blocks)
+        got = c.call("get_page", id=page["id"])
+        self.assertEqual((got["font"], got["small_text"], got["full_width"]), ("serif", True, False))
+        self.assertEqual([{k: b.get(k) for k in ("align", "color", "background")} for b in got["blocks"]],
+                         [{"align": "center", "color": "blue", "background": "yellow"}, {"align": "right", "color": None, "background": None}])
+        self.assertEqual(got["blocks"][0]["spans"][0]["color"], "red")
+        c.call("update_page", id=page["id"], expected_revision=got["revision"], font="mono", full_width=True)
+        again = c.call("get_page", id=page["id"])
+        self.assertEqual((again["font"], again["small_text"], again["full_width"]), ("mono", True, True))
+        for bad in ({"type": "divider", "text": "", "align": "center"}, {"type": "paragraph", "text": "x", "color": "cyan"},
+                    {"type": "paragraph", "text": "x", "align": "middle"},
+                    {"type": "paragraph", "text": "xy", "spans": [{"start": 0, "end": 1, "style": 0, "background": "teal"}]}):
+            c.call("create_page", title="Mal", blocks=[bad], error="invalid_argument")
+        c.call("create_page", title="Mal", font="comic", error="invalid_argument")
+        # Pages written before typography existed read as the default look.
+        self.assertEqual(c.call("get_page", id=c.call("create_page", title="Normal")["id"])["font"], "sans")
+
+    def test_search_without_accents(self):
+        c = self.client
+        c.call("create_page", title="Bitácora", blocks=[{"type": "paragraph", "text": "Árbol del patio"}])
+        c.call("create_page", title="Árbol genealógico")
+        c.call("create_page", title="Arbol")
+        found = c.call("search_notes", query="arbol")["pages"]
+        # The title itself first, then titles that start with it, then pages that mention it.
+        self.assertEqual([p["title"] for p in found], ["Arbol", "Árbol genealógico", "Bitácora"])
+        self.assertEqual(found[2]["snippet"], "Árbol del patio")
+        self.assertEqual([p["title"] for p in c.call("search_notes", query="GENEALOGICO")["pages"]], ["Árbol genealógico"])
 
     def test_full_restart_and_schema_guard(self):
         db = Path(self.directory) / "reinicio.sqlite3"

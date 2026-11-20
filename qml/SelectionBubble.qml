@@ -35,7 +35,10 @@ Rectangle {
     property string linkError: ""
     property bool dismissed: false
     property bool settled: false
-    readonly property bool menuOpen: turnMenu.opened || moreMenu.opened
+    readonly property bool menuOpen: turnMenu.opened || moreMenu.opened || colorPopup.opened
+    // The palette leaves the focus in the text, so the window's Escape closes it (menus handle their own).
+    readonly property bool paletteOpen: colorPopup.opened
+    function closePalette() { colorPopup.close() }
     readonly property bool engaged: mode !== "menu" || menuOpen
     readonly property bool shown: allowed && !!formatter && settled && !dismissed && !target.selecting
                                    && (target.activeFocus || engaged) && placement.inView
@@ -225,6 +228,66 @@ Rectangle {
                     active: moreMenu.opened; onClicked: moreMenu.popup(moreButton,0,moreButton.height + 4) }
             }
             Divider {}
+            // Colour of the selected text or behind it, from the palette of the theme (as in Notion).
+            MenuRow {
+                id: colorRow; objectName: "bubbleColor"; glyph: "palette"; text: "Color"
+                chevron: true; active: colorPopup.opened
+                onClicked: colorPopup.open()
+                Popup {
+                    id: colorPopup; objectName: "colorPopup"
+                    x: colorRow.width+8; y: -8; width: 232; padding: 10
+                    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+                    background: Rectangle {
+                        radius: Theme.radiusPanel; color: Theme.surface; border.color: Theme.line
+                        Rectangle { z: -1; anchors.fill: parent; anchors.margins: -1; anchors.topMargin: 2; anchors.bottomMargin: -5; radius: Theme.radiusPanel+1; color: Theme.shadow }
+                    }
+                    contentItem: ColumnLayout {
+                        spacing: 6
+                        Repeater {
+                            model: [{role: "color", title: "Color del texto"}, {role: "background", title: "Fondo"}]
+                            delegate: ColumnLayout {
+                                id: group
+                                required property var modelData
+                                spacing: 4
+                                Text { text: group.modelData.title; color: Theme.muted; font.pixelSize: 12 }
+                                Grid {
+                                    columns: 5; spacing: 4
+                                    Repeater {
+                                        model: [""].concat(Theme.toneNames)
+                                        delegate: AbstractButton {
+                                            id: swatch
+                                            required property string modelData
+                                            readonly property bool forText: group.modelData.role === "color"
+                                            readonly property bool current: !!bubble.formatter &&
+                                                (forText ? bubble.formatter.activeColor : bubble.formatter.activeBackground) === modelData
+                                            objectName: (forText ? "textTone-" : "backTone-") + (modelData || "none")
+                                            width: 38; height: 30; hoverEnabled: true; focusPolicy: Qt.NoFocus
+                                            Accessible.name: (forText ? "Texto " : "Fondo ") + (modelData ? Theme.toneLabels[modelData] : "predeterminado")
+                                            ToolTip.visible: hovered; ToolTip.delay: 400
+                                            ToolTip.text: modelData ? Theme.toneLabels[modelData] : (forText ? "Predeterminado" : "Sin fondo")
+                                            onClicked: if (bubble.formatter) {
+                                                if (forText) bubble.formatter.setColor(modelData); else bubble.formatter.setBackground(modelData)
+                                            }
+                                            background: Rectangle {
+                                                radius: 6
+                                                color: !swatch.forText && swatch.modelData ? Theme.tones[swatch.modelData][1] : swatch.hovered ? Theme.hover : "transparent"
+                                                border.width: swatch.current ? 2 : 1
+                                                border.color: swatch.current ? Theme.accent : swatch.hovered || !swatch.forText ? Theme.line : "transparent"
+                                            }
+                                            contentItem: Text {
+                                                text: swatch.forText ? "A" : (swatch.modelData ? "" : "∅")
+                                                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                                                font.pixelSize: 15; font.weight: Font.DemiBold
+                                                color: swatch.forText && swatch.modelData ? Theme.tones[swatch.modelData][0] : Theme.secondary
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             MenuRow {
                 objectName: "bubbleComment"; glyph: "comment"
                 text: !!bubble.formatter && !!bubble.formatter.activeThread ? "Ver comentario" : "Comentar"

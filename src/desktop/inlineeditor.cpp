@@ -22,6 +22,8 @@ constexpr int AllStyles = 127;
 const int StyleProperty = QTextFormat::UserProperty + 1;
 const int CommentProperty = QTextFormat::UserProperty + 2;
 const int ThreadProperty = QTextFormat::UserProperty + 3;
+const int ColorProperty = QTextFormat::UserProperty + 4;
+const int BackgroundProperty = QTextFormat::UserProperty + 5;
 QJsonObject threadOf(const QString &json) { return QJsonDocument::fromJson(json.toUtf8()).object(); }
 QString compact(const QJsonObject &o) { return QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)); }
 
@@ -40,10 +42,20 @@ const Inks &inks(const QString &scheme) {
                             QColor("#DCE6F3"),QColor("#2C313A"),QColor("#9DBDF0")};
     return scheme == "light" ? lunqioLight : scheme == "white" ? white : scheme == "black" ? black : lunqioDark;
 }
-QTextCharFormat visual(const InlineEditor::Piece &p, const QString &scheme) {
+// Tone of a palette colour: the first is for text, the second for backgrounds.
+QColor tone(const QVariantMap &tones, const QString &name, int which) {
+    const QVariantList pair = tones.value(name).toList();
+    return pair.size() == 2 ? QColor(pair[which].toString()) : QColor();
+}
+QTextCharFormat visual(const InlineEditor::Piece &p, const QString &scheme, const QVariantMap &tones) {
     const Inks &ink = inks(scheme);
     QTextCharFormat f;
     if (p.style) f.setProperty(StyleProperty,p.style);
+    if (!p.color.isEmpty()) f.setProperty(ColorProperty,p.color);
+    if (!p.background.isEmpty()) f.setProperty(BackgroundProperty,p.background);
+    // Colour first; code, comments, highlight and links keep their own look on top of it.
+    if (const QColor c = tone(tones,p.color,0); c.isValid()) f.setForeground(c);
+    if (const QColor c = tone(tones,p.background,1); c.isValid()) f.setBackground(c);
     if (p.style & notes::Bold) f.setFontWeight(QFont::DemiBold);
     if (p.style & notes::Italic) f.setFontItalic(true);
     if (p.style & notes::Strike) f.setFontStrikeOut(true);
@@ -98,9 +110,19 @@ void InlineEditor::setDocument(QQuickTextDocument *document) {
     emit documentChanged();
     refresh();
 }
+void InlineEditor::setTones(const QVariantMap &value) {
+    if (palette == value) return;
+    palette = value;
+    restyle();
+    emit schemeChanged();
+}
 void InlineEditor::setScheme(const QString &value) {
     if (look == value) return;
     look = value;
+    restyle();
+    emit schemeChanged();
+}
+void InlineEditor::restyle() {
     // Only the colours change, so the page is not marked as edited (undo restarts from here).
     if (auto *d = doc()) {
         loading = true;
@@ -108,15 +130,14 @@ void InlineEditor::setScheme(const QString &value) {
         d->setUndoRedoEnabled(false);
         QTextCursor cursor(d);
         for (const auto &p : pieces(0,d->characterCount()-1)) {
-            if (!p.style && p.link.isEmpty() && p.comment.isEmpty()) continue;
+            if (!p.style && p.link.isEmpty() && p.comment.isEmpty() && p.color.isEmpty() && p.background.isEmpty()) continue;
             cursor.setPosition(p.start);
             cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-            cursor.setCharFormat(visual(p,look));
+            cursor.setCharFormat(visual(p,look,palette));
         }
         d->setUndoRedoEnabled(undo);
         loading = false;
     }
-    emit schemeChanged();
 }
 void InlineEditor::setSelectionStart(int value) {
     if (from == value) return;
@@ -142,26 +163,30 @@ QList<InlineEditor::Piece> InlineEditor::pieces(int start, int end) const {
             if (a >= b) continue;
             const auto f = fragment.charFormat();
             out.append({a,b,f.intProperty(StyleProperty) & AllStyles,f.isAnchor() ? f.anchorHref() : QString(),
-                        f.stringProperty(CommentProperty),f.stringProperty(ThreadProperty)});
+                        f.stringProperty(CommentProperty),f.stringProperty(ThreadProperty),
+                        f.stringProperty(ColorProperty),f.stringProperty(BackgroundProperty)});
         }
     }
     return out;
 }
 void InlineEditor::refresh() {
     int s = 0;
-    QString l, c, t;
+    QString l, c, t, tint, fill;
     const auto list = pieces(from,to);
     if (!list.isEmpty()) {
         s = AllStyles; l = list.first().link; c = list.first().comment; t = threadOf(list.first().thread)["id"].toString();
+        tint = list.first().color; fill = list.first().background;
         for (const auto &p : list) {
             s &= p.style;
+            if (p.color != tint) tint.clear();
+            if (p.background != fill) fill.clear();
             if (p.link != l) l.clear();
             if (p.comment != c) c.clear();
             if (threadOf(p.thread)["id"].toString() != t) t.clear();
         }
     }
-    if (s == styles && l == link && c == comment && t == threadId) return;
-    styles = s; link = l; comment = c; threadId = t;
+    if (s == styles && l == link && c == comment && t == threadId && tint == color && fill == background) return;
+    styles = s; link = l; comment = c; threadId = t; color = tint; background = fill;
     emit stateChanged();
 }
 void InlineEditor::load(const QString &text, const QString &spans) {
@@ -175,7 +200,7 @@ void InlineEditor::load(const QString &text, const QString &spans) {
     for (const auto &value : QJsonDocument::fromJson(spans.toUtf8()).array()) {
         const auto s = value.toObject();
         Piece p{s["start"].toInt(),qMin(s["end"].toInt(),length),s["style"].toInt() & AllStyles,
-                s["link"].toString(),s["comment"].toString(),{}};
+                s["link"].toString(),s["comment"].toString(),{},s["color"].toString(),s["background"].toString()};
         if (p.start < 0 || p.start >= p.end) continue;
         // Comments written before threads existed get an id so they can be answered and resolved.
         if (!p.comment.isEmpty()) {
@@ -185,7 +210,7 @@ void InlineEditor::load(const QString &text, const QString &spans) {
         }
         cursor.setPosition(p.start);
         cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-        cursor.setCharFormat(visual(p,look));
+        cursor.setCharFormat(visual(p,look,palette));
     }
     d->setUndoRedoEnabled(true);
     loading = false;
@@ -204,13 +229,14 @@ QString InlineEditor::serialize(int start, int end) const {
     QJsonArray out;
     if (doc()) {
         for (auto p : pieces(start,end)) {
-            if (!p.style && p.link.isEmpty() && p.comment.isEmpty()) continue;
+            if (!p.style && p.link.isEmpty() && p.comment.isEmpty() && p.color.isEmpty() && p.background.isEmpty()) continue;
             p.start -= start;
             p.end -= start;
             if (!out.isEmpty()) {
                 auto previous = out.last().toObject();
                 if (previous["end"].toInt() == p.start && previous["style"].toInt() == p.style &&
                     previous["link"].toString() == p.link && previous["comment"].toString() == p.comment &&
+                    previous["color"].toString() == p.color && previous["background"].toString() == p.background &&
                     previous["thread"].toObject() == (p.comment.isEmpty() ? QJsonObject() : threadOf(p.thread))) {
                     previous["end"] = p.end;
                     out[out.size()-1] = previous;
@@ -219,6 +245,8 @@ QString InlineEditor::serialize(int start, int end) const {
             }
             QJsonObject span{{"start",p.start},{"end",p.end},{"style",p.style}};
             if (!p.link.isEmpty()) span["link"] = p.link;
+            if (!p.color.isEmpty()) span["color"] = p.color;
+            if (!p.background.isEmpty()) span["background"] = p.background;
             if (!p.comment.isEmpty()) {
                 span["comment"] = p.comment;
                 if (!p.thread.isEmpty()) span["thread"] = threadOf(p.thread);
@@ -241,6 +269,8 @@ QVariantMap InlineEditor::takeTail(int position) {
         cursor.setPosition(length,QTextCursor::KeepAnchor);
         cursor.removeSelectedText();
     }
+    // The split is undone as a whole by the page (Ctrl+Z), not piece by piece here.
+    d->clearUndoRedoStacks();
     return tail;
 }
 // Backspace at the start of a block: its text joins the end of this one. Returns where they meet.
@@ -255,13 +285,16 @@ int InlineEditor::append(const QString &text, const QString &tail) {
     for (const auto &value : QJsonDocument::fromJson(tail.toUtf8()).array()) {
         const auto s = value.toObject();
         Piece p{at+s["start"].toInt(),at+qMin(s["end"].toInt(),int(text.size())),s["style"].toInt() & AllStyles,
-                s["link"].toString(),s["comment"].toString(),s.contains("thread") ? compact(s["thread"].toObject()) : QString()};
+                s["link"].toString(),s["comment"].toString(),s.contains("thread") ? compact(s["thread"].toObject()) : QString(),
+                s["color"].toString(),s["background"].toString()};
         if (p.start >= p.end) continue;
         cursor.setPosition(p.start);
         cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-        cursor.setCharFormat(visual(p,look));
+        cursor.setCharFormat(visual(p,look,palette));
     }
     cursor.endEditBlock();
+    // Likewise for a join: the page's Ctrl+Z brings both blocks back at once.
+    d->clearUndoRedoStacks();
     return at;
 }
 // Markdown while typing: **negrita**, *cursiva*, _cursiva_, ~~tachado~~ and `código` become styles
@@ -297,7 +330,7 @@ int InlineEditor::markdownAt(int position) {
             p.style |= rule.style;
             cursor.setPosition(p.start);
             cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-            cursor.setCharFormat(visual(p,look));
+            cursor.setCharFormat(visual(p,look,palette));
         }
         cursor.endEditBlock();
         refresh();
@@ -315,7 +348,7 @@ int InlineEditor::insertMention(int start, int end, const QString &title, const 
     cursor.setPosition(start);
     cursor.setPosition(end,QTextCursor::KeepAnchor);
     cursor.removeSelectedText();
-    cursor.insertText(name,visual({start,start+int(name.size()),0,target,{},{}},look));
+    cursor.insertText(name,visual({start,start+int(name.size()),0,target,{},{}},look,palette));
     cursor.insertText(" ",QTextCharFormat());
     cursor.endEditBlock();
     refresh();
@@ -332,7 +365,7 @@ void InlineEditor::rewriteRange(int start, int end, const std::function<void(Pie
         edit(p);
         cursor.setPosition(p.start);
         cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-        cursor.setCharFormat(visual(p,look));
+        cursor.setCharFormat(visual(p,look,palette));
     }
     cursor.endEditBlock();
     refresh();
@@ -345,8 +378,10 @@ void InlineEditor::toggle(int style) {
     rewrite([&](Piece &p) { p.style = all ? p.style & ~style : p.style | style; });
 }
 void InlineEditor::clearStyles() {
-    rewrite([](Piece &p) { p.style = 0; });
+    rewrite([](Piece &p) { p.style = 0; p.color.clear(); p.background.clear(); });
 }
+void InlineEditor::setColor(const QString &name) { rewrite([&](Piece &p) { p.color = name; }); }
+void InlineEditor::setBackground(const QString &name) { rewrite([&](Piece &p) { p.background = name; }); }
 QString InlineEditor::normalizedLink(const QString &url) {
     QString value = url.trimmed();
     if (value.isEmpty()) return {};
@@ -411,7 +446,7 @@ bool InlineEditor::updateThread(const QString &id, const std::function<void(Piec
         edit(p);
         cursor.setPosition(p.start);
         cursor.setPosition(p.end,QTextCursor::KeepAnchor);
-        cursor.setCharFormat(visual(p,look));
+        cursor.setCharFormat(visual(p,look,palette));
     }
     cursor.endEditBlock();
     refresh();

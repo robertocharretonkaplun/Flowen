@@ -24,13 +24,14 @@ ApplicationWindow {
     readonly property bool canEditSelection: !settingsShown && !!currentId && !deleted && !conflict && !!textTarget && editIndex >= 0 && !!textTarget.selectedText
     readonly property bool canFormat: canEditSelection && !!textTarget.formatter
     menuBar: WorkspaceMenus { workspace: win }
-    // The saved theme (View → Tema) drives every colour in Theme.
+    // The saved theme (Ver → Tema) drives every colour in Theme.
     Binding { target: Theme; property: "mode"; value: backend.theme }
     function format(style) { if (canFormat) textTarget.formatter.toggle(style) }
     function editLink() { if (canFormat) bubble.openLink() }
     // value is a block type, or "heading1".."heading3" for a heading of that size.
     function setKind(index, value) {
         if (index < 0 || index >= blocks.count) return
+        rememberStructure()
         let kind = value, level = 0
         if (/^heading[1-3]$/.test(value)) { kind = "heading"; level = Number(value.charAt(7)) }
         blocks.setProperty(index,"kind",kind)
@@ -48,6 +49,81 @@ ApplicationWindow {
                                     menta: ["#2f8f7a","#2b5c8f"], niebla: ["#4d555e","#8d97a1"]})
     function setPageIcon(emoji) { if (currentId && !deleted) action("update_page",{icon: emoji ? emoji : null}) }
     function setPageCover(value) { if (currentId && !deleted) action("update_page",{cover: value ? value : null}) }
+    // The page's typography (⋯ menu): font, smaller text and full width.
+    property string pageFont: "sans"
+    property bool pageSmall: false
+    property bool pageWide: false
+    readonly property string pageFamily: pageFont === "serif" ? "Georgia" : pageFont === "mono" ? Theme.mono : Theme.family
+    function setPageLook(field, value) {
+        if (!currentId || deleted) return
+        const change = {}
+        change[field] = value
+        action("update_page",change)
+    }
+    // Templates: Lunqio's own (TemplateStrip) and yours, offered while the page is empty.
+    property var userTemplates: []
+    readonly property bool pageEmpty: {
+        structure; blocks.count
+        if (!currentId || deleted || blocks.count > 1) return false
+        return blocks.count === 0 || (blocks.get(0).kind === "paragraph" && !blocks.get(0).body)
+    }
+    function today() { return new Date().toLocaleDateString(Qt.locale(),"d 'de' MMMM 'de' yyyy") }
+    // The page takes the template's blocks, its look and, while it has no name of its own, its title.
+    function applyTemplate(t) {
+        if (!currentId || deleted || !t) return
+        rememberStructure()
+        const dated = s => (s || "").split("{fecha}").join(today())
+        if (!titleInput.text.trim() || titleInput.text === "Sin título") titleInput.text = dated(t.title) || "Sin título"
+        textTarget = null; editIndex = -1
+        blocks.clear()
+        for (const b of t.blocks || []) { const copy = Object.assign({}, b); delete copy.id; copy.text = dated(copy.text); blocks.append(rowOf(copy)) }
+        if (!blocks.count) blocks.append(rowOf({type: "paragraph"}))
+        markDirty()
+        const look = {}
+        if (t.icon) look.icon = t.icon
+        if (t.cover) look.cover = t.cover
+        if (t.font && t.font !== "sans") look.font = t.font
+        if (t.small_text) look.small_text = true
+        if (t.full_width) look.full_width = true
+        if (Object.keys(look).length) action("update_page",look); else flush()
+        Qt.callLater(function() { const row = blockRepeater.itemAt(0); if (row) row.focusAt(-1) })
+    }
+    function saveTemplate(name) {
+        if (!flush()) return false
+        const r = call("save_template",{id: currentId, name: name})
+        if (!r) return false
+        userTemplates = r.templates; info("Plantilla guardada.")
+        return true
+    }
+    function removeTemplate(id) { const r = call("remove_template",{template: id}); if (r) userTemplates = r.templates }
+    // A block's look from its menu (align, tint, fill or frame); one undo step.
+    function setBlockLook(index, role, value) {
+        if (index < 0 || index >= blocks.count || blocks.get(index)[role] === value) return
+        rememberStructure()
+        blocks.setProperty(index,role,value)
+        markDirty()
+    }
+    // What a photo's menu asks for: see it large, replace, save or copy the picture.
+    property int photoIndex: -1
+    function photoAction(index, name) {
+        const b = index >= 0 && index < blocks.count ? blocks.get(index) : null
+        if (!b || b.kind !== "image") return
+        photoIndex = index
+        if (name === "view") photoViewer.show(b.asset,b.body)
+        else if (name === "replace" && !deleted) replaceDialog.open()
+        else if (name === "save") {
+            savePhotoDialog.selectedFile = backend.suggestedFile(savePhotoDialog.currentFolder,b.body || "Foto")
+            savePhotoDialog.open()
+        } else if (name === "copy" && call("photo_copy",{asset: b.asset})) info("Imagen copiada.")
+    }
+    function replacePhoto(url) {
+        const r = call("store_photo",{url: url.toString()})
+        if (!r || photoIndex < 0 || photoIndex >= blocks.count) return false
+        rememberStructure()
+        blocks.setProperty(photoIndex,"asset",r.asset)
+        markDirty()
+        return flush()
+    }
     // Numbers for numbered lists and what closed toggles hide, recomputed on every edit.
     property int structure: 0
     readonly property var outline: {
@@ -70,6 +146,7 @@ ApplicationWindow {
     // Tab nests a block under the one above (one level deeper at most); Shift+Tab brings it back.
     function setIndent(index, step) {
         if (index < 0 || index >= blocks.count) return
+        rememberStructure()
         const current = blocks.get(index).indent || 0
         const limit = index > 0 ? Math.min(6,(blocks.get(index-1).indent || 0)+1) : 0
         const next = Math.max(0,Math.min(limit,current+step))
@@ -79,6 +156,7 @@ ApplicationWindow {
     }
     function toggleCollapse(index) {
         if (index < 0 || index >= blocks.count) return
+        rememberStructure()
         blocks.setProperty(index,"collapsed",!blocks.get(index).collapsed)
         markDirty(); commentTick++
     }
@@ -90,28 +168,66 @@ ApplicationWindow {
         if (!textTarget) return
         textTarget.forceActiveFocus()
         if (name === "paste" && editIndex >= 0 && pastePhoto(editIndex)) return
+        if (name === "undo" && editIndex >= 0 && !textTarget.canUndo && undoStructure()) return
+        if (name === "redo" && editIndex >= 0 && !textTarget.canRedo && redoStructure()) return
         textTarget[name]()
     }
-    // A photo on the clipboard (a screenshot, "Copiar imagen", image files) becomes photo blocks
-    // below the block being edited, as in Notion. An empty paragraph is replaced by them.
-    function pastePhoto(index) {
-        if (!currentId || deleted || !backend.clipboardPhoto) return false
-        const r = call("clipboard_photo")
-        if (!r) return true                       // The notice says why (too large, unreadable).
-        if (!r.photos.length) return false
-        const current = index >= 0 && index < blocks.count ? blocks.get(index) : null
-        let at = index+1
+    // Photos (each {asset, caption}) become blocks below the block at `index`, as in Notion; an empty
+    // paragraph there turns into them. With no block in use they go at the end. The caret ends right after.
+    function insertPhotos(index, photos, exact) {
+        if (!photos.length) return false
+        rememberStructure()
+        const current = !exact && index >= 0 && index < blocks.count ? blocks.get(index) : null
+        // exact: `index` is the place itself (a drop), not the block being edited.
+        let at = exact ? Math.max(0,Math.min(index,blocks.count)) : current ? index+1 : blocks.count
         if (current && current.kind === "paragraph" && !current.body) { blocks.remove(index); at = index }
         editIndex = -1
-        for (const p of r.photos)
-            blocks.insert(at++,{key:"",kind:"image",body:p.caption,spans:"[]",done:false,asset:p.asset,photoPercent:100,
-                                level:1,indent:0,icon:"",collapsed:false})
+        for (const p of photos)
+            blocks.insert(at++,rowOf({type: "image", text: p.caption, asset: p.asset, width_percent: 100}))
         markDirty(); commentTick++
         // Keep writing right after the photo.
         if (at >= blocks.count || blocks.get(at).kind === "image" || blocks.get(at).kind === "divider") insertBlock(at,"paragraph","","[]",0)
         else Qt.callLater(function() { const row = blockRepeater.itemAt(at); if (row) row.focusAt(0) })
+        reveal(at)
         return true
     }
+    // Scrolls so the block at `index` and what is just above it show; again while photos finish loading.
+    function reveal(index) { revealTimer.index = index; revealTimer.left = 4; revealTimer.restart() }
+    Timer {
+        id: revealTimer
+        property int index: -1
+        property int left: 0
+        interval: 90; repeat: true
+        onTriggered: {
+            const row = blockRepeater.itemAt(index), flick = pageScroll.contentItem
+            if (row && flick) {
+                const top = row.mapToItem(flick.contentItem,0,0).y, bottom = top+row.height
+                const view = pageScroll.availableHeight, most = Math.max(0,pageScroll.contentHeight-view)
+                if (bottom+24 > flick.contentY+view) flick.contentY = Math.min(most,bottom+24-view)
+                else if (top < flick.contentY) flick.contentY = Math.max(0,top-24)
+            }
+            if (--left <= 0) stop()
+        }
+    }
+    // A photo on the clipboard (a screenshot, "Copiar imagen", image files) goes in like a chosen one.
+    function pastePhoto(index) {
+        if (!currentId || deleted || !backend.clipboardPhoto) return false
+        const r = call("clipboard_photo")
+        if (!r) return true                       // The notice says why (too large, unreadable).
+        return insertPhotos(index,r.photos)
+    }
+    // Photo files chosen in the dialog or dropped on the page; saved at once.
+    function insertPhotoFiles(urls, index, exact) {
+        if (!currentId || deleted) return false
+        const photos = []
+        for (const url of urls) {
+            const r = call("store_photo",{url: url.toString()})
+            if (!r) return false
+            photos.push(r)
+        }
+        return insertPhotos(index,photos,exact) && flush()
+    }
+    function insertPhoto(url) { return insertPhotoFiles([url],editIndex) }
     function focusSearch() { enterEditor(); sidebarShown = true; pagesExpanded = true; search.forceActiveFocus(); search.selectAll() }
     function openHelp() { helpDialog.open() }
     function openAbout() { aboutDialog.open() }
@@ -121,11 +237,12 @@ ApplicationWindow {
         workspaceTabs.currentIndex = 0
     }
     function openTrashConfirmation() { trashDialog.open() }
-    function choosePhoto() { if (currentId && !deleted && flush()) photoDialog.open() }
-    function insertPhoto(url) {
-        if (!action("insert_photo",{url:url.toString()})) return false
-        Qt.callLater(function() { if (pageScroll.contentItem) pageScroll.contentItem.contentY = Math.max(0,pageScroll.contentHeight-pageScroll.availableHeight) })
-        return true
+    // "Foto", "/Foto" or Edición → Insertar foto: the photos land where you are writing.
+    property int photoTarget: -1
+    function choosePhoto(index) {
+        if (!currentId || deleted) return
+        photoTarget = index === undefined ? editIndex : index
+        photoDialog.open()
     }
     function openHistory() {
         if (!flush()) return
@@ -190,8 +307,8 @@ ApplicationWindow {
     property real dropY: 0
     property real dropX: 0
     function insertBlock(index, kind, text, styles, caret, after, indent) {
-        blocks.insert(index,{key:"",kind:"paragraph",body:text || "",spans:styles || "[]",done:false,asset:"",photoPercent:100,
-                             level:1,indent:indent || 0,icon:"",collapsed:false})
+        rememberStructure()
+        blocks.insert(index,rowOf({type: "paragraph", text: text, spans: styles || "[]", indent: indent}))
         setKind(index,kind)
         commentTick++
         Qt.callLater(function() {
@@ -202,6 +319,7 @@ ApplicationWindow {
         })
     }
     function splitBlock(index, position) {
+        rememberStructure()
         const block = blocks.get(index), row = blockRepeater.itemAt(index)
         if (!row || block.kind === "image") return
         const listLike = block.kind === "list" || block.kind === "numbered" || block.kind === "task"
@@ -214,6 +332,7 @@ ApplicationWindow {
     }
     function mergeBlock(index) {
         if (index <= 0) return
+        rememberStructure()
         const current = blockRepeater.itemAt(index), previous = blockRepeater.itemAt(index-1)
         if (!current || !previous) return
         textTarget = null; editIndex = -1
@@ -329,7 +448,7 @@ ApplicationWindow {
         if (!row) return
         row.editor.remove(open.start,Math.max(open.start+1,row.editor.cursorPosition))
         const empty = !row.formatter.text().trim()
-        if (command.key === "image") choosePhoto()
+        if (command.key === "image") choosePhoto(open.index)
         else if (command.key === "ai") openComposer(open.index)
         else if (command.key === "divider") { if (empty) setKind(open.index,"divider"); else insertBlock(open.index+1,"divider","","[]",0); insertBlock(open.index+(empty ? 1 : 2),"paragraph","","[]",0) }
         else if (empty) { setKind(open.index,command.key); row.focusAt(0) }
@@ -341,21 +460,32 @@ ApplicationWindow {
         const area = pageScroll.mapToItem(null,0,0), flick = pageScroll.contentItem
         if (sceneY < area.y+48) flick.contentY = Math.max(0,flick.contentY-14)
         else if (sceneY > area.y+pageScroll.height-48) flick.contentY = Math.min(Math.max(0,pageScroll.contentHeight-pageScroll.height),flick.contentY+14)
+        dropAt = placeLine(sceneY)
+    }
+    // Where something dropped at sceneY lands (before that block, or the end), with the line placed there.
+    function placeLine(sceneY) {
         let target = blocks.count
         for (let i = 0; i < blocks.count; ++i) {
             const row = blockRepeater.itemAt(i), top = row.mapToItem(null,0,0).y
-            if (sceneY < top+row.height/2) { target = i; break }
+            if (row.visible && sceneY < top+row.height/2) { target = i; break }
         }
-        dropAt = target
         const edge = target < blocks.count ? blockRepeater.itemAt(target) : blockRepeater.itemAt(blocks.count-1)
+        if (!edge) { dropX = pageColumn.mapToItem(win.contentItem,0,0).x; dropY = pageColumn.mapToItem(win.contentItem,0,0).y; return target }
         const corner = edge.mapToItem(win.contentItem,0,0)
         dropY = target < blocks.count ? corner.y-5 : corner.y+edge.height+3
         dropX = corner.x
+        return target
+    }
+    // Photo files dragged from the Explorer onto the page.
+    property int photoDropAt: -1
+    function photoFiles(urls) {
+        return (urls || []).filter(u => /^file:/i.test(String(u)) && /\.(png|jpe?g)$/i.test(String(u))).slice(0,20)
     }
     function dragEnd() {
         const from = dragFrom, to = dropAt > dragFrom ? dropAt-1 : dropAt
         dragFrom = -1; dropAt = -1
         if (from < 0 || to < 0 || to === from) return
+        rememberStructure()
         textTarget = null; editIndex = -1
         blocks.move(from,to,1); markDirty(); commentTick++
     }
@@ -407,6 +537,62 @@ ApplicationWindow {
         return r.data
     }
     function info(text) { noticeError = false; notice = text }
+    // Undo for what a text field cannot undo by itself: splitting and joining blocks, adding, moving or
+    // removing them, changing their type, indent or look. Each step keeps the page as it was and the caret.
+    // Everything changed during one key press or click is one step. Ctrl+Z reaches it once the block's
+    // own text has nothing left to undo; Ctrl+Y brings it back.
+    property var undoStack: []
+    property var redoStack: []
+    property bool restoring: false
+    property bool structureMarked: false
+    // Lengths of the stacks, for the menu (pushing to a var property notifies nobody).
+    property int undoDepth: 0
+    property int redoDepth: 0
+    function snapshot() {
+        return {blocks: draft(), index: editIndex,
+                caret: textTarget && editIndex >= 0 && textTarget.cursorPosition !== undefined ? textTarget.cursorPosition : -1}
+    }
+    function rememberStructure() {
+        if (loadingPage || restoring || structureMarked || !currentId) return
+        structureMarked = true
+        Qt.callLater(function() { win.structureMarked = false })
+        undoStack.push(snapshot())
+        if (undoStack.length > 80) undoStack.shift()
+        redoStack = []
+        undoDepth = undoStack.length; redoDepth = 0
+    }
+    function restoreStructure(from, to) {
+        if (!from.length || deleted) return false
+        const step = from.pop()
+        to.push(snapshot())
+        undoDepth = undoStack.length; redoDepth = redoStack.length
+        // After the key press that asked for it: the block handling that key is rebuilt too.
+        Qt.callLater(function() {
+            restoring = true
+            textTarget = null; editIndex = -1; slash = null
+            // Blocks the page no longer has (removed and saved since) come back as new blocks.
+            const known = {}
+            for (let i = 0; i < blocks.count; ++i) if (blocks.get(i).key) known[blocks.get(i).key] = true
+            blocks.clear()
+            for (const b of step.blocks) blocks.append(rowOf(Object.assign({}, b, {id: known[b.id] ? b.id : ""})))
+            restoring = false
+            markDirty(); commentTick++
+            if (step.index >= 0 && step.index < blocks.count)
+                Qt.callLater(function() { const row = blockRepeater.itemAt(step.index); if (row) row.focusAt(step.caret) })
+        })
+        return true
+    }
+    function undoStructure() { return restoreStructure(undoStack,redoStack) }
+    function redoStructure() { return restoreStructure(redoStack,undoStack) }
+    // A block of the library as a row of the page model, and back (draft). align, tint (text colour),
+    // fill (background) and frame (photo style) are the block's look; empty means the default.
+    function rowOf(b) {
+        return {key: b.id || "", kind: b.type, body: b.text || "",
+                spans: typeof b.spans === "string" ? b.spans : JSON.stringify(b.spans || []),
+                done: !!b.checked, asset: b.asset || "", photoPercent: b.width_percent || 100, level: b.level || 1,
+                indent: b.indent || 0, icon: b.icon || "", collapsed: !!b.collapsed,
+                align: b.align || "", tint: b.color || "", fill: b.background || "", frame: b.frame || ""}
+    }
     function draft() {
         const data = []
         for (let i = 0; i < blocks.count; ++i) {
@@ -414,11 +600,16 @@ ApplicationWindow {
             const b = {id:r.key, type:r.kind, text:r.body}
             if (b.type !== "image" && r.spans && r.spans !== "[]") b.spans = JSON.parse(r.spans)
             if (b.type === "task") b.checked = r.done
-            if (b.type === "image") { b.asset = r.asset; b.width_percent = r.photoPercent }
+            if (b.type === "image") { b.asset = r.asset; b.width_percent = r.photoPercent; if (r.frame) b.frame = r.frame }
             if (b.type === "heading") b.level = r.level || 1
             if (b.type === "callout") b.icon = r.icon || "💡"
             if (b.type === "toggle") b.collapsed = !!r.collapsed
             if (b.type === "divider") { b.text = ""; delete b.spans }
+            else {
+                if (r.align && (b.type !== "image" || r.align !== "justify")) b.align = r.align
+                if (b.type !== "image" && r.tint) b.color = r.tint
+                if (b.type !== "image" && r.fill) b.background = r.fill
+            }
             if (r.indent > 0) b.indent = r.indent
             data.push(b)
         }
@@ -441,6 +632,8 @@ ApplicationWindow {
         return true
     }
     function showPage(id) {
+        // Reloading the page you are on (after a save, say) keeps its undo history.
+        const samePage = !!id && id === currentId
         const p = id ? call("page",{id:id}) : null
         if (id && !p) return
         textTarget = null; editIndex = -1; loadingPage = true
@@ -451,10 +644,10 @@ ApplicationWindow {
         dirty = false; conflict = false
         titleInput.text = p ? p.title : ""
         pageIcon = p && p.icon ? p.icon : ""; pageCover = p && p.cover ? p.cover : ""
+        pageFont = p && p.font ? p.font : "sans"; pageSmall = !!(p && p.small_text); pageWide = !!(p && p.full_width)
         blocks.clear()
-        if (p) for (const b of p.blocks) blocks.append({key:b.id,kind:b.type,body:b.text,spans:JSON.stringify(b.spans || []),
-            done:!!b.checked,asset:b.asset || "",photoPercent:b.width_percent || 100,level:b.level || 1,indent:b.indent || 0,
-            icon:b.icon || "",collapsed:!!b.collapsed})
+        if (p) for (const b of p.blocks) blocks.append(rowOf(b))
+        if (!samePage) { undoStack = []; redoStack = []; undoDepth = 0; redoDepth = 0 }
         loadingPage = false
         const parent = p && pages.find(x => x.id === p.parent_id)
         location = deleted ? "Papelera" : parent ? parent.title : "Biblioteca"
@@ -531,7 +724,8 @@ ApplicationWindow {
         return true
     }
     function add(kind) {
-        blocks.append({key:"",kind:kind,body:"",spans:"[]",done:false,asset:"",photoPercent:100,level:1,indent:0,icon:"",collapsed:false}); markDirty()
+        rememberStructure()
+        blocks.append(rowOf({type: kind})); markDirty()
         Qt.callLater(function() {
             const row = blockRepeater.itemAt(blocks.count-1)
             if (row) row.focusEditor()
@@ -546,6 +740,8 @@ ApplicationWindow {
     }
     Component.onCompleted: {
         initialized = true; poll()
+        const saved = call("templates")
+        if (saved) userTemplates = saved.templates
         if (navigationRows.length) showPage(navigationRows[0].page.id)
     }
     onActiveChanged: if (active && initialized) {
@@ -558,6 +754,7 @@ ApplicationWindow {
     Timer { interval: 1000; repeat: true; running: win.active && win.initialized; onTriggered: win.poll() }
     Shortcut { sequence: StandardKey.Find; onActivated: win.focusSearch() }
     Shortcut { sequence: "F1"; onActivated: win.openHelp() }
+    function openAsk() { if (flush()) workspaceTabs.currentIndex = 3 }
     RowLayout {
         anchors.fill: parent; spacing: 0
         Rectangle {
@@ -591,6 +788,9 @@ ApplicationWindow {
                 UiButton { Layout.topMargin: 12; Layout.leftMargin: 9
                     alignLeft: true; quiet: win.settingsShown || !!win.currentId || win.trashMode; symbol: "home"; text: "Inicio"
                     onClicked: win.browseTrash(false) }
+                UiButton { objectName: "askEntry"; Layout.leftMargin: 9
+                    alignLeft: true; quiet: workspaceTabs.currentIndex !== 3; symbol: "sparkles"; text: "Preguntar a Lunqio"
+                    hint: "Preguntar sobre tus notas (Ctrl+Shift+P)"; onClicked: win.openAsk() }
                 ListView {
                     id: navList; Layout.fillWidth: true; Layout.fillHeight: true; Layout.leftMargin: 8; Layout.rightMargin: 8; Layout.topMargin: 4
                     clip: true; spacing: 2; model: win.pagesExpanded ? win.navigationRows : []
@@ -719,6 +919,7 @@ ApplicationWindow {
                 WorkspaceTab { text: "Editor"; objectName: "editorTab" }
                 WorkspaceTab { text: "Conectores"; objectName: "connectorsTab"; Accessible.name: "Conectores MCP" }
                 WorkspaceTab { text: "Uso"; objectName: "usageTab"; Accessible.name: "Uso de tokens de IA" }
+                WorkspaceTab { text: "Preguntar"; objectName: "askTab"; Accessible.name: "Preguntar a Lunqio sobre tus notas" }
                 onCurrentIndexChanged: if (currentIndex === 0 && win.resumeWriting) {
                     win.resumeWriting = false
                     if (writing.selection.id === win.currentId && writing.selection.expected_revision === win.revision) writing.open()
@@ -728,6 +929,7 @@ ApplicationWindow {
             ConnectorsPage { visible: workspaceTabs.currentIndex === 1; Layout.fillWidth: true; Layout.fillHeight: true
                 assistant: win.assistant; onChooseCodex: cliDialog.open(); onChooseClaude: claudeDialog.open() }
             UsagePage { objectName: "usagePage"; visible: workspaceTabs.currentIndex === 2; Layout.fillWidth: true; Layout.fillHeight: true; assistant: win.assistant }
+            AskPage { id: askPage; objectName: "askPage"; visible: workspaceTabs.currentIndex === 3; Layout.fillWidth: true; Layout.fillHeight: true; assistant: win.assistant; workspace: win }
             RowLayout {
                 visible: !win.settingsShown
                 Layout.fillWidth: true; Layout.preferredHeight: 48; Layout.leftMargin: 18; Layout.rightMargin: 14; spacing: 8
@@ -750,6 +952,16 @@ ApplicationWindow {
                     onClicked: pageMenu.popup()
                     Menu { id: pageMenu
                         MenuItem { text: win.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"; onTriggered: win.setFavorite(win.currentId,!win.isFavorite) }
+                        Menu {
+                            title: "Fuente"
+                            MenuItem { text: "Predeterminada"; checkable: true; checked: win.pageFont === "sans"; onTriggered: win.setPageLook("font","sans") }
+                            MenuItem { text: "Serif"; checkable: true; checked: win.pageFont === "serif"; onTriggered: win.setPageLook("font","serif") }
+                            MenuItem { text: "Mono"; checkable: true; checked: win.pageFont === "mono"; onTriggered: win.setPageLook("font","mono") }
+                        }
+                        MenuItem { text: "Texto pequeño"; checkable: true; checked: win.pageSmall; onTriggered: win.setPageLook("small_text",!win.pageSmall) }
+                        MenuItem { text: "Ancho completo"; checkable: true; checked: win.pageWide; onTriggered: win.setPageLook("full_width",!win.pageWide) }
+                        MenuItem { text: "Guardar como plantilla…"; onTriggered: { templateName.text = titleInput.text; templateDialog.open() } }
+                        MenuSeparator {}
                         MenuItem { text: "Nueva subpágina"; onTriggered: win.newPage(win.currentId) }
                         MenuItem { text: "Mover página…"; onTriggered: if (win.flush()) moveDialog.open() }
                         MenuItem { text: "Historial de revisiones…"; onTriggered: win.openHistory() }
@@ -806,7 +1018,7 @@ ApplicationWindow {
                     id: pageColumn
                     y: win.pageCover ? (win.pageIcon ? 156 : 200) : 0
                     x: pageScroll.withRail && pageScroll.railFits ? Math.round((pageScroll.availableWidth-width-332)/2) : Math.round((pageScroll.availableWidth-width)/2)
-                    width: Math.min(780, pageScroll.availableWidth-pageScroll.gutter-(pageScroll.withRail && pageScroll.railFits ? 332 : 0))
+                    width: Math.min(win.pageWide ? 1600 : 780, pageScroll.availableWidth-pageScroll.gutter-(pageScroll.withRail && pageScroll.railFits ? 332 : 0))
                     spacing: 9
                     onHeightChanged: rail.schedule()
                     onWidthChanged: rail.schedule()
@@ -815,7 +1027,7 @@ ApplicationWindow {
                     Label { visible: win.location !== "Biblioteca" && !win.deleted; text: win.location; color: Theme.muted; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
                     TextArea {
                         id: titleInput; objectName: "titleInput"; Layout.fillWidth: true
-                        wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText; font.pixelSize: win.width >= 1150 ? 38 : 32; font.weight: Font.DemiBold
+                        wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText; font.pixelSize: (win.width >= 1150 ? 38 : 32)-(win.pageSmall ? 4 : 0); font.weight: Font.DemiBold; font.family: win.pageFamily
                         color: Theme.text; padding: 0; bottomPadding: 12; background: Item {}
                         placeholderText: "Sin título"; Accessible.name: "Título de la página"; placeholderTextColor: Theme.faint
                         selectByMouse: true; readOnly: win.deleted; persistentSelection: true
@@ -828,6 +1040,13 @@ ApplicationWindow {
                             if (blocks.count) blockRepeater.itemAt(0).focusEditor()
                             else win.add("paragraph")
                         }
+                    }
+                    TemplateStrip {
+                        objectName: "templateStrip"; Layout.fillWidth: true; Layout.bottomMargin: 8
+                        visible: win.pageEmpty
+                        saved: win.userTemplates
+                        onChosen: function(page) { win.applyTemplate(page) }
+                        onRemoveRequested: function(id) { win.removeTemplate(id) }
                     }
                     // Backlinks: pages that mention this one (as in Notion, under the title).
                     ColumnLayout {
@@ -889,6 +1108,9 @@ ApplicationWindow {
                             onMentionTyped: function(start, marker) { win.openMention(index,start,marker) }
                             onOpenPage: function(id) { win.selectPage(id) }
                             pastePhoto: function() { return win.pastePhoto(index) }
+                            undoStructure: function() { return win.undoStructure() }
+                            escapeKey: function() { if (!bubble.paletteOpen) return false; bubble.closePalette(); return true }
+                            redoStructure: function() { return win.redoStructure() }
                             onSlashKey: function(key) { win.slashKey(key) }
                             onAddBelow: win.addBlockBelow(index)
                             onDragStarted: { win.dragFrom = index; win.dropAt = -1 }
@@ -896,9 +1118,12 @@ ApplicationWindow {
                             onDragFinished: win.dragEnd()
                             onCheck: function(value) { blocks.setProperty(index,"done",value); win.markDirty() }
                             onResizePhoto: function(value) { blocks.setProperty(index,"photoPercent",value); win.markDirty() }
-                            onShift: function(offset) { blocks.move(index,index+offset,1); win.editIndex = -1; win.markDirty() }
-                            onRemoveRow: { win.editIndex = -1; blocks.remove(index); win.markDirty() }
+                            onShift: function(offset) { win.rememberStructure(); blocks.move(index,index+offset,1); win.editIndex = -1; win.markDirty() }
+                            onRemoveRow: { win.rememberStructure(); win.editIndex = -1; blocks.remove(index); win.markDirty() }
                             onChangeKind: function(value) { win.setKind(index,value) }
+                            onLookRequested: function(role, value) { win.setBlockLook(index,role,value) }
+                            onPhotoAction: function(name) { win.photoAction(index,name) }
+                            pageFont: win.pageFont; smallText: win.pageSmall
                         }
                     }
                     UiButton { visible: win.deleted; primary: true; text: "Restaurar página"; onClicked: if (win.action("restore_page")) { win.trashMode = false; win.refreshNavigation() } }
@@ -953,7 +1178,7 @@ ApplicationWindow {
         onAiRequested: function(instruction) { win.openWriting(instruction) }
         onCommentRequested: win.startCommentDraft()
     }
-    Shortcut { sequence: "Escape"; enabled: bubble.shown && !bubble.menuOpen; onActivated: bubble.dismiss() }
+    Shortcut { sequence: "Escape"; enabled: bubble.shown && (!bubble.menuOpen || bubble.paletteOpen); onActivated: bubble.paletteOpen ? bubble.closePalette() : bubble.dismiss() }
     Shortcut { sequence: "Ctrl+J"; enabled: !win.settingsShown && !!win.currentId && !win.deleted; onActivated: win.openComposer(-2) }
     Shortcut {
         sequence: "Escape"; enabled: composer.visible && !bubble.shown
@@ -991,9 +1216,29 @@ ApplicationWindow {
     }
     Rectangle {
         objectName: "dropLine"
-        visible: win.dragFrom >= 0 && win.dropAt >= 0
+        visible: (win.dragFrom >= 0 && win.dropAt >= 0) || win.photoDropAt >= 0
         x: win.dropX; y: win.dropY
         width: pageColumn.width; height: 3; radius: 1.5; color: Theme.accent; z: 30
+    }
+    // PNG or JPEG files dragged from the Explorer become photos where the line shows.
+    DropArea {
+        objectName: "photoDrop"
+        anchors.fill: parent; z: 40
+        enabled: !win.settingsShown && !!win.currentId && !win.deleted
+        onEntered: function(drag) {
+            if (!win.photoFiles(drag.urls).length) { drag.accepted = false; return }
+            drag.accept(Qt.CopyAction)
+            win.photoDropAt = win.placeLine(mapToItem(null,drag.x,drag.y).y)
+        }
+        onPositionChanged: function(drag) { if (win.photoDropAt >= 0) win.photoDropAt = win.placeLine(mapToItem(null,drag.x,drag.y).y) }
+        onExited: win.photoDropAt = -1
+        onDropped: function(drop) {
+            const files = win.photoFiles(drop.urls), at = win.placeLine(mapToItem(null,drop.x,drop.y).y)
+            win.photoDropAt = -1
+            if (!files.length) return
+            drop.accept(Qt.CopyAction)
+            win.insertPhotoFiles(files,at,true)
+        }
     }
     AiComposer {
         id: composer; objectName: "aiComposer"
@@ -1043,6 +1288,16 @@ ApplicationWindow {
             TextField { id: authorField; Layout.fillWidth: true; maximumLength: 80; selectByMouse: true; onAccepted: authorDialog.accept() }
         }
     }
+    Dialog {
+        id: templateDialog; objectName: "templateDialog"; title: "Guardar como plantilla"; modal: true; anchors.centerIn: parent; width: 400
+        standardButtons: Dialog.Save | Dialog.Cancel
+        onAccepted: if (templateName.text.trim()) win.saveTemplate(templateName.text)
+        contentItem: ColumnLayout {
+            spacing: 8
+            Label { text: "Guarda el título, el aspecto y los bloques de esta página (sin comentarios). Aparecerá en las páginas vacías."; color: Theme.secondary; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            TextField { id: templateName; objectName: "templateName"; Layout.fillWidth: true; maximumLength: 80; selectByMouse: true; placeholderText: "Nombre de la plantilla"; onAccepted: templateDialog.accept() }
+        }
+    }
     Dialog { id: aboutDialog; title: "Acerca de Lunqio"; modal: true; anchors.centerIn: parent; width: 390; implicitWidth: 390; standardButtons: Dialog.Close
         contentItem: Label { text: "Lunqio 0.4.0\nEditor local de páginas, fotos y tareas para Windows."; padding: 6; lineHeight: 1.4 }
     }
@@ -1088,8 +1343,45 @@ ApplicationWindow {
     }
     EmojiPicker { id: emojiPicker; objectName: "emojiPicker" }
     Native.FileDialog {
-        id: photoDialog; title: "Insertar foto"; fileMode: Native.FileDialog.OpenFile
-        nameFilters: ["Fotos (*.jpg *.jpeg *.png)"]; onAccepted: win.insertPhoto(selectedFile)
+        id: photoDialog; title: "Insertar fotos"; fileMode: Native.FileDialog.OpenFiles
+        nameFilters: ["Fotos (*.jpg *.jpeg *.png)"]; onAccepted: win.insertPhotoFiles(selectedFiles,win.photoTarget)
+    }
+    Native.FileDialog {
+        id: replaceDialog; title: "Reemplazar foto"; fileMode: Native.FileDialog.OpenFile
+        nameFilters: ["Fotos (*.jpg *.jpeg *.png)"]; onAccepted: win.replacePhoto(selectedFile)
+    }
+    Native.FileDialog {
+        id: savePhotoDialog; title: "Guardar foto"; fileMode: Native.FileDialog.SaveFile
+        nameFilters: ["Imagen (*.png *.jpg)"]
+        onAccepted: if (win.photoIndex >= 0 && win.call("photo_save",{asset: blocks.get(win.photoIndex).asset, url: selectedFile.toString()})) win.info("Foto guardada.")
+    }
+    // A photo at full size over the window; a click, Escape or the close button hides it.
+    Popup {
+        id: photoViewer; objectName: "photoViewer"
+        property string asset: ""
+        property string caption: ""
+        function show(a, c) { asset = a; caption = c; open() }
+        parent: Overlay.overlay; x: 0; y: 0; width: parent ? parent.width : 0; height: parent ? parent.height : 0
+        modal: true; dim: false; padding: 0
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        background: Rectangle { color: "#E6100C0B" }
+        contentItem: Item {
+            TapHandler { onTapped: photoViewer.close() }
+            Image {
+                anchors.fill: parent; anchors.margins: 48; anchors.bottomMargin: photoViewer.caption ? 84 : 48
+                source: photoViewer.asset ? backend.photoUrl(photoViewer.asset) : ""
+                fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true; asynchronous: true
+            }
+            Label {
+                visible: !!photoViewer.caption; text: photoViewer.caption; color: "#FBF1E0"; font.pixelSize: 15
+                anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 36
+                width: Math.min(implicitWidth,parent.width-96); elide: Text.ElideRight
+            }
+            UiButton {
+                anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14
+                symbol: "close"; symbolColor: "#FBF1E0"; quiet: true; hint: "Cerrar (Esc)"; onClicked: photoViewer.close()
+            }
+        }
     }
     Native.FileDialog {
         id: fileDialog; fileMode: Native.FileDialog.SaveFile

@@ -21,6 +21,10 @@ public:
     QJsonArray recent(int limit);
     void setFavorite(const QString &id, bool on, int index = -1);
     void visit(const QString &id);
+    QJsonArray notesFor(const QString &question, const QString &current, int limit = 6);
+    QJsonArray templates();
+    void saveTemplate(const QString &pageId, const QString &name);
+    void removeTemplate(const QString &id);
     qint64 generation();
     QJsonObject saveDraft(const QString &id, int expected, const QString &title, QJsonArray blocks);
     QJsonObject restoreRevision(const QString &id, int expected, int target);
@@ -40,5 +44,7 @@ private:
     QJsonObject read(const QString &name, const QJsonObject &args);
     void checkParent(const QString &id, const QJsonValue &parent);
     void assignParent(QJsonObject &page, const QJsonValue &parent);
+    void refold();
+    void renameMentions(const QString &id, const QString &before, const QString &after, const QString &actor);
 };
 }

@@ -1,7 +1,9 @@
 #include "svgglyph.h"
 #include <QFile>
 #include <QHash>
+#include <QImageReader>
 #include <QPainter>
+#include <QPainterPath>
 #include <QSvgRenderer>
 #include <QtQml>
 #include <memory>
@@ -40,7 +42,50 @@ SvgGlyph::SvgGlyph(QQuickItem *parent) : QQuickPaintedItem(parent) {
     setFlag(ItemHasContents,true);
     connect(this,&SvgGlyph::changed,this,[this] { update(); });
 }
-void SvgGlyph::registerType() { qmlRegisterType<SvgGlyph>("Lunqio",1,0,"SvgGlyph"); }
+// Registers Lunqio's painted items: the symbols and the photos.
+void SvgGlyph::registerType() {
+    qmlRegisterType<SvgGlyph>("Lunqio",1,0,"SvgGlyph");
+    qmlRegisterType<PhotoView>("Lunqio",1,0,"PhotoView");
+}
+PhotoView::PhotoView(QQuickItem *parent) : QQuickPaintedItem(parent) {
+    setAntialiasing(true);
+    setFlag(ItemHasContents,true);
+}
+void PhotoView::setSource(const QUrl &value) {
+    if (value == url) return;
+    url = value;
+    picture = {};
+    state = 0;
+    if (!url.isEmpty()) {
+        // Photos are local files of the library's cache; a 1440 px copy is plenty for the page.
+        QImageReader reader(url.toLocalFile());
+        reader.setAutoTransform(true);
+        const QSize size = reader.size();
+        if (size.width() > 1440) reader.setScaledSize(QSize(1440,qMax(1,size.height()*1440/size.width())));
+        picture = reader.read();
+        state = picture.isNull() ? 3 : 1;
+    }
+    setImplicitSize(picture.isNull() ? 0 : picture.width(),picture.isNull() ? 0 : picture.height());
+    emit sourceChanged();
+    update();
+}
+void PhotoView::setRadius(qreal value) {
+    if (qFuzzyCompare(value+1,corner+1)) return;
+    corner = value;
+    emit radiusChanged();
+    update();
+}
+void PhotoView::paint(QPainter *painter) {
+    if (picture.isNull() || width() <= 0 || height() <= 0) return;
+    painter->setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
+    const QRectF area(0,0,width(),height());
+    if (corner > 0) {
+        QPainterPath shape;
+        shape.addRoundedRect(area,corner,corner);
+        painter->setClipPath(shape);
+    }
+    painter->drawImage(area,picture);
+}
 bool SvgGlyph::available() const { return !glyph.isEmpty() && !source(glyph).isEmpty(); }
 void SvgGlyph::setName(const QString &value) { if (value != glyph) { glyph = value; emit changed(); } }
 void SvgGlyph::setColor(const QColor &value) { if (value != ink) { ink = value; emit changed(); } }

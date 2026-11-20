@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQml.Models
 import Lunqio
 
 // One block of the page. Like Notion: Enter starts a new block, Backspace at the start joins
@@ -17,6 +18,16 @@ Item {
     required property int indent
     required property string icon
     required property bool collapsed
+    // The block's look: align (left, center, right, justify), tint and fill (palette colours for its text
+    // and background), frame (a photo's style). Empty is the default.
+    required property string align
+    required property string tint
+    required property string fill
+    required property string frame
+    // The page's typography: "sans", "serif" or "mono", and smaller text.
+    property string pageFont: "sans"
+    property bool smallText: false
+    readonly property string family: pageFont === "serif" ? "Georgia" : pageFont === "mono" ? Theme.mono : Theme.family
     required property int index
     required property int total
     required property bool editable
@@ -30,6 +41,10 @@ Item {
     property bool lifted: false
     property string tip: ""
     readonly property bool boxed: kind === "callout" || kind === "code"
+    // Callouts and code sit on a panel; any text block with a background colour too, with less padding.
+    readonly property bool panel: boxed || (!!fill && kind !== "image" && kind !== "divider")
+    readonly property int padX: boxed ? 14 : panel ? 8 : 0
+    readonly property int padY: boxed ? 10 : panel ? 3 : 0
     readonly property bool textual: kind !== "image" && kind !== "divider"
     signal editContent(string value, string styles)
     signal check(bool value)
@@ -56,9 +71,16 @@ Item {
     signal indentRequested(int step)
     signal collapseRequested()
     signal iconRequested(Item anchor)
+    // A change to the look (role is align, tint, fill or frame) and the photo actions.
+    signal lookRequested(string role, string value)
+    signal photoAction(string name)
     // Set by the page: adds the clipboard's photo below this block; false when it holds no photo.
     property var pastePhoto: function() { return false }
-    implicitHeight: content.implicitHeight+(boxed ? 20 : 0)+(kind === "heading" ? [0,14,8,4][level] : 0)
+    property var undoStructure: function() { return false }
+    // Escape in the text: true when the page used it (closing the colour palette, say).
+    property var escapeKey: function() { return false }
+    property var redoStructure: function() { return false }
+    implicitHeight: content.implicitHeight+2*padY+(kind === "heading" ? [0,14,8,4][level] : 0)
     opacity: lifted ? 0.4 : 1
     function focusEditor() { if (kind === "image") photoItem.item.focusCaption(); else if (textual) input.forceActiveFocus() }
     function focusAt(position) {
@@ -137,6 +159,7 @@ Item {
     InlineEditor {
         id: fmt
         scheme: Theme.scheme
+        tones: Theme.tones
         document: input.textDocument
         selectionStart: input.selectionStart
         selectionEnd: input.selectionEnd
@@ -155,7 +178,7 @@ Item {
     }
     Row {
         id: gutter
-        x: content.x-52; y: content.y+(row.kind === "heading" ? [0,10,6,3][row.level] : row.boxed ? 8 : 4)
+        x: content.x-52-row.padX; y: content.y+(row.kind === "heading" ? [0,10,6,3][row.level] : row.boxed ? 8 : 4)-(row.panel && !row.boxed ? 3 : 0)
         spacing: 2
         opacity: row.editable && (hover.hovered || row.toolsOpen || handleDrag.active) ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 90 } }
@@ -177,7 +200,7 @@ Item {
             HoverHandler { id: handleHover; cursorShape: handleDrag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
             ToolTip.visible: handleHover.hovered && !handleDrag.active; ToolTip.delay: 500
             ToolTip.text: "Arrastra para mover · Clic para abrir el menú"
-            TapHandler { enabled: row.editable; onTapped: optionsMenu.popup(handle,0,handle.height) }
+            TapHandler { enabled: row.editable; onTapped: (row.kind === "image" ? photoMenu : optionsMenu).popup(handle,0,handle.height) }
             DragHandler {
                 id: handleDrag
                 target: null; enabled: row.editable; xAxis.enabled: false
@@ -201,6 +224,34 @@ Item {
                     MenuItem { text: "Nota destacada"; onTriggered: row.changeKind("callout") }
                     MenuItem { text: "Código"; onTriggered: row.changeKind("code") }
                 }
+                Menu {
+                    id: tintMenu; title: "Color del texto"; enabled: row.textual
+                    ToneItem { block: row; tone: ""; role: "tint" }
+                    Instantiator {
+                        model: Theme.toneNames
+                        delegate: ToneItem { required property string modelData; block: row; tone: modelData; role: "tint" }
+                        onObjectAdded: function(i, item) { tintMenu.insertItem(i+1,item) }
+                        onObjectRemoved: function(i, item) { tintMenu.removeItem(item) }
+                    }
+                }
+                Menu {
+                    id: fillMenu; title: "Color de fondo"; enabled: row.textual
+                    ToneItem { block: row; tone: ""; role: "fill" }
+                    Instantiator {
+                        model: Theme.toneNames
+                        delegate: ToneItem { required property string modelData; block: row; tone: modelData; role: "fill" }
+                        onObjectAdded: function(i, item) { fillMenu.insertItem(i+1,item) }
+                        onObjectRemoved: function(i, item) { fillMenu.removeItem(item) }
+                    }
+                }
+                Menu {
+                    title: "Alinear"; enabled: row.textual
+                    LookItem { block: row; text: "Izquierda"; role: "align"; value: "" }
+                    LookItem { block: row; text: "Centro"; role: "align"; value: "center" }
+                    LookItem { block: row; text: "Derecha"; role: "align"; value: "right" }
+                    LookItem { block: row; text: "Justificado"; role: "align"; value: "justify" }
+                }
+                MenuSeparator {}
                 MenuItem { text: "Aumentar sangría    Tab"; enabled: row.index > 0; onTriggered: row.indentRequested(1) }
                 MenuItem { text: "Reducir sangría    Mayús+Tab"; enabled: row.indent > 0; onTriggered: row.indentRequested(-1) }
                 MenuSeparator {}
@@ -209,21 +260,87 @@ Item {
                 MenuSeparator {}
                 MenuItem { text: "Eliminar bloque"; onTriggered: row.removeRow() }
             }
+            // Photos: where they sit, their style and size, and what to do with the picture.
+            Menu {
+                id: photoMenu
+                Menu {
+                    title: "Alinear"
+                    LookItem { block: row; text: "Izquierda"; role: "align"; value: "" }
+                    LookItem { block: row; text: "Centro"; role: "align"; value: "center" }
+                    LookItem { block: row; text: "Derecha"; role: "align"; value: "right" }
+                }
+                Menu {
+                    title: "Estilo"
+                    LookItem { block: row; text: "Normal"; role: "frame"; value: "" }
+                    LookItem { block: row; text: "Esquinas redondeadas"; role: "frame"; value: "rounded" }
+                    LookItem { block: row; text: "Con borde"; role: "frame"; value: "border" }
+                    LookItem { block: row; text: "Con sombra"; role: "frame"; value: "shadow" }
+                }
+                Menu {
+                    title: "Ancho"
+                    MenuItem { text: "Pequeña (25 %)"; checkable: true; checked: row.photoPercent === 25; onTriggered: row.resizePhoto(25) }
+                    MenuItem { text: "Mediana (50 %)"; checkable: true; checked: row.photoPercent === 50; onTriggered: row.resizePhoto(50) }
+                    MenuItem { text: "Grande (75 %)"; checkable: true; checked: row.photoPercent === 75; onTriggered: row.resizePhoto(75) }
+                    MenuItem { text: "Columna completa"; checkable: true; checked: row.photoPercent === 100; onTriggered: row.resizePhoto(100) }
+                }
+                MenuSeparator {}
+                MenuItem { text: "Ver a tamaño completo"; onTriggered: row.photoAction("view") }
+                MenuItem { text: "Reemplazar foto…"; onTriggered: row.photoAction("replace") }
+                MenuItem { text: "Guardar foto como…"; onTriggered: row.photoAction("save") }
+                MenuItem { text: "Copiar imagen"; onTriggered: row.photoAction("copy") }
+                MenuSeparator {}
+                MenuItem { text: "Subir"; enabled: row.index > 0; onTriggered: row.shift(-1) }
+                MenuItem { text: "Bajar"; enabled: row.index + 1 < row.total; onTriggered: row.shift(1) }
+                MenuItem { text: "Eliminar foto"; onTriggered: row.removeRow() }
+            }
+        }
+    }
+    // A menu choice for one value of the look; checked while the block has it.
+    component LookItem: MenuItem {
+        required property Item block
+        required property string role
+        required property string value
+        checkable: true; checked: block[role] === value
+        onTriggered: block.lookRequested(role,value)
+    }
+    // A palette colour, shown as a coloured "A" (text) or a swatch (background).
+    component ToneItem: MenuItem {
+        required property Item block
+        id: toneItem
+        required property string tone
+        required property string role
+        text: tone ? Theme.toneLabels[tone] : (role === "tint" ? "Predeterminado" : "Sin fondo")
+        checkable: true; checked: block[role] === tone
+        onTriggered: block.lookRequested(role,tone)
+        contentItem: RowLayout {
+            spacing: 10
+            Rectangle {
+                implicitWidth: 20; implicitHeight: 20; radius: 4
+                color: toneItem.role === "fill" && toneItem.tone ? Theme.tones[toneItem.tone][1] : "transparent"
+                border.color: Theme.line
+                Text {
+                    anchors.centerIn: parent; visible: toneItem.role === "tint"; text: "A"; font.pixelSize: 13; font.weight: Font.DemiBold
+                    color: toneItem.tone ? Theme.tones[toneItem.tone][0] : Theme.text
+                }
+            }
+            Text { text: toneItem.text; color: Theme.text; font.pixelSize: 14; Layout.fillWidth: true }
+            Glyph { visible: toneItem.checked; name: "check"; font.pixelSize: 12; color: Theme.accent }
         }
     }
 
-    // Callouts and code sit on a soft panel.
+    // Callouts and code sit on a soft panel; a background colour paints the block's own.
     Rectangle {
-        visible: row.boxed
+        visible: row.panel
         x: row.indent*26; width: parent.width-x; height: parent.height
-        radius: Theme.radiusButton; color: row.kind === "code" ? Theme.base : Theme.surface
-        border.color: row.kind === "code" ? Theme.raised : Theme.hover
+        radius: row.boxed ? Theme.radiusButton : 4
+        color: row.fill && Theme.tones[row.fill] ? Theme.tones[row.fill][1] : row.kind === "code" ? Theme.base : Theme.surface
+        border.color: row.fill ? "transparent" : row.kind === "code" ? Theme.raised : Theme.hover
     }
     RowLayout {
         id: content
-        x: row.indent*26+(row.boxed ? 14 : 0)
-        y: (row.boxed ? 10 : 0)+(row.kind === "heading" ? [0,14,8,4][row.level] : 0)
-        width: parent.width-x-(row.boxed ? 14 : 0)
+        x: row.indent*26+row.padX
+        y: row.padY+(row.kind === "heading" ? [0,14,8,4][row.level] : 0)
+        width: parent.width-x-row.padX
         spacing: 4
         CheckBox {
             id: taskCheck
@@ -286,6 +403,8 @@ Item {
             id: photoItem; active: row.kind === "image"; visible: active; Layout.fillWidth: true
             sourceComponent: PhotoBlock {
                 asset: row.asset; caption: row.body; percent: row.photoPercent; editable: row.editable
+                align: row.align; frame: row.frame
+                onViewRequested: row.photoAction("view")
                 onResized: function(v) { row.resizePhoto(v) }
                 onCaptionEdited: function(s) { row.editContent(s,"[]") }
                 onFocused: function(field) { row.editing(field,-1) }
@@ -304,11 +423,13 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: Math.max(31,contentHeight+topPadding+bottomPadding)
             leftPadding: 0; rightPadding: 0; topPadding: 3; bottomPadding: 4
-            font.family: row.kind === "code" ? Theme.mono : Theme.family
-            font.pixelSize: row.kind === "heading" ? [24,28,22,18][row.level] : row.kind === "code" ? 14 : 16
+            font.family: row.kind === "code" ? Theme.mono : row.family
+            font.pixelSize: row.kind === "heading" ? (row.smallText ? [21,25,19,16] : [24,28,22,18])[row.level]
+                            : row.kind === "code" ? (row.smallText ? 13 : 14) : row.smallText ? 14 : 16
+            horizontalAlignment: ({center: TextEdit.AlignHCenter, right: TextEdit.AlignRight, justify: TextEdit.AlignJustify})[row.align] || TextEdit.AlignLeft
             font.weight: row.kind === "heading" ? Font.DemiBold : Font.Normal
             font.strikeout: row.kind === "task" && row.done
-            color: row.done ? Theme.muted : row.kind === "code" ? Theme.textSoft : Theme.text
+            color: row.done ? Theme.muted : row.tint && Theme.tones[row.tint] ? Theme.tones[row.tint][0] : row.kind === "code" ? Theme.textSoft : Theme.text
             selectionColor: Theme.selection; selectedTextColor: Theme.text
             placeholderTextColor: Theme.faint
             placeholderText: row.kind === "paragraph" && activeFocus && row.editable ? "Escribe, pulsa «/» para bloques o Espacio para la IA…"
@@ -328,7 +449,11 @@ Item {
                     event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) event.accepted = true
             }
             Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Escape && row.escapeKey()) { event.accepted = true; return }
                 if (event.matches(StandardKey.Paste) && row.editable && row.pastePhoto()) { event.accepted = true; return }
+                // Once this block's text has nothing left to undo, Ctrl+Z undoes the last change to the blocks.
+                if (event.matches(StandardKey.Undo) && !input.canUndo && row.undoStructure()) { event.accepted = true; return }
+                if (event.matches(StandardKey.Redo) && !input.canRedo && row.redoStructure()) { event.accepted = true; return }
                 if (row.blockKey(event) || row.formatKey(event,true)) { event.accepted = true; return }
                 // After the character lands: "/" opens the block menu; "---" makes a divider;
                 // closing marks turn Markdown into styles.

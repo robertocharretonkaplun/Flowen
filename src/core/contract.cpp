@@ -30,16 +30,22 @@ static const Obj &catalog() {
         Obj message = object({{"author",string(80)},{"at",string(40)},{"text",string(1024,1)}},{"author","at","text"});
         Obj thread = object({{"id",string(64,1)},{"author",string(80)},{"at",string(40)},{"resolved",Obj{{"type","boolean"}}},
             {"replies",array(message,50)}},{"id"});
+        // Colours are names from one palette, so each theme draws them in its own tones.
+        Obj color{{"enum",Arr{"gray","brown","orange","yellow","green","blue","purple","pink","red"}}};
         Obj span = object({{"start",number(0,16384)},{"end",number(1,16384)},{"style",number(0,127)},
-            {"link",string(2048,1)},{"comment",string(1024,1)},{"thread",thread}},{"start","end","style"});
+            {"link",string(2048,1)},{"comment",string(1024,1)},{"thread",thread},{"color",color},{"background",color}},
+            {"start","end","style"});
         // level: heading size 1-3. indent: nesting under the block above (toggles hide what they contain).
-        // icon: a callout's emoji. collapsed: whether a toggle is closed.
+        // icon: a callout's emoji. collapsed: whether a toggle is closed. align, color and background: the block's look.
         Obj textBlock = object({{"type",type},{"text",string(8192)},{"spans",array(span,8192)},{"checked",flag},
-            {"level",number(1,3)},{"indent",number(0,6)},{"icon",string(16,1)},{"collapsed",flag}},{"type","text"});
+            {"level",number(1,3)},{"indent",number(0,6)},{"icon",string(16,1)},{"collapsed",flag},
+            {"align",Obj{{"enum",Arr{"left","center","right","justify"}}}},{"color",color},{"background",color}},{"type","text"});
         Obj asset = string(64,64);
         asset["pattern"] = "^[a-f0-9]{64}$";
+        // align places a narrower photo; frame: rounded corners, a border or a shadow.
         Obj photo = object({{"type",Obj{{"enum",Arr{"image"}}}},{"asset",asset},{"text",string(8192)},
-            {"width_percent",number(10,100)},{"indent",number(0,6)}},{"type","asset","text","width_percent"});
+            {"width_percent",number(10,100)},{"indent",number(0,6)},{"align",Obj{{"enum",Arr{"left","center","right"}}}},
+            {"frame",Obj{{"enum",Arr{"rounded","border","shadow"}}}}},{"type","asset","text","width_percent"});
         // Page look: an emoji icon and a cover ("gradient:<name>" or "photo:<asset>"); null removes them.
         Obj icon{{"anyOf",Arr{string(16,1),Obj{{"type","null"}}}}};
         Obj coverText = string(80,1);
@@ -54,11 +60,16 @@ static const Obj &catalog() {
         list["trashed"] = Obj{{"type","boolean"}};
         search["query"] = string(240,1);
         get["id"] = id;
+        // Page typography: the font of the text, smaller text and the full width of the window.
+        Obj font{{"enum",Arr{"sans","serif","mono"}}};
         Obj update = write, changes = write;
         update["title"] = string(240,1);
         update["parent_id"] = parent;
         update["icon"] = icon;
         update["cover"] = cover;
+        update["font"] = font;
+        update["small_text"] = flag;
+        update["full_width"] = flag;
         Obj index = number(0,511);
         auto operation = [&](QString kind, Obj fields, Arr required) {
             fields["op"] = Obj{{"enum",Arr{kind}}};
@@ -81,12 +92,15 @@ static const Obj &catalog() {
         add("search_notes","Search active titles and text. Results include a short matching excerpt.",object(search,{"query"}),true);
         add("get_page","Read page metadata and a slice of ordered blocks.",object(get,{"id"}),true);
         add("create_page","Create a page. Omit parent_id for root. Reuse operation_key on retries. Blocks: heading (level 1-3), "
-            "paragraph, list, numbered, task (checked), quote, callout (icon emoji), code, toggle (collapsed), divider; indent nests a block under the one above.",
-            object({{"title",string(240,1)},{"parent_id",parent},{"icon",icon},{"cover",cover},{"blocks",array(block,128)},
-                    {"operation_key",string(128,1)}},{"title"}),false);
+            "paragraph, list, numbered, task (checked), quote, callout (icon emoji), code, toggle (collapsed), divider; indent nests a block under the one above. "
+            "Text blocks may set align (left, center, right, justify), color and background; spans may set color and background "
+            "(gray, brown, orange, yellow, green, blue, purple, pink, red). Images may set align and frame (rounded, border, shadow).",
+            object({{"title",string(240,1)},{"parent_id",parent},{"icon",icon},{"cover",cover},{"font",font},{"small_text",flag},
+                    {"full_width",flag},{"blocks",array(block,128)},{"operation_key",string(128,1)}},{"title"}),false);
         Arr expected{"id","expected_revision"};
         add("update_page","Rename, move or restyle a page. Set parent_id to null to move to root; icon is an emoji, cover is "
-            "gradient:<name> or photo:<asset>, null removes either.",object(update,expected),false,true);
+            "gradient:<name> or photo:<asset>, null removes either; font is sans, serif or mono; small_text and full_width "
+            "change the text size and the page width.",object(update,expected),false,true);
         add("apply_block_changes","Apply ordered changes atomically. Indices start at zero. Insert appends by default. Update replaces a block while retaining its ID.",
             object(changes,{"id","expected_revision","changes"}),false,true);
         add("trash_page","Move a page and its active descendants to trash.",object(write,expected),false,true);

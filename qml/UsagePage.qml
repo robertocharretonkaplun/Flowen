@@ -84,7 +84,7 @@ ScrollView {
         Label { text: "Uso"; font.pixelSize: 30; font.weight: Font.Bold; color: Theme.text }
         Detail {
             Layout.topMargin: 6; Layout.maximumWidth: 640; font.pixelSize: 14
-            text: "Tokens que consumen «Crear con IA» y «Editar con IA» en este equipo, según los informa cada asistente."
+            text: "Tokens que consumen «Crear con IA», «Editar con IA» y «Preguntar a Lunqio» en este equipo, según los informa cada asistente."
         }
 
         GridLayout {
@@ -194,7 +194,7 @@ ScrollView {
                     }
                     Label {
                         Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.secondary; font.pixelSize: 13
-                        text: (page.last.kind === "create" ? "Crear con IA" : "Editar con IA") + ", " + page.when(page.last.at)
+                        text: (({create: "Crear con IA", ask: "Preguntar a Lunqio"})[page.last.kind] || "Editar con IA") + ", " + page.when(page.last.at)
                               + (page.last.ms ? " · " + (page.last.ms/1000).toLocaleString(Qt.locale(),'f',1) + " s" : "")
                               + (page.last.ok === false ? " · sin resultado" : "")
                     }
@@ -357,7 +357,7 @@ ScrollView {
                                 Rectangle { width: 8; height: 8; radius: 4; color: page.engineColor[entry.modelData.engine] || Theme.muted }
                                 Cell { text: entry.modelData.engine === "claude" ? "Claude" : "Codex" }
                             }
-                            Cell { text: (entry.modelData.kind === "create" ? "Crear" : "Editar") + (entry.modelData.ok === false ? " · sin resultado" : "") }
+                            Cell { text: (({create: "Crear", ask: "Preguntar"})[entry.modelData.kind] || "Editar") + (entry.modelData.ok === false ? " · sin resultado" : "") }
                             Cell { number: true; text: page.tokens((entry.modelData.input || 0)+(entry.modelData.cacheRead || 0)+(entry.modelData.cacheWrite || 0)) }
                             Cell { number: true; text: page.tokens(entry.modelData.output) }
                             Cell { number: true; text: page.tokens(entry.modelData.total); color: Theme.text; font.weight: Font.DemiBold }

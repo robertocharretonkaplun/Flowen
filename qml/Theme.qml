@@ -68,6 +68,18 @@ QtObject {
     readonly property color shadow: pick("#38000000", "#142C1312", "#14000000", "#38000000")
     readonly property color shadowSoft: pick("#1c000000", "#082C1312", "#08000000", "#1c000000")
 
+    // The palette for coloured text and backgrounds, by name (as the library stores it): [text, background].
+    readonly property var toneNames: ["gray","brown","orange","yellow","green","blue","purple","pink","red"]
+    readonly property var toneLabels: ({gray: "Gris", brown: "Marrón", orange: "Naranja", yellow: "Amarillo", green: "Verde",
+                                        blue: "Azul", purple: "Morado", pink: "Rosa", red: "Rojo"})
+    readonly property var tones: dark
+        ? ({gray: ["#A3A09B","#353331"], brown: ["#C59A7E","#45332A"], orange: ["#E0915A","#4F3623"], yellow: ["#D9B25E","#4A3D22"],
+            green: ["#6FB78A","#243A2D"], blue: ["#79A6DD","#1F3349"], purple: ["#B190E0","#382C4A"], pink: ["#E07AAE","#4A2A3B"],
+            red: ["#EC7A70","#4E2A27"]})
+        : ({gray: ["#787774","#EFEFEC"], brown: ["#9F6B53","#F4EAE4"], orange: ["#C2610C","#FBEADB"], yellow: ["#A9781B","#FBF1D3"],
+            green: ["#3B7A55","#E6F1E8"], blue: ["#2F6FA3","#E3EFF8"], purple: ["#7F55B1","#F0EAF8"], pink: ["#B03D79","#F9E8F0"],
+            red: ["#C4362C","#FCE6E4"]})
+
     // Type and shape.
     readonly property string family: "Segoe UI"
     readonly property string mono: "Consolas"

@@ -1,7 +1,9 @@
 #include "editor.h"
 #include "pagefile.h"
+#include <QBuffer>
 #include <QClipboard>
 #include <QFileInfo>
+#include <QImage>
 #include <QGuiApplication>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -87,6 +89,10 @@ Obj Editor::dispatch(const QString &action, const Obj &a) {
         store.setFavorite(id,a["on"].toBool(),a.contains("index") ? a["index"].toInt() : -1);
         return {{"favorites",store.favorites()}};
     }
+    if (action == "ask_notes") return {{"notes",store.notesFor(a["question"].toString(),id)}};
+    if (action == "templates") return {{"templates",store.templates()}};
+    if (action == "save_template") { store.saveTemplate(id,a["name"].toString()); return {{"templates",store.templates()}}; }
+    if (action == "remove_template") { store.removeTemplate(a["template"].toString()); return {{"templates",store.templates()}}; }
     if (action == "visit") { store.visit(id); return {{"recent",store.recent(8)}}; }
     if (action == "generation") return {{"value",store.generation()}};
     if (action == "history") return {{"rows",store.history(id)}};
@@ -94,6 +100,39 @@ Obj Editor::dispatch(const QString &action, const Obj &a) {
     if (action == "save") return store.saveDraft(id,expected,a["title"].toString(),a["blocks"].toArray());
     if (action == "restore_revision") return store.restoreRevision(id,expected,a["target"].toInt());
     if (action == "insert_photo") return pagefile::insertPhoto(store,id,expected,QUrl(a["url"].toString()).toLocalFile());
+    if (action == "store_photo") {
+        const QString path = QUrl(a["url"].toString()).toLocalFile();
+        return {{"asset",pagefile::storePhoto(store,path)},{"caption",QFileInfo(path).completeBaseName()}};
+    }
+    // A photo of the library saved as a file (in the format its name asks for) or put on the clipboard.
+    if (action == "photo_save" || action == "photo_copy") {
+        QString mime;
+        const QByteArray bytes = store.photo(a["asset"].toString(),mime);
+        QImage image;
+        if (action == "photo_copy") {
+            if (!image.loadFromData(bytes)) throw notes::Error("file_error","No se pudo leer la foto.");
+            QGuiApplication::clipboard()->setImage(image);
+            return {};
+        }
+        QString path = QUrl(a["url"].toString()).toLocalFile();
+        if (path.isEmpty()) throw notes::Error("invalid_argument","Elige un archivo local.");
+        QString suffix = QFileInfo(path).suffix().toLower();
+        const QString own = mime == "image/png" ? "png" : "jpg";
+        if (suffix != "png" && suffix != "jpg" && suffix != "jpeg") { path += "."+own; suffix = own; }
+        QByteArray out = bytes;
+        if ((suffix == "png") != (own == "png")) {
+            if (!image.loadFromData(bytes)) throw notes::Error("file_error","No se pudo leer la foto.");
+            out.clear();
+            QBuffer buffer(&out);
+            buffer.open(QIODevice::WriteOnly);
+            if (!image.save(&buffer,suffix == "png" ? "PNG" : "JPEG",suffix == "png" ? -1 : 94))
+                throw notes::Error("file_error","No se pudo convertir la foto.");
+        }
+        QSaveFile file(path);
+        if (!file.open(QIODevice::WriteOnly) || file.write(out) != out.size() || !file.commit())
+            throw notes::Error("file_error","No se pudo guardar la foto.");
+        return {{"path",path}};
+    }
     if (action == "clipboard_photo") return {{"photos",pagefile::storeClipboardPhotos(store,QGuiApplication::clipboard()->mimeData())}};
     if (action == "cover_photo") {
         const QString asset = pagefile::storePhoto(store,QUrl(a["url"].toString()).toLocalFile());

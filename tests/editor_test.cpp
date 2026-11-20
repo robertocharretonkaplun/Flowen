@@ -133,6 +133,20 @@ private slots:
         QCOMPARE(js("blockRepeater.itemAt(0).formatter.activeLink").toString(),QString("https://ejemplo.com/guia"));
         QVERIFY(field->hasActiveFocus());
         capture("formato");
+        // "Color" opens the palette for the text and its background; the choice stays on the selection.
+        auto *colorRow = visibleItem(window->contentItem(),"bubbleColor");
+        QVERIFY(colorRow);
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,colorRow->mapToScene(colorRow->boundingRect().center()).toPoint());
+        QTRY_VERIFY(js("bubble.menuOpen").toBool());
+        QQuickItem *red = nullptr;
+        QTRY_VERIFY((red = visibleItem(window->contentItem(),"textTone-red")) != nullptr);
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,red->mapToScene(red->boundingRect().center()).toPoint());
+        QTRY_COMPARE(js("blockRepeater.itemAt(0).formatter.activeColor").toString(),QString("red"));
+        QVERIFY(field->hasActiveFocus());
+        capture("color");
+        QTest::keyClick(window,Qt::Key_Escape);
+        QTRY_VERIFY2(!js("bubble.menuOpen").toBool(),qPrintable(js("'shown ' + bubble.shown + ' palette ' + bubble.paletteOpen + ' focus ' + (activeFocusItem ? activeFocusItem.objectName + '/' + activeFocusItem : 'none')").toString()));
+        js("blockRepeater.itemAt(0).formatter.setColor('')");
 
         // "Comentar" opens a card beside the text, as in Google Docs.
         js("bubble.openComment()");
@@ -323,7 +337,9 @@ private slots:
         engine.rootContext()->setContextProperty("testImageUrl",QUrl::fromLocalFile(source));
         QVERIFY(eval("insertPhoto(testImageUrl)").toBool());
         auto p = store.page(id);
-        auto photo = p["blocks"].toArray().last().toObject();
+        // The photo goes under the page's text, with an empty paragraph after it to keep writing.
+        QCOMPARE(p["blocks"].toArray().size(),3);
+        auto photo = p["blocks"].toArray()[1].toObject();
         const auto asset = photo["asset"].toString();
         QCOMPARE(photo["type"].toString(),QString("image"));
         QVERIFY(QFile::remove(source));
@@ -334,11 +350,22 @@ private slots:
         auto *grip = visibleItem(win->contentItem(),"photoResizeGrip");
         QVERIFY(grip);
         QTRY_VERIFY(item->width() > 150 && item->height() > 50 && grip->width() > 10);
+        // The page scrolls the new photo into view first.
+        QTRY_VERIFY(!eval("revealTimer.running").toBool());
         QTest::qWait(100);
         const QPoint start = grip->mapToScene(QPointF(grip->width()/2,grip->height()/2)).toPoint();
         const QPoint end = start-QPoint(qRound(item->width()*0.45),0);
         QTest::mousePress(win,Qt::LeftButton,Qt::NoModifier,start);
-        QVERIFY2(grip->property("pressed").toBool(),qPrintable(QString("Tirador en %1,%2; imagen %3×%4").arg(start.x()).arg(start.y()).arg(item->width()).arg(item->height())));
+        std::function<QString(QQuickItem *)> under = [&](QQuickItem *at) -> QString {
+            QString found;
+            for (auto *child : at->childItems()) {
+                if (!child->isVisible()) continue;
+                const QPointF local = child->mapFromScene(start);
+                if (child->contains(local)) found = QString("%1(%2) > %3").arg(child->metaObject()->className(),child->objectName(),under(child));
+            }
+            return found;
+        };
+        QVERIFY2(grip->property("pressed").toBool(),qPrintable(QString("Tirador en %1,%2; imagen %3×%4; %5").arg(start.x()).arg(start.y()).arg(item->width()).arg(item->height()).arg(under(win->contentItem()))));
         QTest::mouseMove(win,end,40);
         QTRY_COMPARE(eval("draft()[1].width_percent").toInt(),55);
         QTest::mouseRelease(win,Qt::LeftButton,Qt::NoModifier,end);
@@ -350,7 +377,7 @@ private slots:
         QCOMPARE(eval("draft()[1].width_percent").toInt(),60);
         QTest::keyClick(win,Qt::Key_Down);
         QVERIFY(eval("flush()").toBool());
-        QCOMPARE(store.page(id)["blocks"].toArray().last().toObject()["width_percent"].toInt(),55);
+        QCOMPARE(store.page(id)["blocks"].toArray()[1].toObject()["width_percent"].toInt(),55);
         QTRY_VERIFY(std::abs(item->width()/item->height()-2.0) < 0.04);
         eval("showPage(currentId)");
         QCOMPARE(eval("draft()[1].width_percent").toInt(),55);
@@ -402,7 +429,7 @@ private slots:
         }
         auto r = store.restoreRevision(id,3,2);
         QCOMPARE(r["revision"].toInt(),4);
-        QCOMPARE(store.page(id)["blocks"].toArray().last().toObject()["width_percent"].toInt(),100);
+        QCOMPARE(store.page(id)["blocks"].toArray()[1].toObject()["width_percent"].toInt(),100);
         const auto jpg = temp.filePath("foto.jpg");
         QVERIFY(sample.save(jpg));
         auto added = editor.run("insert_photo",{{"url",QUrl::fromLocalFile(jpg)},{"expected_revision",4},{"id",id}});
@@ -1210,6 +1237,262 @@ private slots:
         clip->clear();
         QVERIFY(window->close());
     }
+    void lookFlow() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("aspecto.sqlite3"));
+        const QString page = store.call("create_page",{{"title","Aspecto"},{"blocks",QJsonArray{
+            Obj{{"type","paragraph"},{"text","Texto de prueba para dar color"}},Obj{{"type","paragraph"},{"text","Segundo"}}}}},"manual")["id"].toString();
+        Editor editor(store,QCoreApplication::applicationFilePath());
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1400,900);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        js(QString("selectPage('%1')").arg(page));
+        QTRY_COMPARE(js("currentId").toString(),page);
+
+        // Text colour and background on a selection, kept in the spans and drawn in the theme's tones.
+        js("blockRepeater.itemAt(0).focusAt(0); blockRepeater.itemAt(0).editor.select(9,15)");
+        js("blockRepeater.itemAt(0).formatter.setColor('blue'); blockRepeater.itemAt(0).formatter.setBackground('yellow')");
+        QTRY_COMPARE(js("JSON.stringify(draft()[0].spans)").toString(),QString("[{\"background\":\"yellow\",\"color\":\"blue\",\"end\":15,\"start\":9,\"style\":0}]"));
+        auto *field = qvariant_cast<QQuickItem *>(js("blockRepeater.itemAt(0).editor"));
+        QTextCursor cursor(qvariant_cast<QQuickTextDocument *>(field->property("textDocument"))->textDocument());
+        cursor.setPosition(11);
+        QCOMPARE(cursor.charFormat().foreground().color(),js("Theme.tones.blue[0]").value<QColor>());
+        QCOMPARE(js("blockRepeater.itemAt(0).formatter.activeColor").toString(),QString("blue"));
+
+        // The block's alignment and background, each one undo step away.
+        js("setBlockLook(1,'align','center'); structureMarked = false; setBlockLook(1,'fill','green')");
+        QCOMPARE(js("draft()[1].align").toString(),QString("center"));
+        QCOMPARE(js("draft()[1].background").toString(),QString("green"));
+        QCOMPARE(js("blockRepeater.itemAt(1).editor.horizontalAlignment").toInt(),int(Qt::AlignHCenter));
+        js("blockRepeater.itemAt(1).focusAt(0)");
+        QTest::keyClick(window,Qt::Key_Z,Qt::ControlModifier);
+        QTRY_VERIFY(!js("draft()[1].background").isValid());
+        QCOMPARE(js("draft()[1].align").toString(),QString("center"));
+        QTest::keyClick(window,Qt::Key_Y,Qt::ControlModifier);
+        QTRY_COMPARE(js("draft()[1].background").toString(),QString("green"));
+
+        // Enter splits a block; Ctrl+Z puts it back together.
+        js("blockRepeater.itemAt(0).focusAt(5)");
+        QTest::keyClick(window,Qt::Key_Return);
+        QTRY_COMPARE(js("blocks.count").toInt(),3);
+        QTest::keyClick(window,Qt::Key_Z,Qt::ControlModifier);
+        QTRY_COMPARE(js("blocks.count").toInt(),2);
+        QCOMPARE(js("draft()[0].text").toString(),QString("Texto de prueba para dar color"));
+        QVERIFY(js("flush()").toBool());
+        // Backspace joins the blocks; one Ctrl+Z brings both back, even after the join was saved.
+        js("blockRepeater.itemAt(1).focusAt(0)");
+        QTest::keyClick(window,Qt::Key_Backspace);
+        QTRY_COMPARE(js("blocks.count").toInt(),1);
+        QVERIFY(js("flush()").toBool());
+        QTest::keyClick(window,Qt::Key_Z,Qt::ControlModifier);
+        QTRY_COMPARE(js("blocks.count").toInt(),2);
+        QCOMPARE(js("draft()[1].text").toString(),QString("Segundo"));
+        QCOMPARE(js("draft()[1].background").toString(),QString("green"));
+        QVERIFY(js("flush()").toBool());
+
+        // The page's font, smaller text and full width, saved with the page.
+        js("setPageLook('font','serif')");
+        QTRY_COMPARE(store.page(page)["font"].toString(),QString("serif"));
+        QCOMPARE(js("blockRepeater.itemAt(0).editor.font.family").toString(),QString("Georgia"));
+        js("setPageLook('small_text',true)");
+        QTRY_COMPARE(js("blockRepeater.itemAt(0).editor.font.pixelSize").toInt(),14);
+        const double narrow = js("pageColumn.width").toDouble();
+        js("setPageLook('full_width',true)");
+        QTRY_VERIFY(js("pageColumn.width").toDouble() > narrow);
+        QVERIFY(store.page(page)["full_width"].toBool() && store.page(page)["small_text"].toBool());
+
+        // A photo: centred, with rounded corners and a border, saved and exported with that look.
+        QImage sample(200,100,QImage::Format_RGB32);
+        sample.fill(QColor("#A82E13"));
+        const QString file = temp.filePath("Muestra.png");
+        QVERIFY(sample.save(file));
+        engine.rootContext()->setContextProperty("sampleUrl",QUrl::fromLocalFile(file));
+        QVERIFY(js("insertPhotoFiles([sampleUrl],1)").toBool());
+        QTRY_COMPARE(js("draft()[2].type").toString(),QString("image"));
+        js("setBlockLook(2,'align','center'); structureMarked = false; setBlockLook(2,'frame','rounded'); structureMarked = false; blocks.setProperty(2,'photoPercent',50); markDirty()");
+        QVERIFY(js("flush()").toBool());
+        const auto stored = store.page(page)["blocks"].toArray()[2].toObject();
+        QCOMPARE(stored["align"].toString(),QString("center"));
+        QCOMPARE(stored["frame"].toString(),QString("rounded"));
+        auto *photo = visibleItem(window->contentItem(),"pagePhoto");
+        QVERIFY(photo);
+        QTRY_COMPARE(photo->property("radius").toDouble(),12.0);
+        QTRY_VERIFY(photo->x() > 50);
+        capture("aspecto");
+        const QString html = temp.filePath("aspecto.html");
+        QVERIFY(editor.run("export",{{"id",page},{"url",QUrl::fromLocalFile(html).toString()}})["ok"].toBool());
+        QFile exported(html);
+        QVERIFY(exported.open(QIODevice::ReadOnly));
+        const QByteArray data = exported.readAll();
+        for (const char *piece : {"color:#2f6fa3;background-color:#fbf1d3","text-align:center;background-color:#e6f1e8","border-radius:12px","<figure style=\"text-align:center\">"})
+            QVERIFY2(data.contains(piece),piece);
+        QVERIFY(window->close());
+    }
+    void askFlow() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("preguntar.sqlite3"));
+        const QString trip = store.call("create_page",{{"title","Viaje a Oaxaca"},{"blocks",QJsonArray{
+            Obj{{"type","task"},{"text","Comprar boletos para el viaje"},{"checked",false}},
+            Obj{{"type","task"},{"text","Reservar hotel"},{"checked",true}}}}},"manual")["id"].toString();
+        const QString recipes = store.call("create_page",{{"title","Recetas"},{"blocks",QJsonArray{
+            Obj{{"type","paragraph"},{"text","Mole negro con chocolate de la abuela."}}}}},"manual")["id"].toString();
+        // The notes sent with a question: matching words without accents; tasks gather the unfinished ones.
+        const auto mole = store.notesFor(QString::fromUtf8("¿Cómo se hace el mole?"),{});
+        QCOMPARE(mole.first().toObject()["id"].toString(),recipes);
+        const auto tasks = store.notesFor(QString::fromUtf8("¿Qué tareas tengo pendientes?"),recipes);
+        QCOMPARE(tasks.first().toObject()["id"].toString(),recipes);
+        QCOMPARE(tasks.last().toObject()["id"].toString(),QString("tareas-sin-terminar"));
+        QVERIFY(tasks.last().toObject()["text"].toString().contains("Comprar boletos para el viaje (Viaje a Oaxaca)"));
+        QVERIFY(!tasks.last().toObject()["text"].toString().contains("Reservar hotel"));
+
+        const QString fake = QCoreApplication::applicationFilePath();
+        Editor editor(store,fake,fake);
+        auto *assistant = editor.assistant();
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1300,860);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        assistant->setEngine("claude");
+        QTRY_COMPARE(assistant->claudeAccount(),QString("in"));
+        // From Inicio (no page open), so only the gathered tasks go with the question.
+        js("browseTrash(false)");
+        QTRY_COMPARE(js("currentId").toString(),QString());
+        js("openAsk()");
+        QTRY_COMPARE(js("workspaceTabs.currentIndex").toInt(),3);
+        auto *field = visibleItem(window->contentItem(),"askField");
+        QVERIFY(field);
+        field->forceActiveFocus();
+        for (QChar c : QString("Que tareas tengo pendientes?")) QTest::keyClick(window,c.toLatin1());
+        QTest::keyClick(window,Qt::Key_Return);
+        QTRY_COMPARE_WITH_TIMEOUT(assistant->conversation().size(),1,15000);
+        const QVariantMap turn = assistant->conversation().first().toMap();
+        QCOMPARE(turn["answer"].toString(),QString("Te falta:\n- Comprar boletos para el viaje"));
+        // Only notes it was given count as sources.
+        const QVariantList sources = turn["sources"].toList();
+        QCOMPARE(sources.size(),1);
+        QCOMPARE(sources.first().toMap()["id"].toString(),QString("tareas-sin-terminar"));
+        QCOMPARE(assistant->usage()->property("count").toInt() > 0,true);
+        capture("preguntar");
+        // The answer kept as a page: a list item and no link for the gathered tasks.
+        js("askPage.keep(backend.assistant.conversation[0])");
+        QTRY_COMPARE(js("titleInput.text").toString(),QString("Que tareas tengo pendientes?"));
+        QCOMPARE(js("draft()[1].type").toString(),QString("list"));
+        QCOMPARE(js("draft()[1].text").toString(),QString("Comprar boletos para el viaje"));
+        Q_UNUSED(trip);
+        QVERIFY(window->close());
+    }
+    void templatesFlow() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("plantillas.sqlite3"));
+        const QString source = store.call("create_page",{{"title","Sprint"},{"icon","🏁"},{"font","serif"},{"blocks",QJsonArray{
+            Obj{{"type","heading"},{"text","Objetivo"},{"level",2}},
+            Obj{{"type","paragraph"},{"text","Revisar con el equipo"},{"spans",QJsonArray{
+                Obj{{"start",0},{"end",7},{"style",1}},Obj{{"start",8},{"end",11},{"style",0},{"comment","¿Quién?"}}}}}}}},"manual")["id"].toString();
+        Editor editor(store,QCoreApplication::applicationFilePath());
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1300,860);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        auto click = [&](const QString &name) {
+            QQuickItem *item = nullptr;
+            [&] { QTRY_VERIFY((item = visibleItem(window->contentItem(),name)) && item->isVisible() && item->width() > 0); }();
+            QVERIFY(item);
+            QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,item->mapToScene(item->boundingRect().center()).toPoint());
+        };
+        // A new page is empty, so it offers the templates under its title.
+        js("newPage(null)");
+        QTRY_VERIFY(js("pageEmpty").toBool());
+        QVERIFY(visibleItem(window->contentItem(),"templateStrip")->isVisible());
+        capture("plantillas");
+        click("template-0");
+        const QString meeting = js("currentId").toString();
+        QTRY_COMPARE(store.page(meeting)["icon"].toString(),QString("📋"));
+        QCOMPARE(store.page(meeting)["title"].toString(),"Reunión · "+js("today()").toString());
+        QCOMPARE(store.page(meeting)["blocks"].toArray().size(),8);
+        QCOMPARE(store.page(meeting)["blocks"].toArray()[0].toObject()["text"].toString(),QString("Asistentes"));
+        QVERIFY(!js("pageEmpty").toBool());
+
+        // Your own template: a copy of a page without its comments, offered next to Lunqio's.
+        js(QString("selectPage('%1')").arg(source));
+        QTRY_COMPARE(js("currentId").toString(),source);
+        QVERIFY(js("saveTemplate('Sprint semanal')").toBool());
+        QCOMPARE(store.templates().size(),1);
+        const auto copied = store.templates()[0].toObject()["page"].toObject();
+        QCOMPARE(copied["font"].toString(),QString("serif"));
+        QCOMPARE(QJsonDocument(copied["blocks"].toArray()[1].toObject()["spans"].toArray()).toJson(QJsonDocument::Compact),
+                 QByteArray(R"([{"end":7,"start":0,"style":1}])"));
+        js("newPage(null)");
+        QTRY_VERIFY(js("pageEmpty").toBool());
+        click("template-6");
+        const QString sprint = js("currentId").toString();
+        QTRY_COMPARE(store.page(sprint)["icon"].toString(),QString("🏁"));
+        QCOMPARE(store.page(sprint)["title"].toString(),QString("Sprint"));
+        QCOMPARE(store.page(sprint)["font"].toString(),QString("serif"));
+        QCOMPARE(store.page(sprint)["blocks"].toArray()[1].toObject()["text"].toString(),QString("Revisar con el equipo"));
+        // Ctrl+Z on the page takes the template back out.
+        js("blockRepeater.itemAt(0).focusAt(0)");
+        QTest::keyClick(window,Qt::Key_Z,Qt::ControlModifier);
+        QTRY_VERIFY(js("pageEmpty").toBool());
+        js("removeTemplate(userTemplates[0].id)");
+        QTRY_COMPARE(js("userTemplates.length").toInt(),0);
+        QCOMPARE(store.templates().size(),0);
+        QVERIFY(window->close());
+    }
     void themeFlow() {
         // LUNQIO_THEME forces a theme for previews; this test checks the saved preference instead.
         const QByteArray forced = qgetenv("LUNQIO_THEME");
@@ -1242,7 +1525,7 @@ private slots:
             Obj{{"type","task"},{"text","Preparar la demo"},{"checked",false}},
             Obj{{"type","task"},{"text","Enviar las notas"},{"checked",true}},
             Obj{{"type","quote"},{"text",QString::fromUtf8("Escribir, comentar y revisar en un solo lugar.")}},
-            Obj{{"type","callout"},{"text",QString::fromUtf8("Cambia la vista en View → Tema o con Ctrl+Shift+L.")},{"icon","💡"}},
+            Obj{{"type","callout"},{"text",QString::fromUtf8("Cambia la vista en Ver → Tema o con Ctrl+Shift+L.")},{"icon","💡"}},
             Obj{{"type","code"},{"text","tema = \"lunqio\""}}});
         store.setFavorite(page,true);
         Editor editor(store,QCoreApplication::applicationFilePath());
@@ -1285,7 +1568,7 @@ private slots:
         QCOMPARE(linkInk(),QColor("#FF7959"));
         QCOMPARE(js("Theme.glyphAccent").value<QColor>(),QColor("#FF7959"));
         capture("editor-lunqio-oscuro");
-        // Lunqio claro, from View → Tema, saved for the next start. Switching does not edit the page.
+        // Lunqio claro, from Ver → Tema, saved for the next start. Switching does not edit the page.
         editor.setTheme("light");
         QTRY_COMPARE(window->color(),QColor("#FFF9F0"));
         QCOMPARE(saved(),QString("light"));
@@ -1456,7 +1739,18 @@ int main(int argc,char **argv) {
             return 1;
         }
         Obj answer;
-        if (schema.contains("\"blocks\"")) {
+        if (schema.contains("\"answer\"")) {
+            // "Preguntar a Lunqio": answer from the note that has the task, and name a note it was not given too.
+            const auto data = QJsonDocument::fromJson(prompt.mid(prompt.indexOf('\n')+1)).object();
+            QJsonArray used{QString("00000000-0000-0000-0000-000000000000")};
+            QString text = "No encontré nada sobre eso en tus notas.";
+            for (const auto &n : data["notes"].toArray()) {
+                if (!n.toObject()["text"].toString().contains("Comprar boletos")) continue;
+                used.append(n.toObject()["id"]);
+                text = "Te falta:\n- Comprar boletos para el viaje";
+            }
+            answer = Obj{{"answer",text},{"sources",used}};
+        } else if (schema.contains("\"blocks\"")) {
             const auto data = QJsonDocument::fromJson(prompt.mid(prompt.indexOf('\n')+1)).object();
             if (data["page_title"] != "Prototipos" || !data["text_before"].toString().contains("Notas de la clase")) return 3;
             answer = Obj{{"blocks",QJsonArray{

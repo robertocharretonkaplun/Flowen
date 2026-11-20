@@ -155,6 +155,12 @@ static QString htmlBlock(const Obj &b, int number = 0) {
         if (kind == "task") content.prepend(b["checked"].toBool() ? "☑ " : "☐ ");
         html = "<p>"+content+"</p>";
     }
+    // The block's alignment, text colour and background.
+    QString look;
+    if (const QString align = b["align"].toString(); !align.isEmpty()) look += "text-align:"+align+";";
+    if (const QString ink = notes::paletteTone(b["color"].toString(),false); !ink.isEmpty()) look += "color:"+ink+";";
+    if (const QString back = notes::paletteTone(b["background"].toString(),true); !back.isEmpty()) look += "background-color:"+back+";padding:4px 8px;";
+    if (!look.isEmpty()) html = "<div style=\""+look+"\">"+html+"</div>";
     const int indent = b["indent"].toInt();
     return indent > 0 ? QString("<div style=\"margin-left:%1px\">%2</div>").arg(indent*24).arg(html) : html;
 }
@@ -201,8 +207,9 @@ static void printable(notes::Store &store,const Obj &page,QSaveFile &file) {
                                                   area.height()-50,Qt::KeepAspectRatio);
         const QUrl resource("lunqio:/"+asset+"/"+QString::number(display.width()));
         doc.addResource(QTextDocument::ImageResource,resource,image.scaled(display*2,Qt::KeepAspectRatio,Qt::SmoothTransformation));
-        html += QString("<p><img src=\"%1\" width=\"%2\" height=\"%3\"></p>").arg(resource.toString()).arg(display.width()).arg(display.height());
-        if (!b["text"].toString().isEmpty()) html += "<p><i>"+htmlText(b["text"].toString())+"</i></p>";
+        const QString align = b["align"].toString().isEmpty() ? QStringLiteral("left") : b["align"].toString();
+        html += QString("<p align=\"%4\"><img src=\"%1\" width=\"%2\" height=\"%3\"></p>").arg(resource.toString()).arg(display.width()).arg(display.height()).arg(align);
+        if (!b["text"].toString().isEmpty()) html += "<p align=\""+align+"\"><i>"+htmlText(b["text"].toString())+"</i></p>";
     }
     doc.setHtml(html);
     doc.print(&writer);
@@ -234,7 +241,13 @@ void save(notes::Store &store,const Obj &page,const QString &path) {
                     auto bytes = store.photo(asset,mime);
                     QString src = html ? "data:"+mime+";base64,"+QString::fromLatin1(bytes.toBase64()) : markdownPhoto(target,asset,mime,bytes);
                     QString tag = QString("<img src=\"%1\" alt=\"%2\" width=\"%3%\">").arg(src.toHtmlEscaped(),text.toHtmlEscaped(),QString::number(b["width_percent"].toInt()));
-                    text = html ? "<figure>"+tag+"<figcaption>"+htmlText(text)+"</figcaption></figure>" : tag;
+                    // The photo's place and style travel to HTML: alignment, rounded corners, a border or a shadow.
+                    const QString frame = b["frame"].toString(), align = b["align"].toString();
+                    const QString style = (frame == "rounded" ? "border-radius:12px;" : frame == "border" ? "border:1px solid #dacac0;border-radius:6px;"
+                                           : frame == "shadow" ? "border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.18);" : "");
+                    if (html && !style.isEmpty()) tag.replace("<img ","<img style=\""+style+"\" ");
+                    const QString place = align == "center" || align == "right" ? " style=\"text-align:"+align+"\"" : QString();
+                    text = html ? "<figure"+place+">"+tag+"<figcaption>"+htmlText(text)+"</figcaption></figure>" : tag;
                 }
             } else if (html || (md && !b["spans"].toArray().isEmpty() && kind != "code")) text = htmlBlock(b,numbers[i]);
             else text = plainBlock(b,numbers[i],md);

@@ -30,6 +30,8 @@ class WritingAssistant : public QObject {
     Q_PROPERTY(QString engineName READ engineName NOTIFY engineChanged)
     Q_PROPERTY(bool engineReady READ engineReady NOTIFY engineChanged)
     Q_PROPERTY(QString claudeAccount READ claudeAccount NOTIFY engineChanged)
+    // "Preguntar a Lunqio": questions answered from the notes sent with them, this session only.
+    Q_PROPERTY(QVariantList conversation READ conversation NOTIFY changed)
 public:
     explicit WritingAssistant(const QString &db, QString executable = {}, const QString &claude = {});
     ~WritingAssistant() override;
@@ -53,6 +55,9 @@ public:
     Q_INVOKABLE void generate(QVariantMap selection, QString instruction);
     Q_INVOKABLE void compose(QVariantMap place, QString instruction);
     Q_INVOKABLE void apply();
+    Q_INVOKABLE void ask(QString question, QVariantList notes);
+    Q_INVOKABLE void clearConversation();
+    QVariantList conversation() const { return asked.toVariantList(); }
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void checkClaude();
     Q_INVOKABLE void signInClaude();
@@ -76,7 +81,7 @@ private:
     QElapsedTimer clock;
     QString cli, engineKey, account = "unknown", stage = "idle", kind = "edit", issue, hint, replacement;
     QJsonObject target;
-    QJsonArray written;
+    QJsonArray written, asked;
     QProcess *model = nullptr;
     QProcess *probe = nullptr;
     QTimer deadline;
