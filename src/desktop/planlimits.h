@@ -5,9 +5,9 @@
 #include <QTimer>
 #include <QVariantMap>
 
-// The plan's usage limits (5-hour and weekly windows) of each assistant, as the
-// provider reports them. Codex answers on request through `codex app-server`;
-// Claude Code reports them alongside each request (`rate_limit_event`).
+/// The plan's usage limits (5-hour and weekly windows) of each assistant, as the
+/// provider reports them. Codex answers on request through `codex app-server`;
+/// Claude Code reports them alongside each request (`rate_limit_event`).
 class PlanLimits : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantMap claude READ claude NOTIFY changed)

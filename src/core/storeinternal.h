@@ -1,5 +1,5 @@
 #pragma once
-// Helpers shared by the files of the library (store.cpp, library.cpp); not part of its interface.
+/// Helpers shared by the files of the library (store.cpp, library.cpp); not part of its interface.
 #include "contract.h"
 #include <QDateTime>
 #include <QJsonArray>
@@ -16,7 +16,7 @@ inline QString now() { return QDateTime::currentDateTimeUtc().toString(Qt::ISODa
 inline QByteArray json(const Obj &o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); }
 inline Obj parse(const QByteArray &bytes) { return QJsonDocument::fromJson(bytes).object(); }
 inline void invalid(QString message) { throw Error("invalid_argument",message); }
-// Search and sorting ignore case and accents: "arbol" finds "Árbol" and "Álgebra" sorts with the a's.
+/// Search and sorting ignore case and accents: "arbol" finds "Árbol" and "Álgebra" sorts with the a's.
 inline QString fold(const QString &text) {
     QString out = text.toCaseFolded().normalized(QString::NormalizationForm_D);
     out.removeIf([](QChar c) { return c.category() == QChar::Mark_NonSpacing; });

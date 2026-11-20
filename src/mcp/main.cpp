@@ -54,7 +54,7 @@ public:
             QString version = params["protocolVersion"].toString();
             if (version != "2025-06-18" && version != "2025-03-26") version = "2025-11-25";
             state = Negotiated;
-            return send(id,"result",{{"protocolVersion",version},{"serverInfo",Obj{{"name","lunqio"},{"version","0.4.0"}}},
+            return send(id,"result",{{"protocolVersion",version},{"serverInfo",Obj{{"name","lunqio"},{"version",LUNQIO_VERSION}}},
                                      {"capabilities",Obj{{"tools",Obj{}}}}});
         }
         if (state != Ready) return fail(id,-32002,"Initialize the session first");

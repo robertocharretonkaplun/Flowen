@@ -5,7 +5,7 @@
 #include <QTimer>
 #include <functional>
 
-// One private stdio session for the open desktop library.
+/// One private stdio session for the open desktop library.
 class McpLink : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString state READ state NOTIFY changed)

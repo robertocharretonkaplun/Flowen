@@ -52,6 +52,7 @@ Ninguno de los dos guarda estado propio de las páginas: todo pasa por la biblio
 - **Página**: `PageHeader`, `PageCover`, `PageOutline` (índice de encabezados), `TemplateStrip` (plantillas) y `CommentRail` y `CommentCard` (comentarios).
 - **Vistas**: `ViewSwitch` (Edición, Lectura, Diseño de página), `PaperSheets` (las hojas) y `PaperMenu` (papel y márgenes). En `Main.qml`, `viewMode` decide la vista y `locked` (papelera o lectura) bloquea toda edición: cada función que cambia la página lo comprueba. `paginate()` calcula en Diseño de página el espacio que lleva un bloque a la hoja siguiente (`pageBreaks`), sin tocar los bloques guardados. La vista, el papel y los márgenes se guardan con `backend.preference`/`setPreference`, fuera de la biblioteca.
 - **Pestañas**: `ConnectorsPage`, `UsagePage` y `AskPage`.
+- **Ayuda**: `HelpDialog` (Guía y atajos: los atajos en tablas por tema; al añadir un atajo, añádelo también a su tabla) y `AboutDialog` (versión de CMake vía `backend.version`, logotipo de Attribute Overload en `assets/brand` y enlaces al sitio, al código y a la documentación).
 - **Estilo**: `Theme.qml` es un singleton con los colores de los cuatro temas (Lunqio oscuro y claro, Claro y Oscuro) y la paleta de nueve colores. Ningún otro archivo usa colores fijos, salvo los de Claude, Codex, las gráficas y las portadas. `Glyph.qml` y `UiButton.qml` son los ladrillos básicos.
 
 ## Reglas que conviene mantener
@@ -61,3 +62,4 @@ Ninguno de los dos guarda estado propio de las páginas: todo pasa por la biblio
 3. **Sin nulos en el JSON.** Lee los objetos JSON con `value()`. `operator[]` de un `QJsonObject` no constante añade la clave con valor nulo.
 4. **Colores solo desde `Theme`.** Así los cuatro temas se mantienen coherentes.
 5. **Pruebas.** `tests/integration.py` comprueba el contrato MCP de punta a punta. `tests/editor_test.cpp` prueba la interfaz real con Qt Test (con `-platform offscreen`; las capturas se guardan en `LUNQIO_PREVIEW_DIR`). Las pruebas que usan el portapapeles se saltan fuera de `offscreen`.
+6. **Documentación.** Comenta con `///` lo público de los encabezados: Doxygen (`docs/Doxyfile`) lo publica en GitHub Pages con cada cambio en `main`.

@@ -4,8 +4,8 @@
 #include <QQuickPaintedItem>
 #include <QUrl>
 
-// One symbol of Lunqio's icon set (assets/glyphs, from design/identidad). The SVGs are drawn in two
-// inks: the outline (#2C1312 in the files) takes `color` and the detail (#C83918) takes `accent`.
+/// One symbol of Lunqio's icon set (assets/glyphs, from design/identidad). The SVGs are drawn in two
+/// inks: the outline (#2C1312 in the files) takes `color` and the detail (#C83918) takes `accent`.
 class SvgGlyph : public QQuickPaintedItem {
     Q_OBJECT
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY changed)
@@ -30,8 +30,8 @@ private:
     QColor ink{"#FBF1E0"}, detail{"#FF7959"};
 };
 
-// A photo of the page, drawn smoothly and clipped to rounded corners (radius 0 keeps them square).
-// status follows Image: 1 shown, 3 unreadable, 0 without a source.
+/// A photo of the page, drawn smoothly and clipped to rounded corners (radius 0 keeps them square).
+/// status follows Image: 1 shown, 3 unreadable, 0 without a source.
 class PhotoView : public QQuickPaintedItem {
     Q_OBJECT
     Q_PROPERTY(QUrl source READ source WRITE setSource NOTIFY sourceChanged)

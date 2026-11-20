@@ -6,8 +6,8 @@
 
 class QTextDocument;
 
-// Keeps the inline styles of one block TextArea in its QTextDocument and
-// converts them to and from the `spans` stored in the library.
+/// Keeps the inline styles of one block TextArea in its QTextDocument and
+/// converts them to and from the `spans` stored in the library.
 class InlineEditor : public QObject {
     Q_OBJECT
     Q_PROPERTY(QQuickTextDocument *document READ document WRITE setDocument NOTIFY documentChanged)
@@ -17,10 +17,10 @@ class InlineEditor : public QObject {
     Q_PROPERTY(QString activeLink READ activeLink NOTIFY stateChanged)
     Q_PROPERTY(QString activeComment READ activeComment NOTIFY stateChanged)
     Q_PROPERTY(QString activeThread READ activeThread NOTIFY stateChanged)
-    // Which theme draws links, mentions, code and highlights ("dark", "light", "white", "black", as
-    // Theme.scheme); switching recolours the text in place.
+    /// Which theme draws links, mentions, code and highlights ("dark", "light", "white", "black", as
+    /// Theme.scheme); switching recolours the text in place.
     Q_PROPERTY(QString scheme READ scheme WRITE setScheme NOTIFY schemeChanged)
-    // Text and background tone of each palette colour in the current theme: {name: [text, background]}.
+    /// Text and background tone of each palette colour in the current theme: {name: [text, background]}.
     Q_PROPERTY(QVariantMap tones READ tones WRITE setTones NOTIFY schemeChanged)
     Q_PROPERTY(QString activeColor READ activeColor NOTIFY stateChanged)
     Q_PROPERTY(QString activeBackground READ activeBackground NOTIFY stateChanged)
@@ -50,13 +50,13 @@ public:
     Q_INVOKABLE QString spans() const;
     Q_INVOKABLE void toggle(int style);
     Q_INVOKABLE void clearStyles();
-    // A palette colour for the selected text or behind it; an empty name removes it.
+    /// A palette colour for the selected text or behind it; an empty name removes it.
     Q_INVOKABLE void setColor(const QString &name);
     Q_INVOKABLE void setBackground(const QString &name);
     Q_INVOKABLE bool setLink(const QString &url);
     Q_INVOKABLE void setComment(const QString &text);
     Q_INVOKABLE QString commentAt(int position) const;
-    // Comment threads: each one keeps its author, time, state and replies next to the text.
+    /// Comment threads: each one keeps its author, time, state and replies next to the text.
     Q_INVOKABLE QVariantMap takeTail(int position);
     Q_INVOKABLE int append(const QString &text, const QString &styles);
     Q_INVOKABLE int markdownAt(int position);

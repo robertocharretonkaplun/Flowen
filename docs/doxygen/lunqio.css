@@ -1,0 +1,12 @@
+/* Lunqio's identity on Doxygen's pages ("Pluma y diálogo"): Segoe UI, warm ink text and the rust
+   accent in light mode, ivory and coral in dark mode. Only colours and type; the layout is Doxygen's. */
+body, table, div, p, dl, .title, #projectname, #projectbrief, .navpath ul {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+#projectname { font-weight: 600; letter-spacing: 0.01em; }
+#projectbrief { opacity: 0.75; }
+.contents a, .contents a.el, .contents a:visited { color: #A82E13; }
+html.dark-mode .contents a, html.dark-mode .contents a.el, html.dark-mode .contents a:visited { color: #FF7959; }
+.contents img { max-width: 100%; height: auto; border-radius: 8px; }
+.contents table.markdownTable { border-radius: 6px; }
+.contents h1, .contents h2 { font-weight: 600; }

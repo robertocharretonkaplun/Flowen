@@ -3,8 +3,8 @@
 #include <QObject>
 #include <QVariantList>
 
-// Tokens spent by each "Crear con IA" / "Editar con IA" request, kept on this computer
-// (one JSON line per request) for the Uso tab.
+/// Tokens spent by each "Crear con IA" / "Editar con IA" request, kept on this computer
+/// (one JSON line per request) for the Uso tab.
 class UsageLog : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList recent READ recent NOTIFY changed)

@@ -1,0 +1,59 @@
+# Documentación de Lunqio con Doxygen (1.9.5 o posterior).
+# Desde la raíz del repositorio:  doxygen docs/Doxyfile   →   build-docs/html/index.html
+# GitHub Actions la publica en GitHub Pages (.github/workflows/docs.yml).
+# Solo se indican los valores que cambian; el resto queda como Doxygen lo trae.
+
+PROJECT_NAME           = Lunqio
+PROJECT_NUMBER         = $(LUNQIO_VERSION)
+PROJECT_BRIEF          = "Editor local de páginas para Windows, con IA y MCP · Attribute Overload"
+PROJECT_LOGO           = assets/lunqio-64.png
+OUTPUT_DIRECTORY       = build-docs
+OUTPUT_LANGUAGE        = Spanish
+INPUT_ENCODING         = UTF-8
+
+# La portada es el README; la arquitectura y el código de src/ siguen.
+INPUT                  = README.md docs/ARQUITECTURA.md src
+FILE_PATTERNS          = *.h *.cpp *.md
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = README.md
+IMAGE_PATH             = docs/capturas assets/brand design/vistas
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+TOC_INCLUDE_HEADINGS   = 3
+
+# Todo el código aparece, aunque una función no tenga comentario (///) propio.
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_ANON_NSPACES   = YES
+EXTRACT_PRIVATE        = NO
+SOURCE_BROWSER         = YES
+STRIP_CODE_COMMENTS    = NO
+SORT_MEMBER_DOCS       = NO
+
+# Macros de Qt que no aportan nada a la documentación.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = Q_INVOKABLE= Q_ENUM(x)= Q_OBJECT= "LUNQIO_VERSION=\"0\""
+
+# HTML con índice lateral, modo claro u oscuro a elección y los colores de Lunqio.
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+HTML_COLORSTYLE        = TOGGLE
+HTML_EXTRA_STYLESHEET  = docs/doxygen/lunqio.css
+HTML_TIMESTAMP         = NO
+SEARCHENGINE           = YES
+
+# Diagramas de clases e inclusiones con Graphviz, si está instalado.
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = NO
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = NO
+CALL_GRAPH             = NO
+
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_NO_PARAMDOC       = NO

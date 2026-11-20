@@ -59,6 +59,8 @@ private slots:
             Obj{{"type","task"},{"text","Revisar enlaces"}}}}},"manual");
         const QString id = created["id"].toString();
         Editor editor(store);
+        // Captures (README) show a sample name, never the Windows account's.
+        editor.setAuthor("Ana Ruiz");
         QQmlApplicationEngine engine;
         engine.rootContext()->setContextProperty("backend",&editor);
         engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
@@ -1961,6 +1963,75 @@ private slots:
         QVERIFY(!sheets->isVisible());
         QVERIFY(js("pageColumn.width").toDouble() <= 780);
         QVERIFY(shown("pageCover"));
+        QVERIFY(window->close());
+    }
+    void helpAboutFlow() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("ayuda.sqlite3"));
+        const QString page = store.call("create_page",{{"title","Bienvenida"},{"icon",QString::fromUtf8("👋")},
+            {"blocks",QJsonArray{Obj{{"type","paragraph"},{"text",QString::fromUtf8("Pulsa F1 para ver los atajos.")}}}}},"manual")["id"].toString();
+        Editor editor(store,QCoreApplication::applicationFilePath());
+        editor.setTheme("dark");
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1400,900);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("LUNQIO_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        auto find = [&](const QString &name) {
+            QQuickItem *item = nullptr;
+            [&] { QTRY_VERIFY((item = visibleItem(window->contentItem(),name)) && item->isVisible() && item->width() > 0); }();
+            return item;
+        };
+        auto centre = [](QQuickItem *it) { return it->mapToScene(it->boundingRect().center()).toPoint(); };
+        js(QString("selectPage('%1')").arg(page));
+        QTRY_COMPARE(js("currentId").toString(),page);
+
+        // F1 opens the guide: every shortcut in a table by topic, the new views included.
+        QTest::keyClick(window,Qt::Key_F1);
+        QTRY_VERIFY(js("helpDialog.opened").toBool());
+        QCOMPARE(js("helpDialog.sections.length").toInt(),5);
+        QCOMPARE(js("helpDialog.sections.reduce((n, s) => n + s.rows.length, 0)").toInt(),28);
+        QVERIFY(js("helpDialog.sections.some(s => s.rows.some(r => r[0] === 'Diseño de página' && r[1][0] === 'Ctrl+Shift+D'))").toBool());
+        capture("guia-atajos");
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("helpClose")));
+        QTRY_VERIFY(!js("helpDialog.visible").toBool());
+
+        // Acerca de: the version of this build and Attribute Overload, whose lockup follows the theme.
+        js("openAbout()");
+        QTRY_VERIFY(js("aboutDialog.opened").toBool());
+        QCOMPARE(find("aboutVersion")->property("text").toString(),"Versión " + editor.version());
+        QVERIFY(!editor.version().isEmpty());
+        auto *lockup = find("studioImage");
+        QVERIFY(lockup->property("source").toUrl().toString().endsWith("ao-lockup-white.png"));
+        QTRY_COMPARE(lockup->property("status").toInt(),1);
+        QCOMPARE(js("aboutDialog.site").toString(),QString("https://www.attributeoverload.com"));
+        QCOMPARE(js("aboutDialog.repository").toString(),QString("https://github.com/robertocharretonkaplun/lunqio-"));
+        find("aboutSite"); find("aboutCode"); find("aboutDocs");
+        capture("acerca-de");
+        editor.setTheme("light");
+        QTRY_VERIFY(lockup->property("source").toUrl().toString().endsWith("ao-lockup-ink.png"));
+        QTRY_COMPARE(lockup->property("status").toInt(),1);
+        capture("acerca-de-claro");
+        editor.setTheme("dark");
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("aboutClose")));
+        QTRY_VERIFY(!js("aboutDialog.visible").toBool());
         QVERIFY(window->close());
     }
 };

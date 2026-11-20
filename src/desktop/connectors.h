@@ -8,8 +8,8 @@
 #include <functional>
 #include <memory>
 
-// One AI client (Claude Desktop, Claude Code or Codex) that can start notas-mcp for
-// this library. Turning it on registers the server in the client's own configuration.
+/// One AI client (Claude Desktop, Claude Code or Codex) that can start notas-mcp for
+/// this library. Turning it on registers the server in the client's own configuration.
 class Connector : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString key READ key CONSTANT)
@@ -132,7 +132,7 @@ private:
     bool toggle(const QString &server, bool on);
 };
 
-// The clients shown in the Connectors tab.
+/// The clients shown in the Connectors tab.
 class Connectors : public QObject {
     Q_OBJECT
     Q_PROPERTY(QList<QObject *> clients READ clients CONSTANT)

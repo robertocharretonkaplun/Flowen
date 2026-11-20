@@ -15,6 +15,7 @@
 int main(int argc, char **argv) {
     QGuiApplication app(argc,argv);
     app.setApplicationName("Lunqio");
+    app.setApplicationVersion(LUNQIO_VERSION);
     app.setWindowIcon(QIcon(":/assets/lunqio-256.png"));
     // The interface is in Spanish: dates and times follow it ("mié", "4:40 p.m."), keeping a Spanish system region.
     const QLocale system = QLocale::system();

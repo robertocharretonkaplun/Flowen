@@ -1429,15 +1429,7 @@ ApplicationWindow {
         id: claudeDialog; title: "Elegir ejecutable de Claude Code"; nameFilters: ["Claude Code (claude.exe claude.cmd)","Ejecutable de Windows (*.exe *.cmd)"]
         onAccepted: if (!win.assistant.connectors.claudeCode.chooseProgram(selectedFile)) { win.notice = "Elige claude.exe o claude.cmd."; win.noticeError = true }
     }
-    Dialog {
-        id: helpDialog; title: "Guía y atajos"; modal: true; anchors.centerIn: parent; width: Math.min(470,win.width-40); standardButtons: Dialog.Close
-        contentItem: ColumnLayout {
-            spacing: 12
-            Label { text: "Selecciona texto dentro de un bloque para abrir el menú de formato. Desde ahí puedes convertir el bloque, aplicar estilos, añadir un enlace o un comentario y editar con IA."; Layout.fillWidth: true; wrapMode: Text.Wrap }
-            Label { text: "Ctrl+B    Negrita\nCtrl+I    Cursiva\nCtrl+U    Subrayado\nCtrl+Shift+X    Tachado\nCtrl+E    Código en línea\nCtrl+Shift+H    Resaltar\nCtrl+K    Enlace (con texto seleccionado)"; lineHeight: 1.35 }
-            Label { text: "Ctrl+N    Nueva página\nCtrl+K    Buscar páginas\nCtrl+S    Guardar\nCtrl+Shift+S    Guardar como…\nCtrl+Shift+I    Editar selección con IA\nCtrl+Shift+E · R · D    Edición, Modo lectura, Diseño de página\nF1    Ayuda"; lineHeight: 1.35 }
-        }
-    }
+    HelpDialog { id: helpDialog; objectName: "helpDialog" }
     Dialog {
         id: authorDialog; title: "Tu nombre en los comentarios"; modal: true; anchors.centerIn: parent; width: 380
         standardButtons: Dialog.Save | Dialog.Cancel
@@ -1458,9 +1450,7 @@ ApplicationWindow {
             TextField { id: templateName; objectName: "templateName"; Layout.fillWidth: true; maximumLength: 80; selectByMouse: true; placeholderText: "Nombre de la plantilla"; onAccepted: templateDialog.accept() }
         }
     }
-    Dialog { id: aboutDialog; title: "Acerca de Lunqio"; modal: true; anchors.centerIn: parent; width: 390; implicitWidth: 390; standardButtons: Dialog.Close
-        contentItem: Label { text: "Lunqio 0.4.0\nEditor local de páginas, fotos y tareas para Windows."; padding: 6; lineHeight: 1.4 }
-    }
+    AboutDialog { id: aboutDialog; objectName: "aboutDialog"; version: backend.version }
     Dialog {
         id: reloadDialog; title: "¿Descartar el borrador y recargar?"; anchors.centerIn: parent; modal: true
         standardButtons: Dialog.Yes | Dialog.Cancel

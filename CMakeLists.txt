@@ -3,6 +3,8 @@ project(Lunqio VERSION 0.5.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
+# One version for the window, notas-mcp and the About dialog.
+add_compile_definitions(LUNQIO_VERSION="${PROJECT_VERSION}")
 if(MSVC)
   add_compile_options(/utf-8 /W4)
 endif()
@@ -24,7 +26,8 @@ qt_add_resources(lunqio views PREFIX "/" FILES qml/Main.qml qml/qmldir qml/Theme
     qml/PlanLimitsView.qml qml/UsageButton.qml qml/SlashMenu.qml
     qml/EmojiPicker.qml qml/PageIcon.qml qml/PageHeader.qml qml/PageCover.qml qml/PageMenu.qml
     qml/SidebarSection.qml qml/RecentCards.qml qml/EngineMark.qml qml/TemplateStrip.qml qml/AskPage.qml qml/UiMenu.qml qml/UiMenuItem.qml qml/UiMenuSeparator.qml qml/PageOutline.qml qml/Sidebar.qml
-    qml/ViewSwitch.qml qml/PaperSheets.qml qml/PaperMenu.qml
+    qml/ViewSwitch.qml qml/PaperSheets.qml qml/PaperMenu.qml qml/HelpDialog.qml qml/AboutDialog.qml
+    assets/brand/ao-lockup-white.png assets/brand/ao-lockup-ink.png
     assets/lunqio-64.png assets/lunqio-256.png)
 if(WIN32)
   target_sources(lunqio PRIVATE assets/lunqio.rc)

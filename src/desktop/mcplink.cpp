@@ -76,7 +76,7 @@ void McpLink::open() {
     connect(process,&QProcess::finished,this,[this]{ stop("El proceso MCP local se cerró."); });
     connect(process,&QProcess::started,this,[this] {
         rpc("initialize",{{"protocolVersion","2025-11-25"},{"capabilities",Obj{}},
-            {"clientInfo",Obj{{"name","lunqio-desktop"},{"version","0.4.0"}}}},[this](Obj result,QString error) {
+            {"clientInfo",Obj{{"name","lunqio-desktop"},{"version",LUNQIO_VERSION}}}},[this](Obj result,QString error) {
             if (!process) return;
             if (!error.isEmpty() || result["protocolVersion"] != "2025-11-25" || !result["capabilities"].toObject().contains("tools")) {
                 stop("El servidor no admite la conexión MCP de Lunqio."); return;

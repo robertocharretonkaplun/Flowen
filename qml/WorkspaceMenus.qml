@@ -104,6 +104,11 @@ MenuBar {
         title: "Ay&uda"
         UiMenuItem { glyph: "help"; text: "Guía y atajos…"; onTriggered: bar.workspace.openHelp() }
         UiMenuItem { glyph: "plug"; text: "Conectores…"; onTriggered: bar.workspace.openConnection() }
+        UiMenuSeparator {}
+        UiMenuItem { glyph: "book"; text: "Documentación"; onTriggered: Qt.openUrlExternally("https://robertocharretonkaplun.github.io/lunqio-/") }
+        UiMenuItem { glyph: "code"; text: "Código en GitHub"; onTriggered: Qt.openUrlExternally("https://github.com/robertocharretonkaplun/lunqio-") }
+        UiMenuItem { glyph: "globe"; text: "Attribute Overload"; onTriggered: Qt.openUrlExternally("https://www.attributeoverload.com") }
+        UiMenuSeparator {}
         UiMenuItem { glyph: "bulb"; text: "Acerca de Lunqio"; onTriggered: bar.workspace.openAbout() }
     }
 }

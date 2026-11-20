@@ -1,0 +1,55 @@
+# Genera la documentación con Doxygen (docs/Doxyfile) y la publica en GitHub Pages:
+# https://robertocharretonkaplun.github.io/lunqio-/
+# Una sola vez, en GitHub: Settings → Pages → Build and deployment → Source: GitHub Actions.
+name: Documentación
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "docs/**"
+      - "README.md"
+      - "assets/**"
+      - "design/vistas/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Una publicación a la vez; la más reciente gana.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar Doxygen y Graphviz
+        run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
+      - name: Generar la documentación
+        run: |
+          export LUNQIO_VERSION="$(sed -n 's/^project(Lunqio VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          doxygen --version
+          doxygen docs/Doxyfile
+          test -f build-docs/html/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build-docs/html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

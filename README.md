@@ -2,13 +2,28 @@
 
 Editor de notas para Windows x64 con páginas anidadas, tareas y un servidor MCP local. La interfaz y el asistente comparten una biblioteca SQLite. Puedes usar el editor sin conexión.
 
+Una aplicación de **[Attribute Overload](https://www.attributeoverload.com)** · [Código en GitHub](https://github.com/robertocharretonkaplun/lunqio-) · [Documentación](https://robertocharretonkaplun.github.io/lunqio-/)
+
+![Lunqio con el tema Lunqio oscuro: barra lateral con favoritos y recientes, y una página con texto, listas, tareas, cita, nota y código](docs/capturas/editor.png)
+
+## Un vistazo
+
+| | |
+| --- | --- |
+| ![Menú de formato sobre el texto seleccionado](docs/capturas/formato.png) **Formato.** Selecciona texto para darle estilo, color, un enlace o un comentario. | ![Comentarios con respuestas al margen de la página](docs/capturas/comentarios.png) **Comentarios.** Hilos con respuestas al margen, como en Google Docs. |
+| ![Propuesta de Crear con IA lista para insertar](docs/capturas/crear-con-ia.png) **Crear con IA.** Claude o Codex escriben bloques nuevos; tú decides si entran. | ![Respuesta de Preguntar a Lunqio con sus fuentes](docs/capturas/preguntar.png) **Preguntar a Lunqio.** Respuestas sobre tus notas, con las páginas de donde salen. |
+| ![Página en Diseño de página: dos hojas tamaño Carta con márgenes y número](docs/capturas/diseno-pagina.png) **Diseño de página.** Hojas Carta o A4 con márgenes, como en Word. | ![Página en Modo lectura con el botón Editar abajo](docs/capturas/lectura.png) **Modo lectura.** La página sin herramientas, sin cambios accidentales. |
+| ![Plantillas en una página vacía](docs/capturas/plantillas.png) **Plantillas.** Empieza una página con un clic, o guarda las tuyas. | ![Inicio con las páginas recientes como tarjetas](docs/capturas/inicio.png) **Inicio.** Tus páginas recientes y favoritas a mano. |
+| ![Guía y atajos con los atajos en tablas](docs/capturas/atajos.png) **Guía y atajos (F1).** Todos los atajos, por tema. | ![Acerca de Lunqio con el logotipo de Attribute Overload](docs/capturas/acerca-de.png) **Acerca de.** Versión, sitio de Attribute Overload, código y documentación. |
+| ![Uso de tokens de IA y límites del plan de Claude y Codex](docs/capturas/uso.png) **Uso.** Tokens, costo estimado y límites del plan de cada asistente. | ![La misma página en los cuatro temas](design/vistas/comparativa.png) **Temas.** Lunqio oscuro y claro, Claro y Oscuro. |
+
 ## Abrir la aplicación
 
 1. Descomprime **Lunqio-x64.zip** en una carpeta permanente.
 2. Abre **lunqio.exe**. Pulsa **Nueva página**, escribe el título y edita el primer párrafo. Usa los controles al pie de la página para añadir encabezados, párrafos, elementos de lista o tareas.
 3. El indicador **Guardado** muestra la revisión actual. **Opciones de página** permite crear subpáginas, mover la página, consultar el historial, guardar una copia en distintos formatos o enviar la página y sus descendientes a la papelera. El menú de cada bloque permite reordenarlo o eliminarlo.
 
-**Ctrl+N** crea una página, **Ctrl+F** activa la búsqueda y **Ctrl+S** guarda la edición. El guardado automático agrupa las pulsaciones tras una pausa de 750 ms. El editor comprueba los cambios externos al recuperar el foco y cada segundo mientras está activo. Si tu borrador entra en conflicto, puedes exportarlo a Markdown antes de descartar los cambios y recargar.
+**Ctrl+N** crea una página, **Ctrl+K** activa la búsqueda y **Ctrl+S** guarda la edición. **F1** abre **Ayuda → Guía y atajos**, con todos los atajos en tablas por tema. El guardado automático agrupa las pulsaciones tras una pausa de 750 ms. El editor comprueba los cambios externos al recuperar el foco y cada segundo mientras está activo. Si tu borrador entra en conflicto, puedes exportarlo a Markdown antes de descartar los cambios y recargar.
 
 ## Barra lateral, archivos y fotos
 
@@ -257,6 +272,23 @@ En Claro y Oscuro los símbolos se dibujan en un solo color. En los temas de Lun
 
 Para cambiar un color o una medida, edita `qml/Theme.qml`. Los nombres siguen `tokens.json`; `onAccent` se llama `accentInk`, porque QML reserva los nombres que empiezan por «on». Los símbolos se toman de `assets/glyphs`, una copia de `design/identidad/iconografia/svg`. Para añadir uno, copia su SVG ahí y úsalo por su nombre en `Glyph`. La variable de entorno `LUNQIO_THEME` (`dark` y `light` para Lunqio, `white` y `black` para Claro y Oscuro, o `system`) impone un tema sin guardarlo, lo que resulta útil para revisar pantallas.
 
+## Documentación
+
+La documentación del código está en **[robertocharretonkaplun.github.io/lunqio-](https://robertocharretonkaplun.github.io/lunqio-/)**: este README como portada, la [arquitectura](docs/ARQUITECTURA.md) y las clases y funciones de `src/` con sus diagramas. La genera [Doxygen](https://www.doxygen.nl) con `docs/Doxyfile` y la publica GitHub Actions (`.github/workflows/docs.yml`) en GitHub Pages cada vez que cambian `src/`, `docs/`, el README o las imágenes en `main`. También se puede lanzar a mano desde la pestaña **Actions**.
+
+Para activarla una sola vez en GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**. En un repositorio privado, GitHub Pages requiere un plan que lo permita.
+
+Para generarla en tu equipo (Doxygen 1.9.5 o posterior; Graphviz es opcional, para los diagramas), desde la raíz:
+
+```powershell
+doxygen docs/Doxyfile
+start build-docs\html\index.html
+```
+
+Los comentarios `///` de los encabezados (`src/**/*.h`) son los que aparecen en la documentación. La interfaz QML no la lee Doxygen; está descrita en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+
+Las capturas de `docs/capturas` salen de las pruebas de la interfaz. Para rehacerlas, ejecuta las pruebas en una ventana real con `LUNQIO_PREVIEW_DIR` y copia las elegidas con `python packaging/capturas.py` (el script explica los pasos).
+
 ## Compilar y probar
 
 El entorno de referencia utiliza Windows x64, C++17, Qt 6.8.3 para MSVC 2022 x64 (Base, Declarative y SVG), Qt SQL con QSQLITE, Visual Studio con herramientas C++, CMake 3.22 o posterior y Ninja. Las pruebas requieren Python 3.11 o posterior y Qt Test. El paquete compilado incluye el runtime de Visual C++. El inventario del SDK identifica SQLite 3.49.1. [Licencias de Qt](https://doc.qt.io/qt-6.8/licensing.html)
@@ -296,3 +328,9 @@ El servidor implementa directamente el subconjunto JSON-RPC de MCP por stdio. Ne
 Las consultas admiten `limit` entre 1 y 50 y devuelven `next_cursor` para continuar, válido mientras la colección permanece estable. Las modificaciones a páginas existentes requieren `expected_revision`. Todas las escrituras aceptan `operation_key` para reintentos idénticos. Los errores de herramienta incluyen `code` y `message`. Los bloques utilizan `heading`, `paragraph`, `list`, `task` e `image`. Las fotos guardan una referencia al recurso local, el pie y `width_percent`. MCP recibe estos metadatos. Se permiten 512 bloques y 1 MiB de contenido JSON por página. Los datos de imagen se almacenan por separado dentro de SQLite.
 
 El esquema de fotos utiliza `PRAGMA user_version=2`. La primera apertura en modo escritura de una biblioteca v1 guarda una copia `*.v1-*.sqlite3` en la misma carpeta antes de añadir la tabla de imágenes. Cada proceso usa una conexión propia con claves foráneas, WAL y espera de escritura de 2,5 segundos. La escritura de contenido, la revisión, el historial y la clave de reintento se confirman en la misma transacción. La secuencia de revisiones sirve de contador persistente de cambios.
+
+## Créditos
+
+[![Attribute Overload](assets/brand/ao-lockup-badge.png)](https://www.attributeoverload.com)
+
+Lunqio es una aplicación creada por **[Attribute Overload](https://www.attributeoverload.com)**. El código está en [github.com/robertocharretonkaplun/lunqio-](https://github.com/robertocharretonkaplun/lunqio-). En la aplicación, **Ayuda → Acerca de Lunqio** muestra la versión y lleva al sitio, al código y a la documentación. El logotipo está en `assets/brand`; `python packaging/brand.py assets/brand/AO_Lockup_Compact_ColorAndWhite.png assets/brand` rehace sus versiones para los temas claros y oscuros.
