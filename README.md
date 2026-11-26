@@ -30,7 +30,7 @@
   <tr>
     <td width="33%" valign="top"><b>Escribe sin fricción</b><br>Bloques, «/» para insertar, Markdown al escribir, enlaces entre páginas, plantillas y arrastrar para ordenar.</td>
     <td width="33%" valign="top"><b>Maqueta como en Word</b><br>Diseño de página con hojas Carta o A4, márgenes y un PDF del mismo tamaño. Modo lectura para revisar sin cambiar nada.</td>
-    <td width="33%" valign="top"><b>IA cuando la pides</b><br>Crea bloques, mejora un párrafo o pregunta sobre tus notas con Claude o Codex. Nada entra en la página sin tu visto bueno.</td>
+    <td width="33%" valign="top"><b>IA cuando la pides</b><br>Resume una página, crea bloques, mejora un párrafo o pregunta sobre tus notas con Claude o Codex. Nada entra en la página sin tu visto bueno.</td>
   </tr>
   <tr>
     <td valign="top"><b>Tus notas son tuyas</b><br>Una biblioteca local con historial de revisiones, papelera y copias de seguridad. Funciona sin conexión.</td>

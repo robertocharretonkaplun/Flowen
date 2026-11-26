@@ -59,6 +59,7 @@ MenuBar {
         UiMenuItem { glyph: "photo"; text: "Insertar foto…"; enabled: bar.writable; onTriggered: bar.workspace.choosePhoto() }
         UiMenuItem { glyph: "sparkles"; text: "Crear con IA…    Ctrl+J"; enabled: bar.writable; onTriggered: bar.workspace.openComposer(-2) }
         UiMenuItem { glyph: "sparkles"; action: Action { text: "Editar con IA…"; shortcut: "Ctrl+Shift+I"; enabled: bar.workspace.canEditSelection; onTriggered: bar.workspace.openWriting() } }
+        UiMenuItem { glyph: "sparkles"; text: "IA de la página…    Ctrl+Shift+A"; enabled: bar.live; onTriggered: bar.workspace.assistOpen = true }
         UiMenuSeparator {}
         UiMenuItem { glyph: "plug"; action: Action { text: "Conectores"; shortcut: "Ctrl+,"; onTriggered: bar.workspace.openConnection() } }
     }

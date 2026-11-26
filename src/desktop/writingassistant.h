@@ -32,6 +32,9 @@ class WritingAssistant : public QObject {
     Q_PROPERTY(QString claudeAccount READ claudeAccount NOTIFY engineChanged)
     /// "Preguntar a Flowen": questions answered from the notes sent with them, this session only.
     Q_PROPERTY(QVariantList conversation READ conversation NOTIFY changed)
+    /// The ✦ of a page: what the assistant said about whole pages (summaries, key points…), newest last,
+    /// this session only. Each entry: page, label, request, answer, engine, at.
+    Q_PROPERTY(QVariantList insights READ insights NOTIFY changed)
 public:
     explicit WritingAssistant(const QString &db, QString executable = {}, const QString &claude = {});
     ~WritingAssistant() override;
@@ -58,6 +61,11 @@ public:
     Q_INVOKABLE void ask(QString question, QVariantList notes);
     Q_INVOKABLE void clearConversation();
     QVariantList conversation() const { return asked.toVariantList(); }
+    /// Works on a whole page ({id, title, text}) as `request` asks (summarize, key points, a question…)
+    /// and adds the answer to insights under `label`. It never changes the page.
+    Q_INVOKABLE void review(QVariantMap page, QString request, QString label);
+    Q_INVOKABLE void forgetInsight(int index);
+    QVariantList insights() const { return seen.toVariantList(); }
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void checkClaude();
     Q_INVOKABLE void signInClaude();
@@ -81,7 +89,7 @@ private:
     QElapsedTimer clock;
     QString cli, engineKey, account = "unknown", stage = "idle", kind = "edit", issue, hint, replacement;
     QJsonObject target;
-    QJsonArray written, asked;
+    QJsonArray written, asked, seen;
     QProcess *model = nullptr;
     QProcess *probe = nullptr;
     QTimer deadline;

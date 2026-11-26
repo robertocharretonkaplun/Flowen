@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(Flowen VERSION 0.5.0 LANGUAGES CXX)
+project(Flowen VERSION 0.5.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -26,7 +26,7 @@ qt_add_resources(flowen views PREFIX "/" FILES qml/Main.qml qml/qmldir qml/Theme
     qml/PlanLimitsView.qml qml/UsageButton.qml qml/SlashMenu.qml
     qml/EmojiPicker.qml qml/PageIcon.qml qml/PageHeader.qml qml/PageCover.qml qml/PageMenu.qml
     qml/SidebarSection.qml qml/RecentCards.qml qml/EngineMark.qml qml/TemplateStrip.qml qml/AskPage.qml qml/UiMenu.qml qml/UiMenuItem.qml qml/UiMenuSeparator.qml qml/PageOutline.qml qml/Sidebar.qml
-    qml/ViewSwitch.qml qml/PaperSheets.qml qml/PaperMenu.qml qml/HelpDialog.qml qml/AboutDialog.qml
+    qml/ViewSwitch.qml qml/PaperSheets.qml qml/PaperMenu.qml qml/HelpDialog.qml qml/AboutDialog.qml qml/PageAssist.qml
     assets/brand/ao-lockup-white.png assets/brand/ao-lockup-ink.png
     assets/flowen-64.png assets/flowen-256.png)
 # Windows file details (product, version, publisher) and the icon of both programs; the installer

@@ -330,6 +330,42 @@ ApplicationWindow {
     }
     // Scrolls so the block at `index` and what is just above it show; again while photos finish loading.
     function reveal(index) { revealTimer.index = index; revealTimer.left = 4; revealTimer.restart() }
+    // The ✦ of the top bar: AI over the whole open page (PageAssist). It reads the page as plain text and
+    // its answers stay in the panel; «Insertar al final» is the only way they reach the page.
+    property bool assistOpen: false
+    function pageText() {
+        const lines = [], marks = {heading: "#", list: "-", numbered: "1.", quote: ">", toggle: "▸", callout: "💡"}
+        for (const b of draft()) {
+            if (b.type === "divider") { lines.push("---"); continue }
+            if (b.type === "image") { if (b.text) lines.push("[Foto: " + b.text + "]"); continue }
+            if (!b.text.trim()) continue
+            const pad = "  ".repeat(b.indent || 0)
+            const mark = b.type === "task" ? (b.checked ? "[x]" : "[ ]") : b.type === "heading" ? "#".repeat(b.level || 1) : marks[b.type] || ""
+            lines.push(pad + (mark ? mark + " " : "") + b.text)
+        }
+        return lines.join("\n")
+    }
+    function reviewPage(label, request) {
+        if (!currentId) return
+        flush()
+        assistant.review({id: currentId, title: titleInput.text, text: pageText()},request,label)
+    }
+    // An answer at the end of the page: a small heading with what was asked, then its lines.
+    function insertInsight(result) {
+        if (!currentId || locked || !result) return false
+        rememberStructure()
+        const first = blocks.count
+        blocks.append(rowOf({type: "heading", level: 3, text: result.label}))
+        for (const line of result.answer.split("\n")) {
+            if (!line.trim()) continue
+            const bullet = /^\s*[-•]\s+/.test(line)
+            blocks.append(rowOf({type: bullet ? "list" : "paragraph", text: line.replace(/^\s*[-•]\s+/,"").trim()}))
+        }
+        markDirty(); commentTick++
+        reveal(first)
+        toast("Se añadió «" + result.label + "» al final de la página.")
+        return true
+    }
     Timer {
         id: revealTimer
         property int index: -1
@@ -1069,6 +1105,12 @@ ApplicationWindow {
                     mode: win.viewMode
                     onChosen: function(mode) { win.setViewMode(mode) }
                 }
+                // ✦ AI over the whole page (PageAssist), next to the star, as Gemini in Google Docs.
+                UiButton {
+                    objectName: "assistButton"; visible: !!win.currentId && !win.deleted; quiet: !win.assistOpen
+                    symbol: "sparkles"; hint: win.assistOpen ? "Cerrar la IA de la página" : "IA de la página: resumir, puntos clave, preguntas… (Ctrl+Shift+A)"
+                    onClicked: win.assistOpen = !win.assistOpen
+                }
                 UiButton {
                     objectName: "favoriteButton"; visible: !!win.currentId && !win.deleted; quiet: true
                     symbol: win.isFavorite ? "starFilled" : "star"; symbolColor: win.isFavorite ? Theme.favorite : Theme.secondary
@@ -1340,6 +1382,7 @@ ApplicationWindow {
     }
     Shortcut { sequence: "Escape"; enabled: bubble.shown && (!bubble.menuOpen || bubble.paletteOpen); onActivated: bubble.paletteOpen ? bubble.closePalette() : bubble.dismiss() }
     Shortcut { sequence: "Ctrl+J"; enabled: !win.settingsShown && !!win.currentId && !win.locked; onActivated: win.openComposer(-2) }
+    Shortcut { sequence: "Ctrl+Shift+A"; enabled: !win.settingsShown && !!win.currentId && !win.deleted; onActivated: win.assistOpen = !win.assistOpen }
     Shortcut {
         sequence: "Escape"; enabled: composer.visible && !bubble.shown
         onActivated: composer.busy ? win.assistant.cancel() : composer.close()
@@ -1505,10 +1548,21 @@ ApplicationWindow {
         readonly property real areaX: pageScroll.parent.x+pageScroll.x
         readonly property real areaY: pageScroll.parent.y+pageScroll.y
         // With comment cards on the right, it moves to the left edge so it never covers them.
-        x: pageScroll.withRail ? areaX+14 : areaX+pageScroll.width-width-14; y: areaY+18; z: 25
+        x: pageScroll.withRail || pageAssist.visible ? areaX+14 : areaX+pageScroll.width-width-14; y: areaY+18; z: 25
         visible: !win.settingsShown && !!win.currentId && pageScroll.visible && win.headings.length >= 2
         headings: win.headings
         onChosen: function(index) { win.goToBlock(index) }
+    }
+    // The ✦ panel, at the top right of the page area (above the comment cards), as Gemini in Google Docs.
+    PageAssist {
+        id: pageAssist; objectName: "pageAssist"
+        readonly property real areaX: pageScroll.parent.x+pageScroll.x
+        readonly property real areaY: pageScroll.parent.y+pageScroll.y
+        x: areaX+pageScroll.width-width-16; y: areaY+12; z: 27
+        height: Math.min(implicitHeight,pageScroll.height-24)
+        visible: win.assistOpen && !win.settingsShown && !!win.currentId && pageScroll.visible
+        assistant: win.assistant; workspace: win
+        onCloseRequested: win.assistOpen = false
     }
     Dialog {
         id: renameDialog; objectName: "renameDialog"; title: "Cambiar nombre"; modal: true; anchors.centerIn: parent; width: 380

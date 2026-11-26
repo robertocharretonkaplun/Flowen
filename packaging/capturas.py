@@ -27,6 +27,7 @@ CHOSEN = {
     "guia-atajos": "atajos",
     "acerca-de": "acerca-de",
     "uso": "uso",
+    "ia-pagina": "ia-pagina",
     # The same page in the other three themes, for the themes slide of packaging/recorrido.py.
     "editor-flowen-claro": "tema-flowen-claro",
     "editor-claro": "tema-claro",

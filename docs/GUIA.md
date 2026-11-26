@@ -120,6 +120,14 @@ Pulsa **Preguntar a Flowen** en la barra lateral, la pestaña **Preguntar** o **
 - **Copiar** copia la respuesta y **Guardar como página** la convierte en una página con enlaces a sus fuentes.
 - La conversación dura hasta que cierras Flowen; **Nueva conversación** la vacía. El asistente no tiene herramientas: no puede cambiar tus páginas. Los tokens aparecen en **Uso** como «Preguntar».
 
+## IA de la página
+
+El botón **✦**, junto a la estrella de la barra superior (o **Ctrl+Shift+A**), abre un panel a la derecha que trabaja con toda la página abierta, como la IA de Google Docs. Tiene acciones rápidas (**Resumir**, **Puntos clave**, **Pendientes**, **Sugerencias** y **Preguntas**) y una caja para pedir cualquier otra cosa sobre la página, por ejemplo «¿Qué datos necesitan una fuente?».
+
+![IA de la página: el panel con el resumen de la página abierta](capturas/ia-pagina.png)
+
+Las respuestas aparecen en el panel, la más reciente arriba, y **no cambian la página**. Cada una se puede **Copiar**, quitar o, si la quieres en el documento, **Insertar al final**: se añade como un encabezado con lo que pediste y sus líneas, y se deshace con **Ctrl+Z**. En Modo lectura no se inserta nada. Las respuestas de cada página se guardan mientras Flowen está abierto. Elige Claude o Codex en el mismo panel; el uso aparece en **Uso** como «IA de la página».
+
 ## Icono y portada
 
 Pasa el puntero sobre el título y pulsa **Añadir icono** para elegir un emoji, o **Añadir portada** para poner un degradado. Al pasar el puntero por la portada, **Cambiar portada** ofrece ocho degradados o **Subir una foto…** (PNG o JPEG); **Quitar** la elimina. Pulsa el icono para cambiarlo o quitarlo. El icono aparece también en la barra lateral, en la cabecera y en el título de las exportaciones. Ambos se guardan con la página y su historial, y MCP puede cambiarlos con `update_page` (`icon` y `cover`).

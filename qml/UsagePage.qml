@@ -194,7 +194,7 @@ ScrollView {
                     }
                     Label {
                         Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.secondary; font.pixelSize: 13
-                        text: (({create: "Crear con IA", ask: "Preguntar a Flowen"})[page.last.kind] || "Editar con IA") + ", " + page.when(page.last.at)
+                        text: (({create: "Crear con IA", ask: "Preguntar a Flowen", review: "IA de la página"})[page.last.kind] || "Editar con IA") + ", " + page.when(page.last.at)
                               + (page.last.ms ? " · " + (page.last.ms/1000).toLocaleString(Qt.locale(),'f',1) + " s" : "")
                               + (page.last.ok === false ? " · sin resultado" : "")
                     }
@@ -357,7 +357,7 @@ ScrollView {
                                 Rectangle { width: 8; height: 8; radius: 4; color: page.engineColor[entry.modelData.engine] || Theme.muted }
                                 Cell { text: entry.modelData.engine === "claude" ? "Claude" : "Codex" }
                             }
-                            Cell { text: (({create: "Crear", ask: "Preguntar"})[entry.modelData.kind] || "Editar") + (entry.modelData.ok === false ? " · sin resultado" : "") }
+                            Cell { text: (({create: "Crear", ask: "Preguntar", review: "Página"})[entry.modelData.kind] || "Editar") + (entry.modelData.ok === false ? " · sin resultado" : "") }
                             Cell { number: true; text: page.tokens((entry.modelData.input || 0)+(entry.modelData.cacheRead || 0)+(entry.modelData.cacheWrite || 0)) }
                             Cell { number: true; text: page.tokens(entry.modelData.output) }
                             Cell { number: true; text: page.tokens(entry.modelData.total); color: Theme.text; font.weight: Font.DemiBold }

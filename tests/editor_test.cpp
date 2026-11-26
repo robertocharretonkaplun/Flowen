@@ -2048,6 +2048,122 @@ private slots:
         QCOMPARE(paused.state(),QString("outdated"));
         QVERIFY(readJson(config)["mcpServers"].toObject().contains("lunqio"));
     }
+    void pageAssistFlow() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        notes::Store store(temp.filePath("ia-pagina.sqlite3"));
+        const QString page = store.call("create_page",{{"title",QString::fromUtf8("Hablemos del greyboxing")},{"blocks",QJsonArray{
+            Obj{{"type","paragraph"},{"text",QString::fromUtf8("El blockout es una etapa temprana del diseño de niveles.")}},
+            Obj{{"type","heading"},{"text","Por qué importa"},{"level",2}},
+            Obj{{"type","list"},{"text","Probar la escala y el flujo del jugador"}},
+            Obj{{"type","task"},{"text","Grabar el video"},{"checked",false}}}}},"manual")["id"].toString();
+        const QString other = store.call("create_page",{{"title","Otra"},{"blocks",QJsonArray{
+            Obj{{"type","paragraph"},{"text","Nada que ver."}}}}},"manual")["id"].toString();
+        const QString fake = QCoreApplication::applicationFilePath();
+        Editor editor(store,fake,fake);
+        auto *assistant = editor.assistant();
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("backend",&editor);
+        engine.load(QUrl::fromLocalFile(QStringLiteral(UI_SOURCE_DIR "/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1400,900);
+        window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(window));
+        auto js = [&](const QString &code) {
+            QQmlExpression e(qmlContext(window),window,code);
+            auto value = e.evaluate();
+            if (e.hasError()) QTest::qFail(qPrintable(e.error().toString()),__FILE__,__LINE__);
+            return value;
+        };
+        auto capture = [&](const QString &name) {
+            const auto dir = qEnvironmentVariable("FLOWEN_PREVIEW_DIR");
+            if (dir.isEmpty()) return;
+            QTest::mouseMove(window,QPoint(window->width()/2,window->height()-8));
+            QTest::qWait(300);
+            QVERIFY(window->grabWindow().save(QDir(dir).filePath(name+".png")));
+        };
+        auto find = [&](const QString &name) {
+            QQuickItem *item = nullptr;
+            [&] { QTRY_VERIFY((item = visibleItem(window->contentItem(),name)) && item->isVisible() && item->width() > 0); }();
+            return item;
+        };
+        auto centre = [](QQuickItem *it) { return it->mapToScene(it->boundingRect().center()).toPoint(); };
+        assistant->setEngine("claude");
+        assistant->checkClaude();          // Claude may already be the saved choice from an earlier test.
+        QTRY_COMPARE(assistant->claudeAccount(),QString("in"));
+        js(QString("selectPage('%1')").arg(page));
+        QTRY_COMPARE(js("currentId").toString(),page);
+        const int revision = js("revision").toInt();
+
+        // The ✦ next to the star opens the panel at the top right of the page.
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("assistButton")));
+        QTRY_VERIFY(js("assistOpen").toBool());
+        auto *panel = find("pageAssist");
+        auto *star = find("favoriteButton");
+        QVERIFY(panel->mapToScene(QPointF(panel->width(),0)).x() > star->mapToScene(QPointF(0,0)).x());
+        // The page goes as plain text: headings, lists and tasks keep their marks.
+        QCOMPARE(js("pageText()").toString(),QString::fromUtf8(
+            "El blockout es una etapa temprana del diseño de niveles.\n## Por qué importa\n- Probar la escala y el flujo del jugador\n[ ] Grabar el video"));
+        // Resumir: the answer stays in the panel and the page does not change.
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("assist-summary")));
+        QTRY_COMPARE_WITH_TIMEOUT(assistant->insights().size(),1,15000);
+        QVariantMap insight = assistant->insights().first().toMap();
+        QCOMPARE(insight["page"].toString(),page);
+        QCOMPARE(insight["label"].toString(),QString("Resumir"));
+        QVERIFY(insight["answer"].toString().startsWith(QString::fromUtf8("Resumen de «Hablemos del greyboxing»")));
+        QVERIFY(insight["answer"].toString().contains("Grabar el video"));
+        QCOMPARE(js("pageAssist.results.length").toInt(),1);
+        QCOMPARE(js("revision").toInt(),revision);
+        QVERIFY(!js("dirty").toBool());
+        QCOMPARE(js("assistant.phase").toString(),QString("idle"));
+        capture("ia-pagina");
+        // A request of your own, newest first.
+        auto *field = find("pageAssistField");
+        field->forceActiveFocus();
+        for (QChar c : QString("Que falta citar?")) QTest::keyClick(window,c.toLatin1());
+        QTest::keyClick(window,Qt::Key_Return);
+        QTRY_COMPARE_WITH_TIMEOUT(assistant->insights().size(),2,15000);
+        QCOMPARE(js("pageAssist.results[0].label").toString(),QString("Que falta citar?"));
+        QCOMPARE(js("pageAssist.results[0].answer").toString(),QString::fromUtf8("Pediste: Que falta citar?"));
+        QCOMPARE(js("revision").toInt(),revision);
+        // «Insertar al final» is the only way an answer reaches the page, as one undoable step.
+        const int count = js("blocks.count").toInt();
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("pageInsightInsert-1")));
+        QTRY_COMPARE(js("blocks.count").toInt(),count+3);
+        QCOMPARE(js("draft()[" + QString::number(count) + "].type").toString(),QString("heading"));
+        QCOMPARE(js("draft()[" + QString::number(count) + "].text").toString(),QString("Resumir"));
+        QCOMPARE(js("draft()[" + QString::number(count+2) + "].type").toString(),QString("list"));
+        QVERIFY(js("flush()").toBool());
+        QVERIFY(js("undoStructure()").toBool());
+        QTRY_COMPARE(js("blocks.count").toInt(),count);
+        QVERIFY(js("flush()").toBool());
+        // In Modo lectura it still answers, but nothing can be inserted.
+        js("setViewMode('read')");
+        QTRY_VERIFY(!find("pageInsightInsert-0")->isEnabled());
+        js("setViewMode('edit')");
+        // A long answer scrolls inside the panel: nothing is drawn below its edge.
+        js("reviewPage('Largo','Resumen LARGO')");
+        QTRY_COMPARE_WITH_TIMEOUT(assistant->insights().size(),3,15000);
+        auto *scroll = find("pageAssistScroll");
+        QTRY_VERIFY(scroll->property("contentHeight").toDouble() > scroll->height()+1);
+        QVERIFY(scroll->mapToItem(panel,QPointF(0,scroll->height())).y() <= panel->height());
+        QVERIFY(panel->height() <= js("pageScroll.height").toDouble());
+        capture("ia-pagina-larga");
+        // Another page has its own answers; Ctrl+Shift+A and ✕ close the panel.
+        js(QString("selectPage('%1')").arg(other));
+        QTRY_COMPARE(js("pageAssist.results.length").toInt(),0);
+        QVERIFY(js("assistOpen").toBool());
+        QTest::keyClick(window,Qt::Key_A,Qt::ControlModifier|Qt::ShiftModifier);
+        QTRY_VERIFY(!js("assistOpen").toBool());
+        QTest::keyClick(window,Qt::Key_A,Qt::ControlModifier|Qt::ShiftModifier);
+        QTRY_VERIFY(js("assistOpen").toBool());
+        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("pageAssistClose")));
+        QTRY_VERIFY(!js("assistOpen").toBool());
+        js("setViewMode('edit')");
+        QVERIFY(window->close());
+    }
     void helpAboutFlow() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
@@ -2090,7 +2206,7 @@ private slots:
         QTest::keyClick(window,Qt::Key_F1);
         QTRY_VERIFY(js("helpDialog.opened").toBool());
         QCOMPARE(js("helpDialog.sections.length").toInt(),5);
-        QCOMPARE(js("helpDialog.sections.reduce((n, s) => n + s.rows.length, 0)").toInt(),28);
+        QCOMPARE(js("helpDialog.sections.reduce((n, s) => n + s.rows.length, 0)").toInt(),29);
         QVERIFY(js("helpDialog.sections.some(s => s.rows.some(r => r[0] === 'Diseño de página' && r[1][0] === 'Ctrl+Shift+D'))").toBool());
         capture("guia-atajos");
         QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(find("helpClose")));
@@ -2147,7 +2263,18 @@ int main(int argc,char **argv) {
             return 1;
         }
         Obj answer;
-        if (schema.contains("\"answer\"")) {
+        if (schema.contains("\"insight\"")) {
+            // The ✦ of a page: a summary that shows the page arrived as text, or the request echoed back.
+            const auto data = QJsonDocument::fromJson(prompt.mid(prompt.indexOf('\n')+1)).object();
+            const QString request = data["request"].toString(), text = data["page"].toObject()["text"].toString();
+            const QString task = text.contains("[ ] Grabar el video") ? "\n- Pendiente: Grabar el video" : "";
+            QString lines;
+            for (int i = 1; i <= 80; ++i) lines += QString("- Punto %1: el blockout se prueba antes del arte final.\n").arg(i);
+            if (request.contains("LARGO")) answer = Obj{{"insight",lines.trimmed()}};
+            else answer = Obj{{"insight",request.startsWith("Resume")
+                ? QString::fromUtf8("Resumen de «")+data["page"].toObject()["title"].toString()+QString::fromUtf8("»: una etapa temprana del diseño.")+task
+                : "Pediste: "+request}};
+        } else if (schema.contains("\"answer\"")) {
             // "Preguntar a Flowen": answer from the note that has the task, and name a note it was not given too.
             const auto data = QJsonDocument::fromJson(prompt.mid(prompt.indexOf('\n')+1)).object();
             QJsonArray used{QString("00000000-0000-0000-0000-000000000000")};

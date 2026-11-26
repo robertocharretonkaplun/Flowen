@@ -21,6 +21,7 @@ Dialog {
             ["Duplicar el bloque", ["Ctrl+D"]], ["Deshacer o rehacer", ["Ctrl+Z","Ctrl+Y"]]]},
         {title: "Inteligencia artificial", note: "", glyph: "sparkles", rows: [
             ["Crear con IA (Espacio en un párrafo vacío)", ["Ctrl+J","Espacio"]], ["Editar la selección con IA", ["Ctrl+Shift+I"]],
+            ["IA de la página: resumir, puntos clave, preguntas", ["Ctrl+Shift+A"]],
             ["Preguntar a Flowen sobre tus notas", ["Ctrl+Shift+P"]]]},
         {title: "Páginas y archivos", note: "", glyph: "pages", rows: [
             ["Nueva página", ["Ctrl+N"]], ["Buscar páginas (sin texto seleccionado)", ["Ctrl+K"]], ["Guardar", ["Ctrl+S"]],
